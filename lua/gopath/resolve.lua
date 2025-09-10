@@ -18,7 +18,12 @@ function M.resolve_at_cursor(opts)
   local cfg = C.get()
   local ft = vim.bo.filetype or "text"
 
-  -- decide provider order
+	do
+    local help = require("gopath.resolvers.common.help").resolve()
+    if help then return help, nil end
+  end
+
+	-- decide provider order
   local order
   if cfg.mode == "lsp" then
     order = { "lsp" }
