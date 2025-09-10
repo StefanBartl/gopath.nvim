@@ -29,12 +29,14 @@ local function regex_chain_at_cursor()
 end
 
 local function ts_chain_at_cursor()
-  local node = TS.node_at_cursor()
+  local node = TS.node_at_cursor() ---@type TSNode|nil
   if not node then return nil end
+
   -- Best-effort: climb up through field/index/method nodes to form a chain string.
-  local leaf = node
+  local leaf = node ---@type TSNode
   local pieces = {}
 
+  ---@param n TSNode|nil
   local function text_of(n)
     if not n then return nil end
     local sr, sc, _, ec = n:range()
@@ -43,7 +45,7 @@ local function ts_chain_at_cursor()
   end
 
   -- Walk up while parent looks like a field/index/method expression.
-  local cur = leaf
+  local cur = leaf ---@type TSNode
   while cur do
     local t = cur:type()
     if t == "identifier" or t == "property_identifier" or t == "string" then
@@ -51,7 +53,7 @@ local function ts_chain_at_cursor()
       txt = txt:gsub('^["\']', ""):gsub('["\']$', "")
       pieces[#pieces + 1] = txt
     end
-    local p = cur:parent()
+    local p = cur:parent() ---@type TSNode|nil
     if not p then break end
     local pt = p:type()
     if pt == "field_expression" or pt == "index_expression" or pt == "method_index_expression" or pt == "method" then
@@ -63,7 +65,6 @@ local function ts_chain_at_cursor()
 
   if #pieces == 0 then return nil end
 
-  -- pieces are bottom-up; rebuild order → base.first.second
   local rev = {}
   for i = #pieces, 1, -1 do rev[#rev + 1] = pieces[i] end
   local tok = table.concat(rev, ".")
