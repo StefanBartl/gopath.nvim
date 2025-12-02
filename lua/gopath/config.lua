@@ -1,5 +1,5 @@
 ---@module 'gopath.config'
----@brief User options merge + sane defaults. If `languages[ft].resolvers` is nil, we later expand to "all resolvers" for that language in the registry.
+---@brief User options merge + sane defaults.
 
 local M = {}
 
@@ -9,7 +9,15 @@ local defaults = {
   order = { "lsp", "treesitter", "builtin" },
   lsp_timeout_ms = 200,
   languages = {
-    lua = { enable = true, resolvers = nil }, -- nil means "all resolvers"
+    lua = { enable = true, resolvers = nil },
+  },
+  alternate = {
+    enable = true,
+    similarity_threshold = 75, -- Percentage (0-100) for fuzzy matching
+  },
+  external = {
+    enable = true,
+    extensions = nil, -- nil = use defaults, or provide custom list
   },
 }
 
@@ -41,4 +49,3 @@ function M.get()
 end
 
 return M
-
