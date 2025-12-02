@@ -17,6 +17,7 @@
 ---@field chain string[]|nil
 ---@field source string
 ---@field confidence number
+---@field exists boolean
 
 ---@class GopathLanguageCfg
 ---@field enable boolean
@@ -27,7 +28,7 @@
 ---@field order string[]
 ---@field lsp_timeout_ms integer
 ---@field languages table<string, GopathLanguageCfg>
-
+---@field alternate table --FIX
 
 ---@class _AliasEntry
 ---@field kind '"require"'|'"chain"'|'"id"'
