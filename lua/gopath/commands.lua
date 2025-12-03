@@ -1,5 +1,5 @@
 ---@module 'gopath.commands'
----@brief User-facing commands: resolve & open / copy / debug.
+--- User-facing commands: resolve & open / copy / debug.
 
 local RESOLVE = require("gopath.resolve")
 local CONFIG = require("gopath.config")
@@ -7,6 +7,7 @@ local CONFIG = require("gopath.config")
 local OP = {
   edit   = require("gopath.open.edit"),
   window = require("gopath.open.window"),
+  vsplit = require("gopath.open.vsplit"), -- NEW
   tab    = require("gopath.open.tab"),
   help   = require("gopath.open.help"),
 }
@@ -17,12 +18,13 @@ local function open_for_kind(res, kind)
   if res.kind == "help" then
     if kind == "tab" then
       return OP.help.open(res, { target = "tab" })
-    elseif kind == "window" then
+    elseif kind == "window" or kind == "vsplit" then
       return OP.help.open(res, { target = "window" })
     else
       return OP.help.open(res, { target = "edit" })
     end
   end
+
   return OP[kind or "edit"].open(res)
 end
 
@@ -34,7 +36,7 @@ function M.resolve_and_open(kind)
     return
   end
 
-  -- NEW: Check if file exists and try alternate resolution if needed
+  -- Check if file exists and try alternate resolution if needed
   local cfg = CONFIG.get()
 
   if res.exists == false and cfg.alternate and cfg.alternate.enable then
@@ -44,12 +46,8 @@ function M.resolve_and_open(kind)
     })
 
     if handled then
-      -- Alternate opened the file, we're done
-      return
+      return -- Alternate opened the file
     end
-
-    -- Alternate didn't find anything, continue with original result
-    -- (external opener might still handle it)
   end
 
   open_for_kind(res, kind or "edit")
@@ -75,7 +73,7 @@ function M.resolve_and_copy()
   end
 
   vim.fn.setreg("+", ("%s:%d:%d"):format(left, l, c))
-  vim.notify("[gopath] copied")
+  vim.notify("[gopath] copied to clipboard", vim.log.levels.INFO)
 end
 
 function M.debug_under_cursor()
@@ -92,14 +90,18 @@ function M.debug_under_cursor()
 
   local res, err = RESOLVE.resolve_at_cursor({})
 
-  print("gopath DEBUG:")
-  print("  chain:", chain and (chain.base .. " -> " .. table.concat(chain.chain, ".")) or "nil")
-  print("  binding_map_size:", bind_sz)
+  print("=== Gopath Debug ===")
+  print("  Filetype:", vim.bo.filetype)
+  print("  Chain:", chain and (chain.base .. " -> " .. table.concat(chain.chain, ".")) or "nil")
+  print("  Binding map size:", bind_sz)
+
   if res then
-    print("  result:", vim.inspect(res))
+    print("  Result:", vim.inspect(res))
   else
-    print("  result: nil, err: " .. (err or "unknown"))
+    print("  Result: nil")
+    print("  Error:", err or "unknown")
   end
+  print("====================")
 end
 
 return M

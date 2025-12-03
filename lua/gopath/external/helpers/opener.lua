@@ -1,5 +1,5 @@
 ---@module 'gopath.external.helpers.opener'
----@description Cross-platform system opener for external files.
+--- Cross-platform system opener for external files.
 
 local M = {}
 
@@ -23,13 +23,24 @@ end
 local function build_opener_command(path, os_type)
   if os_type == "macos" then
     return { "open", path }
+
   elseif os_type == "linux" then
     return { "xdg-open", path }
+
   elseif os_type == "windows" then
-    -- Windows: use 'start' command via cmd.exe
-    -- The empty string "" after start is the window title (prevents issues with paths containing spaces)
-    return { "cmd.exe", "/c", "start", "", path }
+    -- Windows: Normalize path separators
+    local normalized_path = path:gsub("/", "\\")
+
+    -- Use PowerShell's Start-Process for better default app handling
+    -- This respects file associations properly
+    return {
+      "powershell.exe",
+      "-NoProfile",
+      "-Command",
+      string.format('Start-Process "%s"', normalized_path),
+    }
   end
+
   return nil
 end
 
@@ -44,7 +55,7 @@ function M.open_with_system(path)
   local os_type = detect_os()
   if os_type == "unknown" then
     vim.notify(
-      "[gopath.external] Unsupported operating system for external opener",
+      "[gopath] Unsupported operating system for external opener",
       vim.log.levels.ERROR
     )
     return false
@@ -53,38 +64,43 @@ function M.open_with_system(path)
   local cmd = build_opener_command(path, os_type)
   if not cmd then
     vim.notify(
-      "[gopath.external] Failed to build opener command",
+      "[gopath] Failed to build opener command",
       vim.log.levels.ERROR
     )
     return false
   end
 
   -- Launch opener in background (detached)
-  local ok = pcall(vim.fn.jobstart, cmd, {
+  local job_id = vim.fn.jobstart(cmd, {
     detach = true,
-    on_exit = function(_, exit_code)
-      if exit_code ~= 0 then
-        vim.notify(
-          string.format("[gopath.external] Opener exited with code %d", exit_code),
-          vim.log.levels.WARN
-        )
+    on_stderr = function(_, data)
+      if data and #data > 0 then
+        local err_msg = table.concat(data, "\n"):gsub("^%s+", ""):gsub("%s+$", "")
+        if err_msg ~= "" then
+          vim.schedule(function()
+            vim.notify(
+              string.format("[gopath] External opener error: %s", err_msg),
+              vim.log.levels.WARN
+            )
+          end)
+        end
       end
     end,
   })
 
-  if ok then
+  if job_id > 0 then
     vim.notify(
-      string.format("[gopath] Opened externally: %s", vim.fn.fnamemodify(path, ":t")),
+      string.format("[gopath] Opening externally: %s", vim.fn.fnamemodify(path, ":t")),
       vim.log.levels.INFO
     )
+    return true
   else
     vim.notify(
-      "[gopath.external] Failed to start external opener",
+      "[gopath] Failed to start external opener",
       vim.log.levels.ERROR
     )
+    return false
   end
-
-  return ok
 end
 
 return M
