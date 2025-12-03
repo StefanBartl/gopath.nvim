@@ -1,5 +1,5 @@
 ---@module 'gopath.open.help'
----@brief Open a :help subject in current window / split / tab, trying fallbacks.
+--- Open a :help subject in current window / split / tab, trying fallbacks.
 
 local M = {}
 
@@ -7,7 +7,7 @@ local function try_help(subject, target)
   local cmd = (target == "tab" and ("tab help %s"))
            or (target == "window" and ("belowright help %s"))
            or ("help %s")
-  return pcall(vim.cmd, (cmd):format(vim.fn.escape(subject, " ")))
+  return pcall(function() return vim.cmd((cmd):format(vim.fn.escape(subject, " "))) end)
 end
 
 ---@param res { kind:string, subject:string|nil, subjects:string[]|nil }
@@ -30,7 +30,7 @@ function M.open(res, opts)
     if ok then return end
   end
 
-  -- Als Fallback: versuche, die Klammern-Variante zu togglen
+  -- Fallback: Klammern-Variante togglen
   local extra = {}
   for _, s in ipairs(cands) do
     if s:sub(-2) == "()" then
@@ -46,16 +46,16 @@ function M.open(res, opts)
 
   -- Letzter Fallback: Hilfe-Index durchsuchen (ohne UI-Spam)
   local needle = cands[1] or "help"
-  pcall(vim.cmd, "silent! helpgrep " .. vim.fn.escape(needle, " "))
+  pcall(function() vim.cmd("silent! helpgrep " .. vim.fn.escape(needle, " ")) end)
   local qf = vim.fn.getqflist({ size = true })
   if qf and qf.size and qf.size > 0 then
     -- öffne erstes Match
-    pcall(vim.cmd, "cfirst")
+    pcall(function() vim.cmd("cfirst") end)
     return
   end
 
-  -- Gar nichts gefunden? Dezent auf die API-Übersicht fallen
-  pcall(vim.cmd, "help vim.api")
+  -- nichts gefunden? Dezent auf die API-Übersicht fallen AUDIT; ao lassen?
+  pcall(function() vim.cmd("help vim.api") end)
 end
 
 return M

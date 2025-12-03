@@ -1,5 +1,5 @@
 ---@module 'gopath.registry'
----@brief Registers feature resolvers per language and coordinates provider passes.
+--- Registers feature resolvers per language and coordinates provider passes.
 
 local C = require("gopath.config")
 
