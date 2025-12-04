@@ -29,12 +29,12 @@
 ---@field custom_resolvers table[]|nil Custom resolver modules
 
 ---@class GopathOptions
----@field mode "builtin"|"treesitter"|"lsp"|"hybrid" Default: "hybrid"
----@field order string[] Default: { "treesitter", "lsp", "builtin" }
----@field lsp_timeout_ms integer Default: 200
----@field languages table<string, GopathLanguageOptions> Language-specific configuration
----@field alternate GopathAlternateOptions Fuzzy alternate resolution
----@field external GopathExternalOptions External file opening
----@field mappings GopathKeymaps|false Keymaps (false = disable all)
----@field commands GopathCommands|false User commands (false = disable all)
+---@field mode? "builtin"|"treesitter"|"lsp"|"hybrid" Default: "hybrid"
+---@field order? string[] Default: { "treesitter", "lsp", "builtin" }
+---@field lsp_timeout_ms? integer Default: 200
+---@field languages? table<string, GopathLanguageOptions> Language-specific configuration
+---@field alternate? GopathAlternateOptions Fuzzy alternate resolution
+---@field external? GopathExternalOptions External file opening
+---@field mappings? GopathKeymaps|false Keymaps (false = disable all)
+---@field commands? GopathCommands|false User commands (false = disable all)
 

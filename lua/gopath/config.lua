@@ -5,8 +5,9 @@ local M = {}
 
 ---@type GopathOptions
 local defaults = {
+    _debug = true,
   mode = "hybrid",
-  order = { "treesitter", "lsp", "builtin" },
+  order = { "lsp", "treesitter", "builtin" },
   lsp_timeout_ms = 200,
 
   -- Language configuration
