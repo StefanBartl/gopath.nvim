@@ -88,15 +88,37 @@ function M.debug_under_cursor()
     for _ in pairs(map) do bind_sz = bind_sz + 1 end
   end)
 
+  -- Get <cfile> for comparison
+  local cfile = vim.fn.expand("<cfile>")
+
   local res, err = RESOLVE.resolve_at_cursor({})
 
   print("=== Gopath Debug ===")
   print("  Filetype:", vim.bo.filetype)
+  print("  <cfile>:", cfile)
   print("  Chain:", chain and (chain.base .. " -> " .. table.concat(chain.chain, ".")) or "nil")
   print("  Binding map size:", bind_sz)
 
   if res then
-    print("  Result:", vim.inspect(res))
+    print("  Result:")
+    print("    language:", res.language)
+    print("    kind:", res.kind)
+    print("    path:", res.path)
+    print("    source:", res.source)
+    print("    confidence:", res.confidence)
+    print("    exists:", tostring(res.exists))
+
+    if res.range then
+      print("    range:")
+      print("      line:", res.range.line)
+      print("      col:", res.range.col)
+    else
+      print("    range: nil")
+    end
+
+    if res.chain then
+      print("    chain:", table.concat(res.chain, "."))
+    end
   else
     print("  Result: nil")
     print("  Error:", err or "unknown")

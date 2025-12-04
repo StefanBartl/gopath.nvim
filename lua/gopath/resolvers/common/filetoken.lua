@@ -1,48 +1,109 @@
 ---@module 'gopath.resolvers.common.filetoken'
----@brief Resolve <cfile> from messages/Noice: strip ".../", :line[:col], and search rtp.
+---@brief Resolve <cfile> with smart token extraction and location parsing.
 
 local P = require("gopath.providers.builtin")
 local U = require("gopath.util.path")
+local LOC = require("gopath.util.location")
 
 local M = {}
 
-local function clean_token(raw)
-  if not raw or raw == "" then return nil end
-
-  local s = raw
-  -- trim
-  s = s:gsub("^%s+", ""):gsub("%s+$", "")
-  -- strip quotes
-  s = s:gsub('^"(.*)"$', "%1"):gsub("^'(.*)'$", "%1")
-
-  -- extract :line[:col] at the end
-  local line, col
-  local l2, c2 = s:match(":(%d+):(%d+)$")
-  local l1     = s:match(":(%d+)$")
-
-  if l2 and c2 then
-    line, col = tonumber(l2), tonumber(c2)
-    s = s:gsub(":%d+:%d+$", "")
-  elseif l1 then
-    line, col = tonumber(l1), 1
-    s = s:gsub(":%d+$", "")
+---Check if a string looks like a file path (heuristic)
+---@param str string
+---@return boolean
+local function looks_like_path(str)
+  if not str or str == "" then
+    return false
   end
 
-  -- strip leading ".../" from error traces
-  s = s:gsub("^%.%.%./", "")
+  -- ACCEPT: Has file extension
+  if str:match("%.[a-zA-Z][a-zA-Z0-9]*$") then
+    return true
+  end
 
-  return s, line, col
+  -- ACCEPT: Has path separator
+  if str:match("[/\\]") then
+    return true
+  end
+
+  -- ACCEPT: Starts with ~/ or ./
+  if str:match("^[~%.][\\/]") then
+    return true
+  end
+
+  -- ACCEPT: Has explicit line number
+  if str:match(":%d+") or str:match("%(%d+%)") then
+    return true
+  end
+
+  -- ACCEPT: Starts with ... (truncated)
+  if str:match("^%.%.%.") then
+    return true
+  end
+
+  return false
+end
+
+---Clean and parse token
+---@param raw string Raw token
+---@return table|nil parsed { path: string, line: integer|nil, col: integer|nil }
+local function parse_token(raw)
+  if not raw or raw == "" then
+    return nil
+  end
+
+  -- Strip leading error message prefixes
+  local cleaned = raw
+  local prefixes = {
+    "^Error%s+in%s+",
+    "^%s*at%s+",
+    "^%s*in%s+",
+    "^%s*from%s+",
+  }
+
+  for _, prefix in ipairs(prefixes) do
+    cleaned = cleaned:gsub(prefix, "")
+  end
+
+  -- Parse location (handles :line:col, (line), etc.)
+  local parsed = LOC.parse_location(cleaned)
+
+  if not parsed.path or parsed.path == "" then
+    return nil
+  end
+
+  -- Additional cleaning
+  local path = parsed.path
+  path = path:gsub('^"(.*)"$', "%1"):gsub("^'(.*)'$", "%1")  -- Strip quotes
+  path = path:gsub("^%.%.%./", "")  -- Strip leading ...
+  path = path:gsub("^%s+", ""):gsub("%s+$", "")  -- Trim
+
+  -- Final validation
+  if not looks_like_path(path) then
+    return nil
+  end
+
+  return {
+    path = path,
+    line = parsed.line,
+    col = parsed.col,
+  }
 end
 
 ---@return GopathResult|nil
 function M.resolve()
   local raw = P.expand_cfile()
-  if not raw then return nil end
+  if not raw then
+    return nil
+  end
 
-  local token, line, col = clean_token(raw)
-  if not token or token == "" then return nil end
+  local parsed = parse_token(raw)
+  if not parsed then
+    return nil
+  end
 
-  -- Try to find file in various locations
+  local token = parsed.path
+
+  -- Search for file
   local abs = U.search_with_vim_path(token)
 
   if not abs then
@@ -61,30 +122,27 @@ function M.resolve()
     end
   end
 
-  -- NEW: Always return a result, even if file doesn't exist
-  -- This allows alternate resolution and external opening to work
+  -- Build absolute path even if not found
   if not abs then
-    -- Build best-guess absolute path
     local cwd = vim.fn.expand("%:p:h")
-    if token:match("^/") or token:match("^[A-Za-z]:") then
-      abs = token  -- Already absolute
+    if token:match("^[/\\]") or token:match("^[A-Za-z]:") then
+      abs = token
     else
       abs = vim.fn.fnamemodify(cwd .. "/" .. token, ":p")
     end
   end
 
-  -- Check if file actually exists
   local exists = U.exists(abs)
 
   return {
     language   = vim.bo.filetype or "text",
     kind       = exists and "module" or "file",
     path       = abs,
-    range      = (line and { line = line, col = col or 1 }) or nil,
+    range      = LOC.create_range(parsed.line, parsed.col),
     chain      = nil,
     source     = "builtin",
-    confidence = exists and 0.75 or 0.3,  -- Lower confidence if file doesn't exist
-    exists     = exists,  -- NEW: Flag for downstream handlers
+    confidence = exists and 0.75 or 0.3,
+    exists     = exists,
   }
 end
 

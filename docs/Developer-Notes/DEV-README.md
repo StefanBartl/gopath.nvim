@@ -432,6 +432,96 @@ opts = {
 
 ---
 
+### Line/Column Support (currently lua only)
+
+Gopath automatically parses and respects line and column numbers in file paths:
+
+#### Supported Formats
+
+| Format | Example | Description |
+|--------|---------|-------------|
+| `:line` | `file.lua:42` | Line only |
+| `:line:col` | `file.lua:42:15` | Line and column |
+| `(line)` | `file.lua(42)` | Parenthesis format |
+| `(line:col)` | `file.lua(42:15)` | Parenthesis with column |
+| `+line` | `file.lua +42` | Vim-style |
+
+#### Examples
+
+```lua
+-- In any buffer or :messages
+"Error in lua/gopath/init.lua:42:15"
+--        ^^^^^^^^^^^^^^^^^^^^^^^^
+-- Cursor here → gP → Opens at line 42, column 15
+
+-- Works with truncated paths
+"...nvim-data/lazy/gopath.nvim/lua/gopath/config.lua:100"
+-- Resolves and opens at line 100
+```
+
+#### LSP Integration
+
+When LSP is available, line/column information is automatically provided for symbol definitions:
+
+```lua
+local setup = require("gopath.config").setup
+--                                     ^^^^^
+-- Cursor here → gP → Opens config.lua at exact setup() definition
+```
+
+### Direct Symbol Definition Jump
+
+#### Architecture
+
+**Provider Priority:**
+1. **LSP** (confidence: 1.0) - Exact symbol definitions with line/col
+2. **Treesitter** (confidence: 0.75-0.85) - Heuristic pattern matching
+3. **Builtin** (confidence: 0.5) - Module-level resolution
+
+#### Resolvers Involved
+
+| Resolver | Purpose | Example |
+|----------|---------|---------|
+| `symbol_locator.via_lsp` | LSP symbol definitions | `config.setup()` → definition line |
+| `symbol_locator.via_treesitter` | Pattern-based search | Fallback when LSP unavailable |
+| `identifier_locator` | Bare variable → module | `config` → gopath/config.lua |
+| `value_origin` | Chain initialization | `cfg.highlight` → M.cfg.highlight |
+
+#### Resolution Flow
+
+```sh
+User presses gP on: config.setup()
+                    ^^^^^^
+         ↓
+LSP Provider: symbol_locator.via_lsp()
+         ↓
+LSP Request: textDocument/definition
+         ↓
+Response: { path, line, col }
+         ↓
+Open: gopath/config.lua:42 (exact definition)
+```
+
+#### Fallback Chain
+
+```sh
+LSP unavailable or no result
+         ↓
+Treesitter Provider
+         ↓
+Parse chain: config.setup
+         ↓
+binding_index: config → "gopath.config"
+         ↓
+symbol_locator.via_treesitter()
+         ↓
+Search file for "setup" pattern
+         ↓
+Open: gopath/config.lua:42 (heuristic match)
+```
+
+---
+
 ## 🛠️ Configuration Deep Dive
 
 ### Language Configuration
