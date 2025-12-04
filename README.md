@@ -21,9 +21,12 @@ A powerful, modular navigation plugin for Neovim that intelligently resolves sym
 ## Table of content
 
   - [✨ Features](#features)
-    - [🎯 Smart Navigation](#smart-navigation)
-    - [🔍 Fuzzy Alternate Resolution](#fuzzy-alternate-resolution)
-    - [🚀 External File Opening](#external-file-opening)
+    - [Smart Navigation](#smart-navigation)
+    - [Fuzzy Alternate Resolution](#fuzzy-alternate-resolution)
+    - [External File Opening](#external-file-opening)
+    - [Line/Column Support (currently lua only)](#linecolumn-support-currently-lua-only)
+  - [Direct Symbol Definition Jump](#direct-symbol-definition-jump)
+  - [Summary](#summary)
   - [📦 Installation](#installation)
     - [Using lazy.nvim (Recommended)](#using-lazynvim-recommended)
       - [Minimal Setup (with defaults)](#minimal-setup-with-defaults)
@@ -64,13 +67,15 @@ A powerful, modular navigation plugin for Neovim that intelligently resolves sym
 
 ## ✨ Features
 
-### 🎯 Smart Navigation
-* **Multi-Provider Resolution**: LSP → Treesitter → Builtin fallback chain
-* **Universal File Support**: Works in **any filetype** (Lua, Markdown, Text, etc.)
-* **Context-Aware**: Understands Lua modules, require() paths, table chains, and more
-* **Help Integration**: Seamless `:help` tag resolution for `vim.api`, `vim.fn`, `vim.loop`
+### Smart Navigation
+ **Multi-Provider Resolution**: LSP → Treesitter → Builtin fallback chain
+ **Universal File Support**: Works in **any filetype** (Lua, Markdown, Text, etc.)
+ **Context-Aware**: Understands Lua modules, require() paths, table chains, and more
+ **Help Integration**: Seamless `:help` tag resolution for `vim.api`, `vim.fn`, `vim.loop`
 
-### 🔍 Fuzzy Alternate Resolution
+---
+
+### Fuzzy Alternate Resolution
 When a file path has a typo or doesn't exist:
 * Finds similar files using Levenshtein distance (configurable threshold)
 * Interactive selection with similarity percentages
@@ -83,7 +88,9 @@ When a file path has a typo or doesn't exist:
 → Shows: config.lua (87%), confirm.lua (65%)
 ```
 
-### 🚀 External File Opening
+---
+
+### External File Opening
 Automatically opens non-text files with system default apps:
 * **Images**: png, jpg, gif, svg, webp...
 * **Documents**: pdf, docx, xlsx, pptx...
@@ -92,8 +99,58 @@ Automatically opens non-text files with system default apps:
 
 **Cross-platform**: macOS (`open`), Linux (`xdg-open`), Windows (PowerShell)
 
-### 📏 Enhanced Line/Column Support
-Parse and respect `:line:col` suffixes in all contexts.
+---
+
+### Line/Column Support (currently lua only)
+Gopath automatically parses and respects line and column numbers in file paths:
+`"lua/gopath/config.lua:15:8"` -> Opens file and cursor jumps directly in line and row ()
+
+Also works in...
+- Error message format:
+`Error in ...nvim-data/lazy/gopath.nvim/lua/gopath/init.lua:42`
+
+- Parenthesis format:
+`init.lua(42)`
+
+- Vim-style format:
+`init.lua +42`
+
+---
+
+## Direct Symbol Definition Jump
+Jump not just to file, but to exact line where symbol is defined.
+**Example:**
+
+```lua
+local config = require("gopath.config")
+
+-- Later in file...
+config.get()
+^^^^^^
+-- Cursor here on config → gP
+-- Opens gopath/config.lua (not at specific line, module-level)
+```
+
+---
+
+## Summary
+
+Feature 3 is now fully implemented:
+
+✅ **LSP prioritization**: `order = { "lsp", "treesitter", "builtin" }`
+✅ **Enhanced symbol_locator**: Better LSP handling, fallback logic
+✅ **New identifier_locator**: Bare variable → module resolution (Feature 2!)
+✅ **Smart registry**: Proper provider ordering and fallbacks
+✅ **Precise navigation**: Jump directly to symbol definitions
+
+**Bonus:** Feature 2 (Symbol-to-Path) is also complete as part of this implementation!
+
+**What works now:**
+- `local x = require("mod")` → cursor on `x` → opens `mod.lua`
+- `x.func()` → cursor on `func` → opens `mod.lua` at `func` definition
+- `require("mod").func` → opens `mod.lua` at `func` definition
+- All with LSP precision when available, treesitter fallback when not
+
 
 ---
 
@@ -371,7 +428,6 @@ See [DEV-README.md](DEV-README.md)
 - [ ] Async file scanning for large directories
 - [ ] Truncated Path Resolution - Resolve abbreviated paths from logs and error messages (e.g., `...AppData\Local\nvim\init.lua`).
 - [ ] Symbol-to-Module Resolution - Jump from variable to the module it references
-- [ ] Direct Symbol Definition Jump - Jump not just to file, but to exact line where symbol is defined.
 
 ---
 
