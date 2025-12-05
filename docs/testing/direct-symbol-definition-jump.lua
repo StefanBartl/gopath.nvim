@@ -12,14 +12,14 @@ config.setup()
 -- Aktuelles Resultat: Funktioniert
 
 
--- ==== Test Case 2: Chained Symbol (LSP fallback to Treesitter) ====
+-- ==== Test Case 2: Chained Symbol (LSP fallback to Treesitter) ==== ONLY NOT DONE YET!
 
 local setup = require("gopath.config").setup
 --                                     ^^^^^
 -- Cursor here → gP
 -- Expected: Opens gopath/config.lua at setup() definition
 -- Source: LSP if available, treesitter as fallback
--- Aktuelles Resultat:   Error  10:54:58 notify.error [gopath] File not found: B:\repos\gopath.nvim/).setup
+-- Aktuelles Resultat: FIX:   Error  10:54:58 notify.error [gopath] File not found: B:\repos\gopath.nvim/).setup
 -- 10:55:05 msg_show.lua_print   GopathDebug === Gopath Debug ===
 -- 10:55:05 msg_show.lua_print   GopathDebug   Filetype: lua
 -- 10:55:05 msg_show.lua_print   GopathDebug   <cfile>: .setup
