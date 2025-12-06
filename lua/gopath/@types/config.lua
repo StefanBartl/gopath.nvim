@@ -28,6 +28,19 @@
 ---@field resolvers string[]|nil Default: nil (all available resolvers)
 ---@field custom_resolvers table[]|nil Custom resolver modules
 
+---@class GopathTruncated
+---@field enable boolean Default: true
+---@field use_cache boolean
+---@field cache_refresh_interval number Refresh every 10 minutes
+---@field max_cache_age number Consider cache stale after 1 hour
+---@field live_search_fallback boolean Use fd/rg/find if cache misses
+---@field similarity_threshold number For multiple match selection
+---@field cache_roots table|nil
+---@field max_depth number Maximum directory depth to scan
+---@field excluded_dirs string[]|nil Directories to skip
+---@field watch_patterns string[]|nil
+---@field auto_rebuild_on_save boolean
+
 ---@class GopathOptions
 ---@field mode? "builtin"|"treesitter"|"lsp"|"hybrid" Default: "hybrid"
 ---@field order? string[] Default: { "treesitter", "lsp", "builtin" }
@@ -37,4 +50,4 @@
 ---@field external? GopathExternalOptions External file opening
 ---@field mappings? GopathKeymaps|false Keymaps (false = disable all)
 ---@field commands? GopathCommands|false User commands (false = disable all)
-
+---@field truncated GopathTruncated

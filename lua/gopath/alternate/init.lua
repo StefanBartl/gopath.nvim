@@ -43,4 +43,27 @@ function M.try_resolve(target_path, opts)
   return ui.present_selection(matches, target_path)
 end
 
+---Attempt alternate resolution with pre-computed matches
+---Used by truncated path resolution when multiple files found
+---
+---@param matches table[] Pre-formatted matches with similarity scores
+---@param original_path string Original path that failed to resolve
+---@param opts table|nil Options:
+---  - open_cmd: string - Command to use for opening (edit/split/vsplit/tabedit)
+---@return boolean handled True if user selected a file
+function M.try_resolve_with_matches(matches, original_path, opts)
+  opts = opts or {}
+  local open_cmd = opts.open_cmd or "edit"
+
+  if not matches or #matches == 0 then
+    return false
+  end
+
+  -- === Show Selection UI ===
+  local ui = require("gopath.alternate.ui")
+  return ui.present_selection(matches, original_path, {
+    open_cmd = open_cmd,
+  })
+end
+
 return M
