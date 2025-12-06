@@ -199,7 +199,7 @@ end
 function M.build_async(callback)
 	-- === Prevent Concurrent Builds ===
 	if state.building then
-		vim.notify("[gopath] Cache build already in progress", vim.log.levels.WARN)
+		-- vim.notify("[gopath] Cache build already in progress", vim.log.levels.WARN)
 		callback(false)
 		return
 	end
@@ -208,7 +208,7 @@ function M.build_async(callback)
 	state.building = true
 	state.paths = {} -- Clear existing paths
 
-safe.safe_notify_defer(string.format("[gopath] Building cache from %d roots...", #config.scan_roots), vim.log.levels.INFO, nil, 50)
+    safe.safe_notify_defer(string.format("[gopath] Building cache from %d roots...", #config.scan_roots), vim.log.levels.INFO, nil, 50)
 
 	-- === Scan All Roots ===
 	local completed = 0

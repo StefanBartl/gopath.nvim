@@ -5,6 +5,7 @@ local M = {}
 
 ---@type GopathOptions
 local defaults = {
+    dev_mode = false,
 	mode = "hybrid",
 	order = { "lsp", "treesitter", "builtin" },
 	lsp_timeout_ms = 200,
@@ -55,7 +56,7 @@ local defaults = {
 			".cache",
 			"venv",
 		},
-		watch_patterns = { "*.lua", "*.vim" },
+		watch_patterns = nil,
 		auto_rebuild_on_save = false,
 	},
 
