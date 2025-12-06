@@ -42,6 +42,7 @@
 ---@field auto_rebuild_on_save boolean
 
 ---@class GopathOptions
+---@field dev_mode boolean # Print debug notifies
 ---@field mode? "builtin"|"treesitter"|"lsp"|"hybrid" Default: "hybrid"
 ---@field order? string[] Default: { "treesitter", "lsp", "builtin" }
 ---@field lsp_timeout_ms? integer Default: 200
