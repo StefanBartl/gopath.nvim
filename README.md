@@ -1,3 +1,5 @@
+> This project is highly experimental and currently in alpha phase. The main functionalities are not working yet. Expect errors and changes.
+
 # Gopath.nvim - Intelligent Navigation for Neovim
 ```
    ___  ___  ___  __ _____  _  _
