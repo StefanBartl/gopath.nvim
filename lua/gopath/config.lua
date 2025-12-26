@@ -61,7 +61,7 @@ local defaults = {
 	},
 
 	mappings = {
-		open_here = "gP",
+		open_here = "gP", -- or { "gP", "<2-LeftMouse>" }
 		open_split = "g|",
 		open_vsplit = "g\\",
 		open_tab = "g}",

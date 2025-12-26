@@ -2,12 +2,12 @@
 ---@module 'gopath.@types.config'
 
 ---@class GopathKeymaps
----@field open_here string|false Default: "gP"
----@field open_split string|false Default: "g|"
----@field open_vsplit string|false Default: "g\\"
----@field open_tab string|false Default: "g}"
----@field copy_location string|false Default: "gY"
----@field debug string|false Default: "g?"
+---@field open_here string|string[]|false Default: "gP"
+---@field open_split string|string[]|false Default: "g|"
+---@field open_vsplit string|string[]|false Default: "g\\"
+---@field open_tab string|string[]|false Default: "g}"
+---@field copy_location string|string[]|false Default: "gY"
+---@field debug string|string[]|false Default: "g?"
 
 ---@class GopathCommands
 ---@field resolve boolean Default: true (creates :GopathResolve)
