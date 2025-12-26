@@ -174,7 +174,7 @@ Feature 3 is now fully implemented:
 #### Custom Configuration
 ```lua
 {
-  "yourusername/gopath.nvim",
+  "StefanBartl/gopath.nvim",
   event = "VeryLazy",
   dependencies = {
     "nvim-treesitter/nvim-treesitter", -- Optional but recommended
@@ -195,7 +195,7 @@ Feature 3 is now fully implemented:
 
     -- Custom keymaps (optional - defaults shown)
     mappings = {
-      open_here = "gP",        -- Open in current window
+      open_here = "gP",        -- Open in current window (recommend: { "gP", "<2-LeftMouse>" })
       open_split = "g|",       -- Open in horizontal split
       open_vsplit = "g\\",     -- Open in vertical split
       open_tab = "g}",         -- Open in new tab
@@ -218,7 +218,7 @@ Feature 3 is now fully implemented:
 ### Using packer.nvim
 ```lua
 use {
-  "yourusername/gopath.nvim",
+  "StefanBartl/gopath.nvim",
   config = function()
     require("gopath").setup({
       -- Your config here
