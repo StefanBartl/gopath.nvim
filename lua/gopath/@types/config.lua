@@ -44,6 +44,12 @@
 ---@field watch_patterns string[]|nil
 ---@field auto_rebuild_on_save boolean
 
+---@class GopathEnvVariableResolution
+---@field enable boolean
+--- When true, tokens starting with $VAR or ${VAR} are expanded
+--- using the current process environment before file resolution.
+--- Applies to all filetypes. Default: true.
+
 ---@class GopathOptions
 ---@field dev_mode boolean # Print debug notifies
 ---@field mode? "builtin"|"treesitter"|"lsp"|"hybrid" Default: "hybrid"
@@ -52,6 +58,7 @@
 ---@field languages? table<string, GopathLanguageOptions> Language-specific configuration
 ---@field alternate? GopathAlternateOptions Fuzzy alternate resolution
 ---@field external? GopathExternalOptions External file opening
+---@field env_variable_resolution? GopathEnvVariableResolution Expand $VAR prefixes in paths
 ---@field mappings? GopathKeymaps|false Keymaps (false = disable all)
 ---@field commands? GopathCommands|false User commands (false = disable all)
 ---@field truncated GopathTruncated

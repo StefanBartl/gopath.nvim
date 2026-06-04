@@ -22,6 +22,7 @@ A powerful, modular navigation plugin for Neovim that intelligently resolves sym
 
 ## Table of content
 
+- [Gopath.nvim - Intelligent Navigation for Neovim](#gopathnvim-intelligent-navigation-for-neovim)
   - [✨ Features](#features)
     - [Smart Navigation](#smart-navigation)
     - [Fuzzy Alternate Resolution](#fuzzy-alternate-resolution)
@@ -30,36 +31,13 @@ A powerful, modular navigation plugin for Neovim that intelligently resolves sym
   - [Direct Symbol Definition Jump](#direct-symbol-definition-jump)
   - [Summary](#summary)
   - [📦 Installation](#installation)
-    - [Using lazy.nvim (Recommended)](#using-lazynvim-recommended)
-      - [Minimal Setup (with defaults)](#minimal-setup-with-defaults)
-      - [Custom Configuration](#custom-configuration)
-    - [Using packer.nvim](#using-packernvim)
   - [🚀 Usage](#usage)
-    - [Default Keymaps](#default-keymaps)
-    - [User Commands](#user-commands)
   - [💡 Examples](#examples)
-    - [Lua Module Navigation](#lua-module-navigation)
-    - [Markdown Links](#markdown-links)
-    - [Image Files](#image-files)
-    - [Typo Correction](#typo-correction)
-    - [Help Tags](#help-tags)
   - [⚙️ Configuration](#configuration)
-    - [Modes](#modes)
-    - [Provider Order](#provider-order)
-    - [Alternate Resolution](#alternate-resolution)
-    - [External File Opening](#external-file-opening-1)
   - [🎨 Language Support](#language-support)
-    - [Built-in Support](#built-in-support)
-    - [Universal Features (work in any filetype)](#universal-features-work-in-any-filetype)
   - [🐛 Troubleshooting](#troubleshooting)
-    - [Nothing happens when I press `gP`](#nothing-happens-when-i-press-gp)
-    - ["No match: no-match"](#no-match-no-match)
-    - [External files open with wrong app](#external-files-open-with-wrong-app)
-    - [Alternate resolution not working](#alternate-resolution-not-working)
   - [📚 Advanced Usage](#advanced-usage)
   - [🗺️ Roadmap](#roadmap)
-    - [Planned Features](#planned-features)
-    - [Under Consideration](#under-consideration)
   - [🤝 Contributing](#contributing)
   - [💬 Feedback](#feedback)
   - [📄 License](#license)
@@ -117,6 +95,56 @@ Also works in...
 
 - Vim-style format:
 `init.lua +42`
+
+---
+
+### Environment Variable Path Resolution
+
+Gopath expands environment variable prefixes in file paths before resolution.
+This allows using short, portable references instead of hard-coded absolute paths.
+
+Supported syntaxes:
+
+```
+$VAR/rest/of/path.md
+${VAR}/rest/of/path.md
+$VAR\rest\of\path.md        (Windows backslash)
+${VAR}\rest\of\path.md
+$VAR/path/file.md:42        (with line number)
+$VAR/path/file.md:42:8      (with line and column)
+```
+
+Example in a Markdown file:
+
+```markdown
+[tools]($ENV_VAR_DIR/Dev/SomeFile.md)
+[config](${NVIM_CONFIG}/lua/plugins/init.lua:15)
+```
+
+Variables are read from `vim.env` first (runtime assignments), then from
+`os.getenv` (shell environment inherited at startup).
+
+Setting a variable for the current Neovim session:
+
+```lua
+vim.env.REPOS_DIR = "/home/user/repos"
+```
+
+Or permanently in the shell profile (`~/.bashrc`, `~/.zshrc`, Windows user environment):
+
+```sh
+export REPOS_DIR=/home/user/repos
+```
+
+The feature is enabled by default and can be disabled per config:
+
+```lua
+require("gopath").setup({
+  env_variable_resolution = {
+    enable = false,
+  },
+})
+```
 
 ---
 
