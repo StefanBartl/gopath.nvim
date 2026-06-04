@@ -44,6 +44,10 @@ local defaults = {
     extensions = nil,
   },
 
+  env_variable_resolution = {
+    enable = true,
+  },
+
   truncated = {
     enable                  = true,
     use_cache               = true,

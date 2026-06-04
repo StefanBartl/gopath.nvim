@@ -3,13 +3,14 @@
 ---@description
 --- Entry point for all cursor-based resolution. Tries resolvers in this order:
 ---   1. Help (:h subject) — always, all filetypes.
----   2. Filetoken — always, all filetypes; short-circuits only when the file
+---   2. Env var path ($VAR/...) — always, before filetoken sees raw token.
+---   3. Filetoken — always, all filetypes; short-circuits only when the file
 ---      actually *exists* on disk so that language-specific resolvers (e.g. Lua
 ---      require_path) can run first when the raw token is not a real path.
----   3. Language-specific pipeline (lsp / treesitter / builtin) — only when the
+---   4. Language-specific pipeline (lsp / treesitter / builtin) — only when the
 ---      filetype has a config entry and is not disabled.
----   4. Filetoken fallback — the non-existing filetoken result from step 2, if any.
----   5. Raw cfile — last resort.
+---   5. Filetoken fallback — the non-existing filetoken result from step 3, if any.
+---   6. Raw cfile — last resort.
 
 local C    = require("gopath.config")
 local REG  = require("gopath.registry")
@@ -17,6 +18,10 @@ local safe = require("gopath.util.safe")
 local LOG  = require("gopath.util.log")
 
 local M = {}
+
+---@class GopathResolveOpts
+---@field order string[]|nil
+---@field timeout_ms integer|nil
 
 ---Resolve the entity under the cursor using configured providers.
 ---@param opts GopathResolveOpts|nil
@@ -31,7 +36,20 @@ function M.resolve_at_cursor(opts)
     if help then return help, nil end
   end
 
-  -- 2. Filetoken: short-circuit only on confirmed-existing files.
+  -- 2. Environment variable path ($VAR/foo.md, ${VAR}/foo.md).
+  --    Runs before filetoken so that the $ prefix is caught here and
+  --    filetoken never receives a raw env-var token it cannot handle.
+  do
+    local ev_cfg = cfg.env_variable_resolution
+    if not ev_cfg or ev_cfg.enable ~= false then
+      local ok, env = pcall(function()
+        return require("gopath.resolvers.common.env_path").resolve()
+      end)
+      if ok and env then return env, nil end
+    end
+  end
+
+  -- 3. Filetoken: short-circuit only on confirmed-existing files.
   --    Non-existing result is saved so language resolvers get priority.
   local ftok_fallback = nil
   do
@@ -44,12 +62,11 @@ function M.resolve_at_cursor(opts)
     end
   end
 
-  -- 3. Language-specific pipeline
+  -- 4. Language-specific pipeline
   local lang = cfg.languages[ft]
 
   if lang == false or (type(lang) == "table" and lang.enable == false) then
     LOG.debug("language disabled for filetype: " .. ft)
-    -- Still honour the filetoken fallback before giving up
     return ftok_fallback or nil, "language-disabled"
   end
 
@@ -79,12 +96,12 @@ function M.resolve_at_cursor(opts)
     end
   end
 
-  -- 4. Return the filetoken non-exist result (more specific than raw cfile)
+  -- 5. Return the filetoken non-exist result (more specific than raw cfile)
   if ftok_fallback then
     return ftok_fallback, nil
   end
 
-  -- 5. Last resort: raw cfile
+  -- 6. Last resort: raw cfile
   local cfile = vim.fn.expand("<cfile>")
   if cfile and cfile ~= "" then
     return {

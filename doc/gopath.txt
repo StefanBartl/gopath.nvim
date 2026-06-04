@@ -1,0 +1,597 @@
+*gopath.txt*  Intelligent navigation for Neovim              *gopath.nvim*
+
+Author:   Stefan Bartl
+License:  MIT (see LICENSE)
+Version:  0.2.0
+
+==============================================================================
+CONTENTS                                                       *gopath-contents*
+
+  1. Introduction .......................... |gopath-introduction|
+  2. Requirements .......................... |gopath-requirements|
+  3. Installation .......................... |gopath-installation|
+  4. Quick start ........................... |gopath-quickstart|
+  5. Keymaps ............................... |gopath-keymaps|
+  6. Commands .............................. |gopath-commands|
+  7. Configuration ......................... |gopath-configuration|
+       7.1 mode ............................ |gopath-config-mode|
+       7.2 order ........................... |gopath-config-order|
+       7.3 lsp_timeout_ms .................. |gopath-config-lsp-timeout|
+       7.4 languages ....................... |gopath-config-languages|
+       7.5 alternate ....................... |gopath-config-alternate|
+       7.6 external ........................ |gopath-config-external|
+       7.7 env_variable_resolution ......... |gopath-config-env|
+       7.8 truncated ....................... |gopath-config-truncated|
+       7.9 mappings ........................ |gopath-config-mappings|
+       7.10 commands ....................... |gopath-config-commands|
+  8. Features .............................. |gopath-features|
+       8.1 Lua module navigation ........... |gopath-feature-lua|
+       8.2 Line/column support ............. |gopath-feature-linecol|
+       8.3 Environment variable paths ....... |gopath-feature-env|
+       8.4 Truncated path resolution ........ |gopath-feature-truncated|
+       8.5 Fuzzy alternate resolution ....... |gopath-feature-alternate|
+       8.6 External file opening ............ |gopath-feature-external|
+       8.7 Help tag resolution .............. |gopath-feature-help|
+  9. Resolution pipeline ................... |gopath-pipeline|
+  10. API .................................. |gopath-api|
+  11. Troubleshooting ...................... |gopath-troubleshooting|
+  12. Changelog ............................ |gopath-changelog|
+
+==============================================================================
+1. INTRODUCTION                                            *gopath-introduction*
+
+gopath.nvim is a modular navigation plugin that intelligently resolves
+symbols, module paths, and file references under the cursor. It combines
+LSP, Tree-sitter, and builtin heuristics into a single keymap.
+
+Typical use cases:
+  - Jump to a Lua module from a require() call
+  - Open a file path found in an error message or log
+  - Follow Markdown links that use environment variables
+  - Navigate to the exact definition of a function or table field
+  - Open images, PDFs, and URLs with the system default application
+
+==============================================================================
+2. REQUIREMENTS                                            *gopath-requirements*
+
+  - Neovim >= 0.9.0
+  - Optional: nvim-treesitter (improves Lua resolution accuracy)
+  - Optional: a configured LSP server (enables precise symbol jumps)
+  - Optional: fd, rg, or find (required for truncated path live search)
+
+==============================================================================
+3. INSTALLATION                                            *gopath-installation*
+
+Using lazy.nvim (recommended): >lua
+
+  {
+    "StefanBartl/gopath.nvim",
+    event = "VeryLazy",
+    dependencies = {
+      "nvim-treesitter/nvim-treesitter", -- optional
+    },
+    opts = {},
+  }
+<
+Using packer.nvim: >lua
+
+  use {
+    "StefanBartl/gopath.nvim",
+    config = function()
+      require("gopath").setup()
+    end,
+  }
+<
+==============================================================================
+4. QUICK START                                               *gopath-quickstart*
+
+Call setup() once, typically from your plugin manager: >lua
+
+  require("gopath").setup()
+<
+All keymaps and user commands are registered automatically with defaults.
+Press |gP| on any file path, Lua module, help tag, or URL to navigate.
+
+==============================================================================
+5. KEYMAPS                                                     *gopath-keymaps*
+
+Default keymaps (normal mode, all buffers):
+
+  gP      Open target in current window           *gopath-map-open-here*
+  g|      Open target in horizontal split         *gopath-map-open-split*
+  g\      Open target in vertical split           *gopath-map-open-vsplit*
+  g}      Open target in new tab                  *gopath-map-open-tab*
+  gY      Copy path:line:col to clipboard         *gopath-map-copy*
+  g?      Show debug information                  *gopath-map-debug*
+
+All keymaps can be remapped or disabled via |gopath-config-mappings|.
+
+==============================================================================
+6. COMMANDS                                                   *gopath-commands*
+
+                                                          *:GopathResolve*
+:GopathResolve
+    Show resolution debug output for the symbol under the cursor.
+    Equivalent to |gopath-map-debug|.
+
+                                                          *:GopathOpen*
+:GopathOpen [mode]
+    Resolve and open the target. [mode] is one of:
+      edit     Open in current window (default)
+      window   Open in horizontal split
+      vsplit   Open in vertical split
+      tab      Open in new tab
+
+                                                          *:GopathCopy*
+:GopathCopy
+    Resolve the target and copy path:line:col to the system clipboard.
+
+                                                          *:GopathDebug*
+:GopathDebug
+    Print detailed resolution information to the message area.
+
+                                                          *:GopathCacheBuild*
+:GopathCacheBuild
+    Rebuild the filesystem cache used for truncated path resolution.
+    Runs asynchronously in the background.
+    Requires |gopath-config-truncated| enable = true.
+
+                                                          *:GopathCacheInfo*
+:GopathCacheInfo
+    Print cache statistics: file count, build time, staleness.
+
+                                                          *:GopathCacheAddRoot*
+:GopathCacheAddRoot {dir}
+    Add {dir} to the cache scan roots and trigger an immediate rebuild.
+
+==============================================================================
+7. CONFIGURATION                                         *gopath-configuration*
+
+Pass a table to setup() to override any default: >lua
+
+  require("gopath").setup({
+    mode = "hybrid",
+    lsp_timeout_ms = 300,
+  })
+<
+All keys are optional. Unspecified keys retain their defaults.
+
+------------------------------------------------------------------------------
+7.1 mode                                                  *gopath-config-mode*
+
+Type: string
+Default: "hybrid"
+
+Controls which resolution providers are active.
+
+  "hybrid"      Try all providers in the order defined by |gopath-config-order|.
+  "lsp"         Use only LSP. Fastest for LSP-enabled buffers.
+  "treesitter"  Use only Tree-sitter semantic analysis.
+  "builtin"     Use only builtin heuristics. No external dependencies.
+
+------------------------------------------------------------------------------
+7.2 order                                                *gopath-config-order*
+
+Type: string[]
+Default: { "lsp", "treesitter", "builtin" }
+
+Provider execution order when mode = "hybrid". The first provider that
+returns a result wins.
+
+------------------------------------------------------------------------------
+7.3 lsp_timeout_ms                                 *gopath-config-lsp-timeout*
+
+Type: integer
+Default: 200
+
+Maximum milliseconds to wait for an LSP definition response.
+Increase on slow servers; decrease for faster but potentially incomplete
+results.
+
+------------------------------------------------------------------------------
+7.4 languages                                        *gopath-config-languages*
+
+Type: table<string, GopathLanguageOptions>
+Default: { lua = { enable = true } }
+
+Per-filetype configuration. Key is the Neovim filetype string.
+
+  enable (boolean)
+    true   Activate language-specific resolvers for this filetype.
+    false  Disable all resolution for this filetype.
+
+  resolvers (string[]|nil)
+    nil    Use all available resolvers for this language.
+    list   Use only the named resolvers, e.g. { "require_path", "chain" }.
+
+Example – disable Python entirely: >lua
+
+  languages = {
+    python = { enable = false },
+  }
+<
+------------------------------------------------------------------------------
+7.5 alternate                                        *gopath-config-alternate*
+
+Type: GopathAlternateOptions
+Default: { enable = true, similarity_threshold = 75 }
+
+When a resolved path does not exist, gopath searches for similar files
+in the same directory using Levenshtein distance.
+
+  enable (boolean)
+    Enable or disable fuzzy alternate resolution.
+
+  similarity_threshold (number, 0-100)
+    Minimum similarity percentage for a file to appear as a candidate.
+    Lower values find more matches; higher values are more strict.
+
+------------------------------------------------------------------------------
+7.6 external                                          *gopath-config-external*
+
+Type: GopathExternalOptions
+Default: { enable = true, extensions = nil }
+
+Open non-text files with the system default application.
+
+  enable (boolean)
+    Enable or disable external file opening.
+
+  extensions (string[]|nil)
+    nil    Use the built-in list (images, PDFs, media, archives, etc.).
+    list   Use only the listed extensions, e.g. { "png", "pdf" }.
+
+Platform commands used:
+  macOS    open <path>
+  Linux    xdg-open <path>
+  Windows  powershell Start-Process "<path>"
+
+------------------------------------------------------------------------------
+7.7 env_variable_resolution                               *gopath-config-env*
+
+Type: GopathEnvVariableResolution
+Default: { enable = true }
+
+Expand environment variable prefixes in file paths before resolution.
+                                                    *gopath-feature-env-syntax*
+Supported token formats:
+  $VAR/rest/of/path
+  ${VAR}/rest/of/path
+  $VAR\rest\of\path       (Windows backslash)
+  ${VAR}/path/file.md:42  (with line number)
+
+Variables are read from vim.env first, then os.getenv.
+
+  enable (boolean)
+    true   Expand $VAR and ${VAR} prefixes (default).
+    false  Disable; tokens with $ are passed to the next resolver.
+
+Example: >lua
+
+  env_variable_resolution = { enable = true }
+<
+Setting a variable at runtime: >lua
+
+  vim.env.REPOS_DIR = "/home/user/repos"
+<
+See also |gopath-feature-env|.
+
+------------------------------------------------------------------------------
+7.8 truncated                                        *gopath-config-truncated*
+
+Type: GopathTruncated
+Default: see below
+
+Resolve abbreviated paths from log and error output, e.g.:
+  ...nvim-data/lazy/gopath.nvim/lua/gopath/init.lua:42
+
+  enable (boolean)
+    Enable or disable truncated path resolution. Default: true.
+
+  use_cache (boolean)
+    Use an in-memory filesystem index. Default: true.
+
+  cache_refresh_interval (number)
+    Seconds between background cache refreshes. Default: 600 (10 min).
+
+  max_cache_age (number)
+    Seconds before a cache is considered stale. Default: 3600 (1 hour).
+
+  live_search_fallback (boolean)
+    Use fd/rg/find when cache does not contain a match. Default: true.
+
+  similarity_threshold (number)
+    Minimum similarity for multiple-match selection. Default: 75.
+
+  cache_roots (table|nil)
+    nil    Auto-detect (cwd, config dir, data dir, git root).
+    list   Explicit directories to index, e.g.:
+             { "/home/user", "/usr/local" }         (Unix)
+             { "C:\\", "C:\\Users\\Name" }           (Windows)
+
+  max_depth (number)
+    Maximum recursion depth during filesystem scan. Default: 6.
+
+  excluded_dirs (string[])
+    Directory names to skip. Default includes .git, node_modules, etc.
+
+  auto_rebuild_on_save (boolean)
+    Trigger a cache rebuild on BufWritePost for watch_patterns. Default: false.
+
+------------------------------------------------------------------------------
+7.9 mappings                                          *gopath-config-mappings*
+
+Type: GopathKeymaps|false
+Default: see |gopath-keymaps|
+
+Set individual keys to a string, a string[] for multiple bindings, or
+false to disable that mapping: >lua
+
+  mappings = {
+    open_here     = { "gP", "<2-LeftMouse>" },
+    open_split    = "g|",
+    open_vsplit   = "g\\",
+    open_tab      = "g}",
+    copy_location = "gY",
+    debug         = false,   -- disable debug keymap
+  }
+<
+Set the entire option to false to disable all default keymaps: >lua
+
+  mappings = false
+<
+------------------------------------------------------------------------------
+7.10 commands                                        *gopath-config-commands*
+
+Type: GopathCommands|false
+Default: { resolve=true, open=true, copy=true, debug=true }
+
+Set individual keys to false to skip registering that command: >lua
+
+  commands = {
+    resolve = false,  -- do not create :GopathResolve
+  }
+<
+Set the entire option to false to register no user commands: >lua
+
+  commands = false
+<
+==============================================================================
+8. FEATURES                                                   *gopath-features*
+
+------------------------------------------------------------------------------
+8.1 Lua module navigation                               *gopath-feature-lua*
+
+gopath understands Lua module semantics and resolves:
+
+require() calls: >lua
+
+  local cfg = require("gopath.config")
+  --           ^^^^^^^^^^^^^^^^^^^^^ cursor here -> opens lua/gopath/config.lua
+<
+Bare identifiers bound to require(): >lua
+
+  local cfg = require("gopath.config")
+  cfg           -- cursor here -> opens lua/gopath/config.lua
+<
+Method chains: >lua
+
+  cfg.setup()
+  --  ^^^^^ cursor here -> opens config.lua at setup() definition line
+<
+Table field access: >lua
+
+  M.cfg.highlight.enable
+  --              ^^^^^^ cursor here -> jumps to the field initializer
+<
+------------------------------------------------------------------------------
+8.2 Line/column support                              *gopath-feature-linecol*
+
+gopath parses and applies location suffixes automatically:
+
+  path/to/file.lua:42          line 42
+  path/to/file.lua:42:8        line 42, column 8
+  path/to/file.lua(42)         line 42
+  path/to/file.lua(42:8)       line 42, column 8
+  path/to/file.lua +42         line 42 (vim-style)
+
+The cursor is moved to the parsed position and centered in the window.
+
+------------------------------------------------------------------------------
+8.3 Environment variable paths                          *gopath-feature-env*
+
+Paths prefixed with $VAR or ${VAR} are expanded before resolution.
+This is useful in Markdown files to avoid hard-coded absolute paths.
+
+Markdown example: >markdown
+
+  [pip tools]($REPOS_DIR/WKDBooks/Development/INSTALL/install.md)
+  [config](${NVIM_CONFIG}/lua/plugins/init.lua:15)
+<
+Setting variables:
+  Shell (permanent): >sh
+
+    export REPOS_DIR=/home/user/repos
+<
+  Neovim config (session-scoped): >lua
+
+    vim.env.REPOS_DIR = "/home/user/repos"
+<
+  Windows (PowerShell, permanent for user): >powershell
+
+    [Environment]::SetEnvironmentVariable("REPOS_DIR","E:\repos","User")
+<
+The resolver reads vim.env first, os.getenv second. It works with both
+forward slashes and backslashes and strips duplicate separators that can
+arise when a variable value ends with a separator.
+
+Requires |gopath-config-env| enable = true (default).
+
+------------------------------------------------------------------------------
+8.4 Truncated path resolution                      *gopath-feature-truncated*
+
+Paths starting with ... or the Unicode ellipsis character (…) are treated
+as truncated absolute paths, commonly found in error messages: >
+
+  Error in ...nvim-data/lazy/gopath.nvim/lua/gopath/init.lua:42
+<
+Resolution strategy:
+  1. Extract the meaningful tail after ...
+  2. Search the in-memory filesystem cache (fast, < 10 ms)
+  3. Fall back to a live search via fd, rg, or find
+  4. If multiple matches are found, present an interactive selection
+
+Use |:GopathCacheBuild| to build or rebuild the index.
+Use |:GopathCacheInfo| to inspect cache state.
+
+Requires |gopath-config-truncated| enable = true (default).
+
+------------------------------------------------------------------------------
+8.5 Fuzzy alternate resolution                      *gopath-feature-alternate*
+
+When a resolved path does not exist on disk, gopath searches for
+similarly-named files in the same directory using Levenshtein distance: >
+
+  require("gopaht.config")   -- typo: "gopaht" instead of "gopath"
+  -- shows: gopath.config (92%), gopath.commands (78%), ...
+<
+The similarity threshold is configurable; see |gopath-config-alternate|.
+
+------------------------------------------------------------------------------
+8.6 External file opening                            *gopath-feature-external*
+
+Files with non-text extensions and URLs are opened with the operating
+system default application instead of inside Neovim:
+
+  Images     png, jpg, jpeg, gif, svg, webp, bmp, ico, tiff
+  Documents  pdf, doc, docx, xls, xlsx, ppt, pptx, odt
+  Archives   zip, tar, gz, bz2, 7z, rar
+  Media      mp3, mp4, avi, mkv, mov, wav, ogg
+  URLs       http://, https://, ftp://, file://, www.
+
+Requires |gopath-config-external| enable = true (default).
+
+------------------------------------------------------------------------------
+8.7 Help tag resolution                               *gopath-feature-help*
+
+When the cursor is on a Vim API identifier, gopath opens the matching
+help page without requiring the user to type :h manually: >lua
+
+  vim.api.nvim_buf_get_lines(0, 0, -1, false)
+  --      ^^^^^^^^^^^^^^^^^^^  -> :h nvim_buf_get_lines()
+
+  vim.fn.expand("%")
+  --     ^^^^^^      -> :h expand()
+
+  vim.loop.fs_stat
+  --       ^^^^^^   -> :h vim.loop
+<
+==============================================================================
+9. RESOLUTION PIPELINE                                       *gopath-pipeline*
+
+When a navigation keymap is triggered, gopath runs the following phases
+in order and returns the first successful result:
+
+  Phase 1  Help resolver        – vim.api / vim.fn / vim.loop tags
+  Phase 2  Env-path resolver    – $VAR and ${VAR} prefix expansion
+  Phase 3  File token resolver  – <cfile>, truncated paths, error formats
+  Phase 4  Language resolvers   – per filetype (LSP → Treesitter → Builtin)
+  Phase 5  Cfile fallback       – minimal result for alternate handling
+
+After resolution:
+  1. If the file does not exist: fuzzy alternate search (if enabled)
+  2. If the path is external:   system opener (if enabled)
+  3. Otherwise:                 open with the chosen opener (edit/split/tab)
+
+==============================================================================
+10. API                                                          *gopath-api*
+
+The public API is exposed through the main module: >lua
+
+  local gopath = require("gopath")
+<
+                                                           *gopath.setup()*
+gopath.setup({opts})
+    Initialize the plugin and register keymaps and commands.
+    {opts} is an optional table; see |gopath-configuration|.
+
+                                                           *gopath.resolve()*
+gopath.resolve({opts})
+    Resolve the entity under the cursor and return the result without
+    opening any file. Returns (GopathResult|nil, error|nil).
+
+    {opts} fields:
+      order       string[]|nil   Override provider order for this call.
+      timeout_ms  integer|nil    Override LSP timeout for this call.
+
+    GopathResult fields:
+      language    string         Filetype of the source buffer.
+      kind        string         "module", "file", "symbol", "field", "help"
+      path        string|nil     Absolute path to the target file.
+      range       table|nil      { line: integer, col: integer }, 1-indexed.
+      source      string         Provider that produced the result.
+      confidence  number         0.0 – 1.0 confidence score.
+      exists      boolean|nil    Whether path exists on disk.
+      subject     string|nil     Help subject (kind = "help" only).
+
+                                                           *gopath.commands*
+gopath.commands
+    Table exposing the command functions directly: >lua
+
+      gopath.commands.resolve_and_open("vsplit")
+      gopath.commands.resolve_and_copy()
+      gopath.commands.debug_under_cursor()
+<
+==============================================================================
+11. TROUBLESHOOTING                                    *gopath-troubleshooting*
+
+Nothing happens when pressing gP ~
+  1. Check that the plugin loaded: >lua
+       :lua print(require("gopath"))
+<  2. Run |:GopathDebug| to inspect what gopath resolved.
+  3. Verify Neovim version: requires 0.9.0 or newer.
+
+"no match: no-match" ~
+  The text under the cursor could not be resolved by any provider.
+  Move the cursor onto the path/symbol itself and try again, or run
+  |:GopathDebug| to see which phases ran.
+
+$VAR path not resolving ~
+  1. Verify the variable is set: >lua
+       :lua print(vim.env.REPOS_DIR)
+<  2. Check that env_variable_resolution.enable is true.
+  3. Enable dev_mode to see debug output: >lua
+       require("gopath").setup({ dev_mode = true })
+<
+Alternate resolution not finding matches ~
+  Lower the similarity_threshold. The default of 75 may be too strict
+  for short filenames.
+
+External files opening inside Neovim ~
+  The file extension is not in the external extensions list. Either add
+  it via gopath-config-external, or check that the extension is spelled
+  correctly (lowercase, no leading dot).
+
+Cache commands unavailable ~
+  :GopathCacheBuild requires truncated.enable = true in the config.
+
+==============================================================================
+12. CHANGELOG                                               *gopath-changelog*
+
+0.2.0
+  - Add environment variable path resolution ($VAR / ${VAR} syntax)
+  - Add truncated path resolution with async filesystem cache
+  - Add symbol-to-path resolution (bare identifier -> module)
+  - Add direct symbol definition jump via LSP and Tree-sitter
+  - Add line/column parsing for all common error message formats
+  - Add cross-platform external file opener
+  - Add fuzzy alternate resolution with Levenshtein distance
+
+0.1.0
+  - Initial release
+  - Lua module resolution via require() parsing
+  - Basic file token resolution (<cfile>)
+  - Help tag resolution for vim.api, vim.fn, vim.loop
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:
