@@ -18,6 +18,9 @@ local M = {}
 --- Extract the raw token at the cursor from the current line without calling
 --- vim.fn.expand(), which would corrupt $ prefixes.
 --- Accepts $, {, } as valid token characters in addition to path characters.
+--- NOTE: Parentheses are intentionally excluded from path_chars so that
+--- Markdown link syntax  [text]($VAR/path)  does not include the surrounding
+--- parentheses in the token.
 ---@return string|nil
 local function raw_token_at_cursor()
     local line = vim.api.nvim_get_current_line()
@@ -25,7 +28,9 @@ local function raw_token_at_cursor()
 
     -- Characters valid inside a path token including env-var syntax.
     -- Backslash included for Windows paths.
-    local path_chars = "[%w/\\%.%-%_:%(%)%+~@%$%{%}]"
+    -- Parentheses are deliberately excluded: they delimit Markdown link URLs
+    -- like [text]($VAR/path) and must not become part of the token.
+    local path_chars = "[%w/\\%.%-%_:~@%$%{%}]"
 
     local start_col = col
     while start_col > 1 do
