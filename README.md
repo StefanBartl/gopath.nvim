@@ -422,14 +422,16 @@ See [DEV-README.md](DEV-README.md)
 ### Planned Features
 - [ ] User-defined custom language resolvers
 - [ ] TypeScript/JavaScript support
+- [ ] C/C++/C# support
+- [ ] Zig support
+- [ ] Rust support
+- [ ] Java support
 - [ ] Python import resolution
 - [ ] Go package navigation
 - [ ] Configurable UI backend for alternate selection (Telescope, fzf-lua)
 - [ ] File preview in alternate selection
 - [ ] Learning system (prioritize frequently selected alternates)
 - [ ] Async file scanning for large directories
-- [ ] Truncated Path Resolution - Resolve abbreviated paths from logs and error messages (e.g., `...AppData\Local\nvim\init.lua`).
-- [ ] Symbol-to-Module Resolution - Jump from variable to the module it references
 
 ---
 

@@ -1,6 +1,10 @@
----@module 'util.safe_notify'
---- Small utilities to safely call vim.notify from fast event contexts.
---- Provides helpers using vim.schedule, vim.defer_fn and vim.schedule_wrap.
+---@module 'gopath.util.safe_notify'
+---@brief Schedule vim.notify calls safely from fast / async contexts.
+---@description
+--- All functions here are gated on `dev_mode` intentionally: they are designed
+--- for debug-tracing from event callbacks and luv timers where calling
+--- vim.notify directly would crash. For regular warn/error notifications that
+--- must always fire, use `gopath.util.log` instead.
 
 local M = {}
 

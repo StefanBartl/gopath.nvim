@@ -1,5 +1,10 @@
 ---@module 'gopath.util.location'
 ---@brief Parse and merge file locations with line/column information.
+---@description
+--- Handles the common formats that appear in Lua error messages, stack traces
+--- and terminal output: `path:line:col`, `path:line`, `path(line:col)`,
+--- `path(line)` and `path +line`. Returns a `ParsedLocation` table that
+--- callers can use to jump to the exact position after opening a file.
 
 local M = {}
 
