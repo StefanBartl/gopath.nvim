@@ -15,6 +15,7 @@ function M.try_resolve(target_path, opts)
 
   local config = opts or {}
   local threshold = config.similarity_threshold or 75
+  local open_cmd = config.open_cmd or "edit"
 
   -- Step 1: Extract directory from target path
   local dir_helper = require("gopath.alternate.helpers.directory")
@@ -40,7 +41,11 @@ function M.try_resolve(target_path, opts)
 
   -- Step 4: Present selection via UI
   local ui = require("gopath.alternate.ui")
-  return ui.present_selection(matches, target_path)
+  return ui.present_selection(matches, target_path, {
+    open_cmd = open_cmd,
+    line = config.line,
+    col = config.col,
+  })
 end
 
 ---Attempt alternate resolution with pre-computed matches
@@ -63,6 +68,8 @@ function M.try_resolve_with_matches(matches, original_path, opts)
   local ui = require("gopath.alternate.ui")
   return ui.present_selection(matches, original_path, {
     open_cmd = open_cmd,
+    line = opts.line,
+    col = opts.col,
   })
 end
 

@@ -15,8 +15,10 @@ local function looks_like_path(str)
 		return false
 	end
 
-	-- REJECT: Lua chain without path separator
-	if str:match("^[%w_]+%.[%w_]+$") and not str:match("[/\\]") then
+	-- REJECT: dotted identifier strings without path separators (Lua module names,
+	-- e.g. "custom.markdown.hl_options.hl_groups.blockquote"). Only allow through
+	-- if the final segment is a known file extension.
+	if str:match("^[%w_][%w_%.]+" ) and not str:match("[/\\]") then
 		local common_exts = { "lua", "txt", "md", "vim", "json", "toml", "yaml", "py", "js", "ts", "html", "css" }
 		local ext = str:match("%.([^%.]+)$")
 		local has_common_ext = ext and vim.tbl_contains(common_exts, ext)

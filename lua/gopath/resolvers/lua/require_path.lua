@@ -48,28 +48,68 @@ local function find_require_module_at_cursor()
   return nil, nil, nil
 end
 
+---Resolve a dotted Lua module string into a file path.
+---Shared by `require("a.b.c")` and bare/annotation dotted names ("a.b.c").
+---@param mod string Dotted module name (e.g. "custom.markdown.hl_options")
+---@return string|nil abs Absolute file path, or nil if not found
+local function module_to_path(mod)
+  -- Convert "a.b/c" -> "a/b/c"
+  local rel = mod:gsub("%.", "/")
+
+  -- Candidates inside runtimepath
+  local abs = PATH.search_in_rtp({
+    rel .. ".lua",
+    rel .. "/init.lua",
+  })
+
+  if not abs then
+    abs = PATH.search_with_package_path(mod)
+  end
+
+  return abs
+end
+
+---Extract a dotted module name under the cursor, independent of `require(...)`.
+---This gives gf-parity for `@module 'a.b.c'`, `@see a.b.c` and bare dotted
+---module names that appear in error messages ("module 'x.y' not found").
+---@return string|nil mod Dotted module name, or nil
+local function find_dotted_module_at_cursor()
+  local ok, token = pcall(function()
+    return require("gopath.providers.token").get_token()
+  end)
+  if not ok or type(token) ~= "string" or token == "" then
+    return nil
+  end
+
+  -- Strip surrounding quotes left by annotations/strings.
+  token = token:gsub('^"(.*)"$', "%1"):gsub("^'(.*)'$", "%1")
+
+  -- Must look like a dotted module: word segments joined by dots, no path
+  -- separators, at least two segments. Reject anything with slashes.
+  if token:match("[/\\]") then
+    return nil
+  end
+  if not token:match("^[%w_]+%.[%w_%.]+$") then
+    return nil
+  end
+
+  return token
+end
+
 ---@return table|nil  -- GopathResult
 function M.resolve()
   local mod, hint_line, hint_col = find_require_module_at_cursor()
+
+  -- Fallback: dotted module under cursor without a require(...) wrapper.
+  if not mod then
+    mod = find_dotted_module_at_cursor()
+  end
 
   if not mod then
     return nil
   end
 
-  -- Convert "a.b/c" -> "a/b/c"
-  local rel = mod:gsub("%.", "/")
-
-  -- Candidates inside runtimepath
-  local candidates = {
-    rel .. ".lua",
-    rel .. "/init.lua",
-  }
-
-  local abs = PATH.search_in_rtp(candidates)
-
-  if not abs then
-    abs = PATH.search_with_package_path(mod)
-  end
+  local abs = module_to_path(mod)
 
   if not abs then
     return nil
@@ -83,6 +123,7 @@ function M.resolve()
     chain      = nil,
     source     = "builtin",
     confidence = 0.85,
+    exists     = true,
   }
 end
 
