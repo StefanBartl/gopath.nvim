@@ -10,10 +10,14 @@ local M = {}
 ---@param original_path string The original path that failed
 ---@param opts table|nil Options:
 ---  - open_cmd: string - Command for opening selected file
+---  - line: integer|nil - 1-based line to jump to after opening
+---  - col: integer|nil - 1-based column to jump to after opening
 ---@return boolean handled True if user selected a file
 function M.present_selection(matches, original_path, opts)
   opts = opts or {}
   local open_cmd = opts.open_cmd or "edit"
+  local line = opts.line
+  local col = opts.col
 
   if not matches or #matches == 0 then
     return false
@@ -47,8 +51,17 @@ function M.present_selection(matches, original_path, opts)
     if match and match.path then
       -- === Open Selected File ===
       -- Use the command specified by caller (respects split/vsplit/etc.)
-      vim.cmd(open_cmd .. " " .. vim.fn.fnameescape(match.path))
-      selected = true
+      local ok = pcall(vim.cmd, open_cmd .. " " .. vim.fn.fnameescape(match.path))
+      if ok then
+        selected = true
+
+        -- Jump to location if the caller provided one (truncated paths carry :line:col)
+        if line and line > 0 then
+          local c = math.max(0, (col or 1) - 1)
+          pcall(vim.api.nvim_win_set_cursor, 0, { line, c })
+          pcall(vim.cmd, "normal! zz")
+        end
+      end
     end
   end)
 

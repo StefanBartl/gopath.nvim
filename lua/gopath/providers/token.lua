@@ -42,7 +42,11 @@ function M.extract_at_cursor()
 
   -- Clean token
   token = token:gsub("^%s+", ""):gsub("%s+$", "")  -- Trim whitespace
-  token = token:gsub("^%.", "")  -- Strip leading dot (chain context)
+  -- Strip a single leading dot from chain context (".foo" -> "foo"),
+  -- but preserve an ellipsis prefix ("...foo") used for truncated paths.
+  if not token:match("^%.%.") then
+    token = token:gsub("^%.", "")
+  end
   token = token:gsub("%)$", "")  -- Strip trailing paren (function calls)
   token = token:gsub("%($", "")  -- Strip trailing opening paren
 

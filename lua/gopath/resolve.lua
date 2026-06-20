@@ -24,10 +24,18 @@ function M.resolve_at_cursor(opts)
 		if help then return help, nil end
 	end
 
-	-- ALWAYS try filetoken (works for all filetypes)
+	-- ALWAYS try filetoken (works for all filetypes).
+	-- Only short-circuit when the file actually exists; if not, save as fallback
+	-- so language-specific resolvers (e.g. Lua require_path) get a chance first.
+	local ftok_fallback = nil
 	do
 		local ftok = require("gopath.resolvers.common.filetoken").resolve()
-		if ftok then return ftok, nil end
+		if ftok then
+			if ftok.exists then
+				return ftok, nil
+			end
+			ftok_fallback = ftok
+		end
 	end
 
 	-- Check if language-specific features are available AND enabled
@@ -62,6 +70,12 @@ function M.resolve_at_cursor(opts)
 				return result_or_err, nil
 			end
 		end
+	end
+
+	-- Language resolvers had their chance; return the filetoken non-exist result if we
+	-- have one (it carries a more specific path than the raw cfile below).
+	if ftok_fallback then
+		return ftok_fallback, nil
 	end
 
 	-- Final fallback: try to extract <cfile> even if no language-specific resolver matched

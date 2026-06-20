@@ -5,33 +5,35 @@
 local RESOLVE = require("gopath.resolve")
 local CONFIG = require("gopath.config")
 
-local OP = {
-  edit   = require("gopath.open.edit"),
-  window = require("gopath.open.window"),
-  vsplit = require("gopath.open.vsplit"),
-  tab    = require("gopath.open.tab"),
-  help   = require("gopath.open.help"),
-}
+local OPEN = require("gopath.open")
+local HELP = require("gopath.open.help")
 
 local M = {}
+
+---Map a gopath open "kind" to the corresponding Ex command.
+---Used when delegating to truncated/alternate resolution, which open via `vim.cmd`.
+---@type table<string, string>
+local KIND_TO_CMD = {
+  edit   = "edit",
+  window = "split",
+  vsplit = "vsplit",
+  tab    = "tabedit",
+}
 
 ---Open result with appropriate opener based on kind
 ---@param res GopathResult Resolution result
 ---@param kind string Opening mode ("edit"|"window"|"vsplit"|"tab")
 local function open_for_kind(res, kind)
-  -- Special handling for help results
+  -- Special handling for help results (separate opener with its own fallbacks).
   if res.kind == "help" then
-    if kind == "tab" then
-      return OP.help.open(res, { target = "tab" })
-    elseif kind == "window" or kind == "vsplit" then
-      return OP.help.open(res, { target = "window" })
-    else
-      return OP.help.open(res, { target = "edit" })
-    end
+    local target = (kind == "tab" and "tab")
+        or ((kind == "window" or kind == "vsplit") and "window")
+        or "edit"
+    return HELP.open(res, { target = target })
   end
 
-  -- Normal file opening
-  return OP[kind or "edit"].open(res)
+  -- Normal file opening via the unified opener.
+  return OPEN.open(res, kind or "edit")
 end
 
 ---Main command: Resolve and open with specified mode
@@ -46,19 +48,46 @@ function M.resolve_and_open(kind)
     return
   end
 
-  -- Step 2: Check if file exists and try alternate resolution if needed
+  -- Step 2: Check if file exists and try fallback resolution if needed
   local cfg = CONFIG.get()
+  local open_cmd = KIND_TO_CMD[kind or "edit"] or "edit"
 
-  if res.exists == false and cfg.alternate and cfg.alternate.enable then
-    -- File doesn't exist, try fuzzy alternate resolution
-    local alternate = require("gopath.alternate")
-    local handled = alternate.try_resolve(res.path, {
-      similarity_threshold = cfg.alternate.similarity_threshold or 75,
-      open_mode = kind or "edit",  -- Pass opening mode to alternate
-    })
+  if res.exists == false then
+    -- Step 2a: Truncated path handling (".../...:line").
+    -- The raw token under the cursor still carries the ellipsis prefix that
+    -- filetoken stripped while building res.path, so re-read it here.
+    if cfg.truncated and cfg.truncated.enable then
+      local ok_tok, token = pcall(function()
+        return require("gopath.providers.token").get_token()
+      end)
 
-    if handled then
-      return -- Alternate opened the file with correct mode
+      if ok_tok and token then
+        local truncated = require("gopath.truncated")
+        if truncated.is_truncated(token) then
+          local handled = truncated.try_resolve(token, {
+            use_cache = cfg.truncated.use_cache ~= false,
+            open_cmd  = open_cmd,
+          })
+          if handled then
+            return
+          end
+        end
+      end
+    end
+
+    -- Step 2b: Fuzzy alternate resolution (similar filenames in target dir).
+    if cfg.alternate and cfg.alternate.enable then
+      local alternate = require("gopath.alternate")
+      local handled = alternate.try_resolve(res.path, {
+        similarity_threshold = cfg.alternate.similarity_threshold or 75,
+        open_cmd = open_cmd,
+        line = res.range and res.range.line or nil,
+        col = res.range and res.range.col or nil,
+      })
+
+      if handled then
+        return -- Alternate opened the file with correct mode
+      end
     end
   end
 
@@ -148,7 +177,7 @@ function M.debug_under_cursor()
     print("  Bindings (sample):")
     local count = 0
     for id, mod in pairs(bind_map) do
-      print(string.format("    %s → %s", id, mod))
+      print(string.format("    %s -> %s", id, mod))
       count = count + 1
       if count >= 3 then break end
     end
