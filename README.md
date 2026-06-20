@@ -26,7 +26,7 @@ A powerful, modular navigation plugin for Neovim that intelligently resolves sym
     - [Smart Navigation](#smart-navigation)
     - [Fuzzy Alternate Resolution](#fuzzy-alternate-resolution)
     - [External File Opening](#external-file-opening)
-    - [Line/Column Support (currently lua only)](#linecolumn-support-currently-lua-only)
+    - [Line/Column Support](#linecolumn-support)
   - [Direct Symbol Definition Jump](#direct-symbol-definition-jump)
   - [Summary](#summary)
   - [📦 Installation](#installation)
@@ -103,8 +103,9 @@ Automatically opens non-text files with system default apps:
 
 ---
 
-### Line/Column Support (currently lua only)
-Gopath automatically parses and respects line and column numbers in file paths:
+### Line/Column Support
+Gopath automatically parses and respects line and column numbers in file paths
+(works in any filetype):
 `"lua/gopath/config.lua:15:8"` -> Opens file and cursor jumps directly in line and row ()
 
 Also works in...
@@ -271,6 +272,12 @@ opts = {
 | `:GopathOpen [mode]` | Open target (modes: `edit`, `window`, `vsplit`, `tab`) |
 | `:GopathCopy` | Copy location to clipboard |
 | `:GopathDebug` | Debug resolution under cursor |
+| `:GopathCacheBuild` | Rebuild the filesystem cache (truncated-path resolution) |
+| `:GopathCacheInfo` | Show cache statistics (files indexed, age, status) |
+| `:GopathCacheAddRoot <dir>` | Add a directory to the cache scan roots |
+
+Run **`:checkhealth gopath`** to verify your setup (config, Treesitter parser,
+optional `fd`/`rg` tools, and cache status).
 
 ---
 
@@ -368,8 +375,58 @@ opts = {
 ## 🎨 Language Support
 
 ### Built-in Support
-* **Lua**: Full support (modules, chains, tables, fields)
-* **All others**: Universal features (file paths, URLs, help tags)
+
+| Language | Filetypes | Resolves |
+|----------|-----------|----------|
+| **Lua** | `lua` | `require()`, module/symbol chains, tables, fields, `@module`/`@see` |
+| **Python** | `python` | `import a.b`, `from a.b import c` (incl. submodules), relative `from .x` |
+| **JavaScript / TypeScript** | `javascript(react)`, `typescript(react)` | `import … from './x'`, `require('./x')`, bare `node_modules` specifiers |
+| **Rust** | `rust` | `mod x;`, `use crate::… / super:: / self::` |
+| **Go** | `go` | `import "module/pkg"` (local module, vendor, module cache) |
+| **C / C++** | `c`, `cpp` | `#include "…"` and `#include <…>` |
+| **C#** | `cs` | `using My.App.Namespace;` (heuristic namespace→path) |
+| **Zig** | `zig` | `@import("../file.zig")` (relative files) |
+| **Java** | `java` | `import com.example.Foo;`, static & wildcard imports |
+
+> Language resolvers find definitions **offline**, without an LSP. When an LSP is
+> attached, it is preferred for precision (in `hybrid`/`lsp` mode). Standard-library
+> and third-party package internals are intentionally left to the LSP.
+
+**Disable a language** (universal features still work):
+```lua
+opts = {
+  languages = {
+    python = { enable = false },
+  },
+}
+```
+
+### Custom Resolvers
+
+Provide your own resolver for any filetype. It runs **before** the built-in
+resolvers, so you can override or extend the defaults. A resolver is any table
+with a `resolve()` function returning a `GopathResult` (or `nil` to pass):
+
+```lua
+opts = {
+  languages = {
+    lua = {
+      custom_resolvers = {
+        -- either a module name string …
+        "my.custom.resolver",
+        -- … or an inline table
+        {
+          resolve = function()
+            -- inspect the cursor / current line, return a result or nil
+            -- return { language="lua", kind="module", path="/abs/path.lua",
+            --          source="builtin", confidence=1.0, exists=true }
+          end,
+        },
+      },
+    },
+  },
+}
+```
 
 ### Universal Features (work in any filetype)
 * ✅ File paths (relative, absolute, with line numbers)
@@ -378,6 +435,7 @@ opts = {
 * ✅ `<cfile>` expansion
 * ✅ Fuzzy alternate resolution
 * ✅ External file opening
+* ✅ Truncated path resolution (`...nvim/lua/foo/bar.lua:42` from error output)
 
 ---
 
@@ -420,18 +478,18 @@ See [DEV-README.md](DEV-README.md)
 ## 🗺️ Roadmap
 
 ### Planned Features
-- [ ] User-defined custom language resolvers
-- [ ] TypeScript/JavaScript support
-- [ ] C/C++/C# support
-- [ ] Zig support
-- [ ] Rust support
-- [ ] Java support
-- [ ] Python import resolution
-- [ ] Go package navigation
+- [x] User-defined custom language resolvers
+- [x] TypeScript/JavaScript support
+- [x] C/C++/C# support
+- [x] Zig support
+- [x] Rust support
+- [x] Java support
+- [x] Python import resolution
+- [x] Go package navigation
+- [x] Async file scanning for large directories (bounded concurrency)
 - [ ] Configurable UI backend for alternate selection (Telescope, fzf-lua)
 - [ ] File preview in alternate selection
 - [ ] Learning system (prioritize frequently selected alternates)
-- [ ] Async file scanning for large directories
 
 ---
 

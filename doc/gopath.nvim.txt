@@ -1,0 +1,331 @@
+*gopath.nvim.txt*       Intelligent path / module / symbol navigation for Neovim
+
+Author:   Stefan Bartl
+License:  MIT
+Version:  0.2.0
+
+==============================================================================
+CONTENTS                                                     *gopath-contents*
+
+    1. Introduction ......................... |gopath-introduction|
+    2. Requirements ......................... |gopath-requirements|
+    3. Setup ................................ |gopath-setup|
+    4. Keymaps .............................. |gopath-keymaps|
+    5. Commands ............................. |gopath-commands|
+    6. Configuration ........................ |gopath-configuration|
+    7. Language support ..................... |gopath-languages|
+    8. Custom resolvers ..................... |gopath-custom-resolvers|
+    9. Truncated paths & cache .............. |gopath-truncated|
+   10. Alternate resolution ................. |gopath-alternate|
+   11. External files ....................... |gopath-external|
+   12. Lua API .............................. |gopath-api|
+   13. Health ............................... |gopath-health|
+   14. Troubleshooting ...................... |gopath-troubleshooting|
+
+==============================================================================
+1. INTRODUCTION                                          *gopath-introduction*
+
+gopath.nvim is a navigation plugin that resolves the thing under the cursor —
+a file path, a module name, an import statement, a symbol, a help tag or a URL
+— and opens it. Think of it as a much smarter |gf|.
+
+It combines three resolution providers:
+
+    - LSP          most precise; jumps to exact definitions
+    - Treesitter   semantic analysis for Lua chains and symbols
+    - Builtin      offline heuristics: require/import resolution, file paths,
+                   help tags, truncated paths, fuzzy alternates
+
+It also opens non-text files (images, PDFs, media, URLs) with the system
+default application, and can recover from typos and truncated paths.
+
+==============================================================================
+2. REQUIREMENTS                                          *gopath-requirements*
+
+    - Neovim >= 0.9
+    - Optional: nvim-treesitter (Lua parser) for semantic Lua resolution
+    - Optional: `fd` / `rg` for fast live truncated-path search
+
+Run |:checkhealth| gopath to verify your setup. See |gopath-health|.
+
+==============================================================================
+3. SETUP                                                        *gopath-setup*
+
+Call the setup function once, typically from your plugin manager.
+>lua
+    require("gopath").setup({})
+<
+With lazy.nvim:
+>lua
+    {
+      "StefanBartl/gopath.nvim",
+      event = "VeryLazy",
+      dependencies = { "nvim-treesitter/nvim-treesitter" }, -- optional
+      opts = {},
+    }
+<
+Calling setup() with no arguments uses the defaults shown in
+|gopath-configuration|.
+
+==============================================================================
+4. KEYMAPS                                                    *gopath-keymaps*
+
+Default normal-mode keymaps (work in any buffer):
+
+    gP      Open target in the current window           *gopath-gP*
+    g|      Open target in a horizontal split           *gopath-g-bar*
+    g\      Open target in a vertical split             *gopath-g-bslash*
+    g}      Open target in a new tab                    *gopath-g-brace*
+    gY      Copy `path:line:col` to the clipboard       *gopath-gY*
+    g?      Show resolution debug info                  *gopath-g-question*
+
+Disable all default keymaps:
+>lua
+    require("gopath").setup({ mappings = false })
+<
+Override individual keymaps (set any to false to disable just that one):
+>lua
+    require("gopath").setup({
+      mappings = {
+        open_here     = "gP",
+        open_split    = "g|",
+        open_vsplit   = "g\\",
+        open_tab      = "g}",
+        copy_location = "gY",
+        debug         = "g?",
+      },
+    })
+<
+A mapping value may be a string or a list of strings, e.g.
+`open_here = { "gP", "<2-LeftMouse>" }`.
+
+==============================================================================
+5. COMMANDS                                                  *gopath-commands*
+
+                                                              *:GopathOpen*
+:GopathOpen [mode]      Resolve and open the target under the cursor.
+                        mode is one of edit|window|vsplit|tab (default edit).
+
+                                                              *:GopathCopy*
+:GopathCopy             Copy the resolved `path:line:col` to the + register.
+
+                                                              *:GopathResolve*
+:GopathResolve          Show resolution result for the symbol under the cursor.
+
+                                                              *:GopathDebug*
+:GopathDebug            Show detailed resolution debug information.
+
+                                                              *:GopathCacheBuild*
+:GopathCacheBuild       Rebuild the filesystem cache used for truncated-path
+                        resolution (async, non-blocking).
+
+                                                              *:GopathCacheInfo*
+:GopathCacheInfo        Show cache statistics: files indexed, age, status.
+
+                                                              *:GopathCacheAddRoot*
+:GopathCacheAddRoot {dir}
+                        Add {dir} to the cache scan roots and rebuild.
+
+Disable all commands:
+>lua
+    require("gopath").setup({ commands = false })
+<
+==============================================================================
+6. CONFIGURATION                                        *gopath-configuration*
+
+Full default configuration:
+>lua
+    require("gopath").setup({
+      dev_mode = false,       -- print debug notifications
+      mode = "hybrid",        -- "hybrid"|"lsp"|"treesitter"|"builtin"
+      order = { "lsp", "treesitter", "builtin" },
+      lsp_timeout_ms = 200,
+
+      languages = {
+        lua  = { enable = true, resolvers = nil, custom_resolvers = nil },
+        -- python, javascript, typescript, rust, go, c, cpp, cs, zig, java …
+        -- (all enabled by default)
+      },
+
+      alternate = {
+        enable = true,
+        similarity_threshold = 75,    -- 0-100
+      },
+
+      external = {
+        enable = true,
+        extensions = nil,             -- nil = built-in list
+      },
+
+      truncated = {
+        enable = true,
+        use_cache = true,
+        cache_refresh_interval = 600, -- seconds
+        max_cache_age = 3600,         -- seconds
+        live_search_fallback = true,
+        similarity_threshold = 75,
+        cache_roots = nil,            -- nil = auto-detect
+        max_depth = 6,
+        excluded_dirs = { ".git", "node_modules", "target", "build", … },
+        auto_rebuild_on_save = false,
+      },
+
+      mappings = { … },   -- see |gopath-keymaps|
+      commands = { resolve = true, open = true, copy = true, debug = true },
+    })
+<
+MODES                                                          *gopath-modes*
+
+    hybrid      Try every provider in `order` (default).
+    lsp         LSP only.
+    treesitter  Treesitter only.
+    builtin     Builtin only (no external dependencies).
+
+==============================================================================
+7. LANGUAGE SUPPORT                                         *gopath-languages*
+
+Language resolvers find definitions offline (no LSP required). When an LSP is
+attached it is preferred for precision. Supported import/use forms:
+
+    Lua         require("a.b.c"), @module 'a.b.c', @see, method chains
+    Python      import a.b ; from a.b import c ; from .rel import d
+    JS/TS       import x from './f' ; require('./f') ; bare node_modules specs
+    Rust        mod x; ; use crate::a::b ; use super:: ; use self::
+    Go          import "module/pkg" (local module, vendor, module cache)
+    C / C++     #include "f.h" and #include <f.h>
+    C#          using My.App.Namespace; (heuristic namespace -> path)
+    Zig         @import("../file.zig") (relative files)
+    Java        import com.example.Foo; (incl. static and wildcard)
+
+Filetypes: lua, python, javascript, javascriptreact, typescript,
+typescriptreact, rust, go, c, cpp, cs, zig, java.
+
+Disable resolution for a filetype (universal features still work):
+>lua
+    require("gopath").setup({
+      languages = { python = { enable = false } },
+    })
+<
+==============================================================================
+8. CUSTOM RESOLVERS                                  *gopath-custom-resolvers*
+
+A custom resolver is any table with a `resolve()` function that returns a
+GopathResult (see |gopath-api|) or nil. Custom resolvers run BEFORE the
+built-in resolvers for their filetype, so they can override defaults.
+>lua
+    require("gopath").setup({
+      languages = {
+        lua = {
+          custom_resolvers = {
+            "my.module.resolver",          -- module name string, or …
+            {                              -- … an inline table
+              resolve = function()
+                -- return a GopathResult, or nil to pass to the next resolver
+              end,
+            },
+          },
+        },
+      },
+    })
+<
+A GopathResult is a table: >
+    {
+      language   = "lua",     -- filetype label
+      kind       = "module",  -- module|file|function|method|field|help|…
+      path       = "/abs/path.lua",
+      range      = { line = 10, col = 1 } or nil,
+      source     = "builtin",
+      confidence = 1.0,        -- 0..1
+      exists     = true,
+    }
+<
+==============================================================================
+9. TRUNCATED PATHS & CACHE                                  *gopath-truncated*
+
+Paths in error messages and logs are often truncated, e.g.
+`...AppData/Local/nvim/lua/config/init.lua:42`. gopath strips the leading
+ellipsis, parses an optional `:line:col` suffix, and searches a filesystem
+cache (fast) or the live filesystem (fallback) to find the real file.
+
+The cache is built asynchronously with bounded concurrency, so it never blocks
+the editor even on very large directory trees. Configure via the `truncated`
+table (see |gopath-configuration|) and manage with |:GopathCacheBuild|,
+|:GopathCacheInfo| and |:GopathCacheAddRoot|.
+
+==============================================================================
+10. ALTERNATE RESOLUTION                                    *gopath-alternate*
+
+When a resolved path does not exist (e.g. a typo), gopath searches the target
+directory for similarly named files using Levenshtein distance and presents an
+interactive selection (via |vim.ui.select|), sorted by similarity. Tune with:
+>lua
+    require("gopath").setup({
+      alternate = { enable = true, similarity_threshold = 80 },
+    })
+<
+==============================================================================
+11. EXTERNAL FILES                                          *gopath-external*
+
+Non-text files (images, PDFs, media) and URLs are opened with the system
+default application: `open` (macOS), `xdg-open` (Linux), PowerShell (Windows).
+>lua
+    require("gopath").setup({
+      external = { enable = true, extensions = { "png", "pdf" } },
+    })
+<
+==============================================================================
+12. LUA API                                                      *gopath-api*
+
+                                                            *gopath.setup()*
+require("gopath").setup({opts})
+        Initialise the plugin. See |gopath-configuration|.
+
+                                                          *gopath.resolve()*
+require("gopath").resolve({opts})
+        Resolve the entity under the cursor without opening it.
+        Returns (GopathResult|nil, error|nil).
+
+                                                         *gopath.commands*
+require("gopath").commands
+        Table of command implementations for custom keymaps:
+            .resolve_and_open(mode)   mode = edit|window|vsplit|tab
+            .resolve_and_copy()
+            .debug_under_cursor()
+
+Example custom keymap:
+>lua
+    vim.keymap.set("n", "<leader>gd", function()
+      require("gopath").commands.resolve_and_open("edit")
+    end, { desc = "gopath: go to definition" })
+<
+==============================================================================
+13. HEALTH                                                    *gopath-health*
+
+Run: >
+    :checkhealth gopath
+<
+Reports the active config, Treesitter Lua parser availability, optional
+external tools (`fd`, `rg`, `find`) and the truncated-path cache status.
+
+==============================================================================
+14. TROUBLESHOOTING                                  *gopath-troubleshooting*
+
+Nothing happens when I press gP~
+    - Run |:GopathDebug| to see what was resolved.
+    - Confirm Neovim >= 0.9.
+    - Check the keymap was not overridden by another plugin.
+
+"no match: no-match"~
+    - The text under the cursor could not be resolved. Move the cursor onto
+      the path/identifier, or check the path is correct.
+
+Import not resolved for my language~
+    - gopath resolves project-local modules offline; stdlib and third-party
+      package internals are left to your LSP. Ensure the file actually exists
+      in the project, and that a project marker (e.g. go.mod, Cargo.toml,
+      package.json, pyproject.toml) is present.
+
+External file opens with the wrong app~
+    - Fix the OS file association; gopath delegates to the system opener.
+
+ vim:tw=78:ts=8:noet:ft=help:norl:
