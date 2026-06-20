@@ -17,10 +17,12 @@
 local M = {}
 
 local safe = require("gopath.util.safe_notify")
+local LOG  = require("gopath.util.log")
 local uv = vim.loop
 
 ---@class CacheConfig
 ---@field max_depth integer Maximum directory depth to scan
+---@field max_concurrency integer Max directories scanned concurrently (bounds open handles)
 ---@field excluded_dirs string[] Directories to skip during scan
 ---@field cache_file string Path to persistent cache file
 ---@field scan_roots string[] Directories/drives to scan
@@ -30,6 +32,10 @@ local uv = vim.loop
 ---@type CacheConfig
 local config = {
 	max_depth = 6, -- Don't descend too deep (performance)
+
+	-- Maximum number of directories scanned concurrently. Bounding this prevents
+	-- libuv threadpool / open-file-handle exhaustion (EMFILE) on huge trees.
+	max_concurrency = 16,
 
 	-- Smart exclusions: common directories that bloat cache
 	excluded_dirs = {
@@ -133,73 +139,89 @@ local function is_excluded(name)
 	return vim.tbl_contains(config.excluded_dirs, name)
 end
 
----Recursively scan directory (async, non-blocking)
----This function uses libuv's async filesystem APIs to avoid blocking Neovim
+---Scan a set of roots with bounded concurrency (async, non-blocking).
 ---
----@param dir string Directory path to scan
----@param depth integer Current recursion depth (starts at 0)
----@param callback fun(paths: string[]) Called with all found file paths
-local function scan_dir_async(dir, depth, callback)
-	-- === Depth Limit Check ===
-	-- Prevent excessive recursion that could cause performance issues
-	if depth > config.max_depth then
-		callback({})
-		return
+--- A work queue of `{ dir, depth }` items is processed by at most
+--- `config.max_concurrency` in-flight `fs_scandir` operations. Subdirectories
+--- are pushed back onto the queue instead of recursing immediately, so the
+--- number of simultaneously open directory handles stays bounded regardless of
+--- tree size. This avoids EMFILE / threadpool starvation on very large trees
+--- while still keeping the whole scan off the main loop.
+---
+---@param roots string[] Root directories to scan
+---@param on_done fun(paths: string[]) Called once with every discovered file path
+local function scan_roots_bounded(roots, on_done)
+	local queue   = {}   -- pending { dir=string, depth=integer } items
+	local results = {}   -- accumulated file paths
+	local active  = 0    -- in-flight fs_scandir operations
+	local qhead   = 1    -- queue read cursor (avoids table.remove shifts)
+
+	for i = 1, #roots do
+		queue[#queue + 1] = { dir = roots[i], depth = 0 }
 	end
 
-	local results = {}
+	local pump  -- forward declaration
 
-	-- === Start Async Directory Scan ===
-	---@diagnostic disable-next-line lib.uv
-	uv.fs_scandir(dir, function(err, handle)
-		if err or not handle then
-			-- Directory not accessible (permissions, doesn't exist, etc.)
-			callback(results)
-			return
+	---Scan one directory; push child dirs back onto the queue, collect files.
+	---@param item { dir:string, depth:integer }
+	local function scan_one(item)
+		---@diagnostic disable-next-line lib.uv
+		uv.fs_scandir(item.dir, function(err, handle)
+			if err or not handle then
+				active = active - 1
+				pump()
+				return
+			end
+
+			while true do
+				---@diagnostic disable-next-line lib.uv
+				local name, typ = uv.fs_scandir_next(handle)
+				if not name then break end
+
+				local full_path = item.dir .. "/" .. name
+				if typ == "file" then
+					results[#results + 1] = full_path
+				elseif typ == "directory"
+					and not is_excluded(name)
+					and item.depth < config.max_depth
+				then
+					queue[#queue + 1] = { dir = full_path, depth = item.depth + 1 }
+				end
+			end
+
+			active = active - 1
+			pump()
+		end)
+	end
+
+	---Fill available concurrency slots from the queue; finish when fully drained.
+	pump = function()
+		while active < config.max_concurrency and qhead <= #queue do
+			local item = queue[qhead]
+			qhead = qhead + 1
+			active = active + 1
+			scan_one(item)
 		end
 
-		-- === Process Each Entry ===
-		local function scan_next()
-			---@diagnostic disable-next-line lib.uv
-			uv.fs_scandir_next(handle, function(err2, name, type)
-				if err2 or not name then
-					-- End of directory entries
-					callback(results)
-					return
-				end
-
-				local full_path = dir .. "/" .. name
-
-				if type == "file" then
-					-- === File Found: Add to Results ===
-					table.insert(results, full_path)
-					scan_next() -- Continue with next entry
-				elseif type == "directory" and not is_excluded(name) then
-					-- === Directory Found: Recurse ===
-					scan_dir_async(full_path, depth + 1, function(sub_results)
-						-- Merge subdirectory results
-						vim.list_extend(results, sub_results)
-						scan_next() -- Continue with next entry
-					end)
-				else
-					-- Excluded directory or other type (symlink, etc.)
-					scan_next()
-				end
-			end)
+		if active == 0 and qhead > #queue then
+			on_done(results)
 		end
+	end
 
-		scan_next() -- Start processing entries
-	end)
+	-- Empty input → complete immediately on next tick.
+	if #queue == 0 then
+		vim.schedule(function() on_done(results) end)
+	else
+		pump()
+	end
 end
 
----Build cache from configured scan roots
----This is non-blocking and runs entirely in the background
----
+---Build cache from configured scan roots.
+---Non-blocking: runs entirely in the background with bounded concurrency.
 ---@param callback fun(success: boolean) Called when build completes
 function M.build_async(callback)
 	-- === Prevent Concurrent Builds ===
 	if state.building then
-		-- vim.notify("[gopath] Cache build already in progress", vim.log.levels.WARN)
 		callback(false)
 		return
 	end
@@ -208,36 +230,24 @@ function M.build_async(callback)
 	state.building = true
 	state.paths = {} -- Clear existing paths
 
-    safe.safe_notify_defer(string.format("[gopath] Building cache from %d roots...", #config.scan_roots), vim.log.levels.INFO, nil, 50)
+	safe.safe_notify_defer(
+		string.format("[gopath] Building cache from %d roots...", #config.scan_roots),
+		vim.log.levels.INFO, nil, 50
+	)
 
-	-- === Scan All Roots ===
-	local completed = 0
-	local total = #config.scan_roots
-
+	-- Keep only roots that actually exist on disk.
+	local roots = {}
 	for _, root in ipairs(config.scan_roots) do
-		-- Verify root exists before scanning
-		if vim.fn.isdirectory(root) ~= 1 then
-			completed = completed + 1
-			if completed == total then
-				M._finalize_build(callback)
-			end
-			goto continue
+		if vim.fn.isdirectory(root) == 1 then
+			roots[#roots + 1] = root
 		end
-
-		-- === Start Async Scan ===
-		scan_dir_async(root, 0, function(paths)
-			-- === Scan Complete for This Root ===
-			vim.list_extend(state.paths, paths)
-			completed = completed + 1
-
-			if completed == total then
-				-- === All Scans Complete ===
-				M._finalize_build(callback)
-			end
-		end)
-
-		::continue::
 	end
+
+	-- === Single bounded-concurrency scan across all roots ===
+	scan_roots_bounded(roots, function(paths)
+		state.paths = paths
+		M._finalize_build(callback)
+	end)
 end
 
 ---Finalize cache build (save to disk, update state)
@@ -250,9 +260,10 @@ function M._finalize_build(callback)
 	-- === Save to Disk ===
 	M._save_to_disk()
 
-	-- === Notify User (on main thread) ===
+	-- Build completion is reported by the caller (setup / :GopathCacheBuild);
+	-- keep this as a dev-only trace to avoid duplicate notifications.
 	vim.schedule(function()
-		vim.notify(string.format("[gopath] Cache built: %d files indexed", #state.paths), vim.log.levels.INFO)
+		LOG.debug(string.format("Cache built: %d files indexed", #state.paths))
 	end)
 
 	callback(true)
@@ -271,13 +282,13 @@ function M._save_to_disk()
 	-- Use pcall to handle JSON encoding errors gracefully
 	local ok, json = pcall(vim.json.encode, data)
 	if not ok then
-		vim.notify("[gopath] Failed to encode cache data", vim.log.levels.ERROR)
+		LOG.error("Failed to encode cache data")
 		return
 	end
 
 	local file = io.open(config.cache_file, "w")
 	if not file then
-		vim.notify("[gopath] Failed to open cache file for writing", vim.log.levels.ERROR)
+		LOG.error("Failed to open cache file for writing")
 		return
 	end
 
@@ -300,7 +311,7 @@ function M.load_from_disk()
 	-- === Parse JSON ===
 	local ok, data = pcall(vim.json.decode, content)
 	if not ok or not data then
-		vim.notify("[gopath] Failed to parse cache file", vim.log.levels.WARN)
+		LOG.warn("Failed to parse cache file")
 		return false
 	end
 
@@ -412,20 +423,20 @@ function M.add_root(dir, rebuild)
 
 	-- Validate directory exists
 	if vim.fn.isdirectory(dir) ~= 1 then
-		vim.notify(string.format("[gopath] Directory does not exist: %s", dir), vim.log.levels.ERROR)
+		LOG.error("Directory does not exist: " .. dir)
 		return
 	end
 
 	-- Check if already in roots
 	if vim.tbl_contains(config.scan_roots, dir) then
-		vim.notify(string.format("[gopath] Directory already in cache roots: %s", dir), vim.log.levels.WARN)
+		LOG.warn("Directory already in cache roots: " .. dir)
 		return
 	end
 
 	-- Add to roots
 	table.insert(config.scan_roots, dir)
 
-	vim.notify(string.format("[gopath] Added to cache roots: %s", dir), vim.log.levels.INFO)
+	LOG.info("Added to cache roots: " .. dir)
 
 	-- Rebuild cache to include new directory
 	if rebuild then

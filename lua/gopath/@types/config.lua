@@ -25,8 +25,11 @@
 
 ---@class GopathLanguageOptions
 ---@field enable boolean Default: true
----@field resolvers string[]|nil Default: nil (all available resolvers)
----@field custom_resolvers table[]|nil Custom resolver modules
+---@field resolvers string[]|nil Default: nil (all available resolvers). Whitelist of resolver names to run for this filetype.
+---@field custom_resolvers CustomResolver[]|nil
+--- User-supplied resolvers run BEFORE the built-in ones for this filetype.
+--- Each entry is either a table implementing `resolve(): GopathResult|nil`
+--- or a string module name that returns such a table when required.
 
 ---@class GopathTruncated
 ---@field enable boolean Default: true

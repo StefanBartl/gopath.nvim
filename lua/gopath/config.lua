@@ -14,12 +14,24 @@ local defaults = {
   order    = { "lsp", "treesitter", "builtin" },
   lsp_timeout_ms = 200,
 
+  -- Per-filetype resolver configuration.
+  -- `enable=false` disables gopath's language resolvers for that filetype
+  -- (universal features like file paths and help tags still work).
+  -- `custom_resolvers` are user resolvers that run BEFORE the built-in ones.
   languages = {
-    lua = {
-      enable           = true,
-      resolvers        = nil,
-      custom_resolvers = nil,
-    },
+    lua             = { enable = true, resolvers = nil, custom_resolvers = nil },
+    python          = { enable = true, resolvers = nil, custom_resolvers = nil },
+    javascript      = { enable = true, resolvers = nil, custom_resolvers = nil },
+    javascriptreact = { enable = true, resolvers = nil, custom_resolvers = nil },
+    typescript      = { enable = true, resolvers = nil, custom_resolvers = nil },
+    typescriptreact = { enable = true, resolvers = nil, custom_resolvers = nil },
+    rust            = { enable = true, resolvers = nil, custom_resolvers = nil },
+    go              = { enable = true, resolvers = nil, custom_resolvers = nil },
+    c               = { enable = true, resolvers = nil, custom_resolvers = nil },
+    cpp             = { enable = true, resolvers = nil, custom_resolvers = nil },
+    cs              = { enable = true, resolvers = nil, custom_resolvers = nil },
+    zig             = { enable = true, resolvers = nil, custom_resolvers = nil },
+    java            = { enable = true, resolvers = nil, custom_resolvers = nil },
   },
 
   alternate = {
