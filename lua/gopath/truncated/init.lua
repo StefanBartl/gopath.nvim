@@ -15,6 +15,7 @@
 ---   Output: Opens /full/path/.../lua/init.lua and jumps to line 42.
 
 local LOC = require("gopath.util.location")
+local LOG = require("gopath.util.log")
 
 local M = {}
 
@@ -133,10 +134,7 @@ function M.try_resolve(truncated_path, opts)
 
   local live = finder.find(tail)
   if not live or #live == 0 then
-    vim.notify(
-      string.format("[gopath] Could not resolve truncated path: %s", tail),
-      vim.log.levels.WARN
-    )
+    LOG.warn("Could not resolve truncated path: " .. tail)
     return false
   end
 
@@ -175,10 +173,7 @@ function M._show_selection(matches, tail, source, open_cmd, line, col)
     return a.similarity > b.similarity
   end)
 
-  vim.notify(
-    string.format("[gopath] Found %d matches via %s", #formatted, source),
-    vim.log.levels.INFO
-  )
+  LOG.debug(string.format("Found %d matches via %s", #formatted, source))
 
   local alternate = require("gopath.alternate")
   return alternate.try_resolve_with_matches(formatted, tail, {

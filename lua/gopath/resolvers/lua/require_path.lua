@@ -1,5 +1,13 @@
 ---@module 'gopath.resolvers.lua.require_path'
 ---@brief Resolve require("x.y") under/near cursor into a module file path.
+---@description
+--- Two detection modes:
+---   1. `require("a.b.c")` — finds the call expression that intersects the cursor
+---      (also checks the previous line for multi-line expressions).
+---   2. Bare dotted name at cursor — catches `@module 'a.b.c'`, `@see a.b.c`
+---      and error-message fragments like `module 'x.y' not found`.
+--- Resolution is then delegated to `module_to_path` which checks rtp and
+--- package.path in order.
 
 local PATH = require("gopath.util.path")
 local LOC = require("gopath.util.location")

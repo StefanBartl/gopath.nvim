@@ -1,2 +1,2 @@
-I...\gopath\@types\providers.lua
+...\gopath\@types\providers.lua
 
