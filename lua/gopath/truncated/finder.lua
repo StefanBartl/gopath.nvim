@@ -1,162 +1,109 @@
 ---@module 'gopath.truncated.finder'
 ---@brief Live filesystem search for truncated path tails.
----@description
---- Fallback used by `gopath.truncated` when the in-memory cache produces no hit.
---- Searches a bounded set of roots (cwd, git root, Neovim config/data, runtimepath)
---- downward for files whose path matches the truncated tail.
----
---- Design goals:
----   - Cross-platform: relies on `vim.fs.find` (pure Lua, no shell), with an optional
----     `fd` fast-path when available.
----   - Bounded: only searches source-relevant roots, never the whole drive.
----   - Pure matching logic: `M.matches_tail` is side-effect free and unit-testable.
+--- Called by gopath.truncated when the in-memory cache misses.
+--- Tries fd/fdfind first, falls back to rg.
 
 local M = {}
+local uv = vim.uv or vim.loop
 
-local uv = vim.loop or vim.uv
-
----Normalize a path for comparison: forward slashes, lowercase, no trailing slash.
----@param p string
----@return string
-local function normalize(p)
-  local s = p:gsub("\\", "/"):lower()
-  s = s:gsub("/+$", "")
-  return s
+---@return string|nil  "fd" | "fdfind" | "rg" | nil
+local function detect_tool()
+  for _, bin in ipairs({ "fd", "fdfind" }) do
+    if vim.fn.executable(bin) == 1 then return bin end
+  end
+  if vim.fn.executable("rg") == 1 then return "rg" end
+  return nil
 end
 
----Check whether a candidate path matches a (path-only) truncated tail.
----Two strategies:
----  1. Suffix match: candidate ends with the tail.
----  2. Sequential segment match: all tail segments appear in order inside candidate.
----@param candidate string Absolute candidate path
----@param normalized_tail string Already normalized tail (lowercase, forward slashes)
----@param tail_parts string[] Pre-split tail segments
+---Whether `abs` ends with `tail` on a segment boundary.
+---@param abs string
+---@param tail string
 ---@return boolean
-function M.matches_tail(candidate, normalized_tail, tail_parts)
-  local np = normalize(candidate)
+local function path_ends_with(abs, tail)
+  abs  = (abs  or ""):gsub("\\", "/")
+  tail = (tail or ""):gsub("\\", "/")
+  if #tail > #abs then return false end
+  if abs:sub(-#tail) ~= tail then return false end
+  if #abs == #tail then return true end
+  return abs:sub(#abs - #tail, #abs - #tail) == "/"
+end
 
-  -- Strategy 1: exact suffix
-  if np:sub(-#normalized_tail) == normalized_tail then
-    return true
+---Search one root directory for files whose basename matches the tail's filename.
+---All results are filtered by path_ends_with.
+---@param tail string  e.g. "neo-tree/ui/renderer.lua"
+---@param root string  directory to search
+---@param tool string  "fd" | "fdfind" | "rg"
+---@return string[]
+local function search_root(tail, root, tool)
+  local basename = tail:match("([^/]+)$") or tail
+  local cmd
+  if tool == "fd" or tool == "fdfind" then
+    cmd = { tool, "--type", "f", "--hidden", "--follow", "--no-ignore-vcs",
+            basename, root }
+  else
+    cmd = { "rg", "--files", "--hidden", "-g", basename, root }
   end
 
-  -- Strategy 2: sequential segments (only meaningful for multi-segment tails)
-  if #tail_parts > 1 then
-    local path_parts = vim.split(np, "/", { trimempty = true })
-    local idx = 1
-    for i = 1, #path_parts do
-      if idx <= #tail_parts and path_parts[i] == tail_parts[idx] then
-        idx = idx + 1
+  local ok, proc = pcall(vim.system, cmd, { text = true })
+  if not ok or not proc then return {} end
+  local res = proc:wait()
+  if not res or res.code ~= 0 or not res.stdout or res.stdout == "" then
+    return {}
+  end
+
+  local out = {}
+  for line in res.stdout:gmatch("[^\r\n]+") do
+    if line ~= "" then
+      local norm = vim.fs.normalize(line)
+      if path_ends_with(norm, tail) then
+        out[#out + 1] = norm
       end
     end
-    return idx > #tail_parts
   end
-
-  return false
+  return out
 end
 
----Collect the bounded set of roots to search.
----@return string[] roots Deduplicated list of existing directories
-local function collect_roots()
-  local seen, roots = {}, {}
-
-  local function add(dir)
-    if type(dir) ~= "string" or dir == "" then
-      return
-    end
-    local abs = vim.fn.fnamemodify(dir, ":p"):gsub("[/\\]+$", "")
-    if abs == "" or seen[abs] then
-      return
-    end
-    if vim.fn.isdirectory(abs) == 1 then
-      seen[abs] = true
-      roots[#roots + 1] = abs
-    end
-  end
-
-  add(vim.fn.getcwd())
-
-  -- Git root (best effort, non-blocking failure)
-  local ok, git_root = pcall(function()
-    return vim.fn.systemlist({ "git", "rev-parse", "--show-toplevel" })[1]
-  end)
-  if ok and git_root then
-    add(git_root)
-  end
-
-  add(vim.fn.stdpath("config"))
-  add(vim.fn.stdpath("data"))
-
-  -- Runtimepath entries (covers installed plugins and config)
-  for _, dir in ipairs(vim.api.nvim_list_runtime_paths()) do
-    add(dir)
-  end
-
-  return roots
-end
-
----Search a single root downward for files matching the basename, then filter by tail.
----@param root string Root directory
----@param basename string Filename to look for
----@param normalized_tail string
----@param tail_parts string[]
----@param limit integer Maximum candidates to inspect per root
----@param acc string[] Accumulator for matches (mutated)
----@param seen table<string, boolean> Dedup set (mutated)
-local function search_root(root, basename, normalized_tail, tail_parts, limit, acc, seen)
-  local ok, found = pcall(vim.fs.find, basename, {
-    type = "file",
-    limit = limit,
-    path = root,
-  })
-  if not ok or type(found) ~= "table" then
-    return
-  end
-
-  for i = 1, #found do
-    local cand = found[i]
-    if not seen[cand] and M.matches_tail(cand, normalized_tail, tail_parts) then
-      seen[cand] = true
-      acc[#acc + 1] = cand
-    end
-  end
-end
-
----Find files on disk matching a truncated tail (path only, no line/col).
----@param tail string Tail of the truncated path (e.g. "config/neotree/commands/init.lua")
----@param opts table|nil { limit_per_root: integer (default 100), roots: string[]|nil }
----@return string[] matches Absolute, deduplicated file paths (possibly empty)
+---Find files whose absolute path ends with `tail`.
+---@param tail string  cleaned tail (no :line:col, normalized slashes)
+---@param opts table|nil  { roots?: string[], limit?: integer }
+---@return string[]  absolute paths, sorted by root priority
 function M.find(tail, opts)
-  if type(tail) ~= "string" or tail == "" then
-    return {}
-  end
-
+  if not tail or tail == "" then return {} end
   opts = opts or {}
-  local limit_per_root = opts.limit_per_root or 100
 
-  local normalized_tail = normalize(tail)
-  local tail_parts = vim.split(normalized_tail, "/", { trimempty = true })
-  if #tail_parts == 0 then
+  local roots = opts.roots
+  if not roots or #roots == 0 then
+    local cwd = (uv.cwd and uv.cwd()) or vim.fn.getcwd()
+    roots = {}
+    if cwd and cwd ~= "" then roots[#roots + 1] = cwd end
+    for _, sp in ipairs({ "config", "data", "cache" }) do
+      local p = vim.fn.stdpath(sp)
+      if type(p) == "string" and p ~= "" then roots[#roots + 1] = p end
+    end
+  end
+
+  local tool = detect_tool()
+  if not tool then
+    vim.notify("[gopath] truncated.finder: no external search tool (install fd or rg)",
+      vim.log.levels.WARN)
     return {}
   end
 
-  -- Basename is the last segment; used as the cheap pre-filter for vim.fs.find.
-  local basename = tail_parts[#tail_parts]
+  local limit   = opts.limit or 100
+  local seen    = {}
+  local results = {}
 
-  local roots = opts.roots or collect_roots()
-  local matches, seen = {}, {}
-
-  for i = 1, #roots do
-    search_root(roots[i], basename, normalized_tail, tail_parts, limit_per_root, matches, seen)
+  for _, root in ipairs(roots) do
+    for _, p in ipairs(search_root(tail, root, tool)) do
+      if not seen[p] then
+        seen[p] = true
+        results[#results + 1] = p
+        if #results >= limit then return results end
+      end
+    end
   end
 
-  return matches
-end
-
----Quick availability check for the libuv handle (used in tests/debug).
----@return boolean
-function M.has_uv()
-  return uv ~= nil
+  return results
 end
 
 return M
