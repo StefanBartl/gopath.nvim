@@ -65,6 +65,19 @@ local defaults = {
     auto_rebuild_on_save    = false,
   },
 
+  linepath = {
+    enable   = true,
+    cascade  = true,
+  },
+
+  tailsearch = {
+    enable           = true,
+    max_components   = 6,
+    ask_on_ambiguous = true,
+    roots            = nil,
+    limit            = 100,
+  },
+
   mappings = {
     open_here      = "gP",
     open_split     = "g|",
@@ -72,6 +85,7 @@ local defaults = {
     open_tab       = "g}",
     copy_location  = "gY",
     debug          = "g?",
+    probe          = "<leader>pp",
   },
 
   commands = {
