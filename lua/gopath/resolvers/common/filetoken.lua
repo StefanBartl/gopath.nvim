@@ -109,7 +109,7 @@ function M.resolve()
     if tail then abs = U.search_in_rtp({ tail }) end
   end
 
-  -- Search 3: partial rtp match on last 2–3 segments
+  -- Search 3: partial rtp match on last 2-3 segments
   if not abs then
     local segs = vim.split(token, "/", { trimempty = true, plain = true })
     for k = math.max(1, #segs - 2), math.max(1, #segs - 1) do
@@ -119,7 +119,28 @@ function M.resolve()
     end
   end
 
-  -- Fallback: build absolute path relative to current file's directory
+  -- Tailsearch fallback: suffix-based search across project roots.
+  -- Runs before building a speculative absolute path so that partial/truncated
+  -- paths like "neo-tree/ui/renderer.lua" are found even without an rtp hit.
+  if not abs then
+    local cfg = require("gopath.config").get()
+    if cfg.tailsearch and cfg.tailsearch.enable ~= false then
+      local ok, TS = pcall(require, "gopath.resolvers.common.tailsearch")
+      if ok then
+        local ts_cfg = cfg.tailsearch
+        local res = TS.resolve_sync(token, {
+          roots          = ts_cfg.roots,
+          max_components = ts_cfg.max_components or 6,
+          limit          = ts_cfg.limit or 100,
+          line           = parsed.line,
+          col            = parsed.col,
+        })
+        if res then return res end
+      end
+    end
+  end
+
+  -- Build absolute path even if not found (last resort)
   if not abs then
     if token:match("^[/\\]") or token:match("^[A-Za-z]:") then
       abs = token
