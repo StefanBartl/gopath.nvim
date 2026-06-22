@@ -87,6 +87,28 @@ function M.setup(config)
   map_many("n", maps.debug, function()
     commands.debug_under_cursor()
   end, "debug under cursor")
+
+  -- Probe: suffix-based search in normal and visual mode
+  if maps.probe then
+    local lhs_list = normalize_lhs(maps.probe)
+    if lhs_list then
+      for _, key in ipairs(lhs_list) do
+        -- Normal mode: probe <cfile> / token under cursor
+        vim.keymap.set("n", key, function()
+          commands.probe_selection({ open_cmd = "vsplit", ask = true })
+        end, { noremap = true, silent = true, desc = "gopath: probe path under cursor (vsplit)" })
+
+        -- Visual mode: probe selection
+        vim.keymap.set("v", key, function()
+          -- Exit visual mode first so marks '< '> are set
+          vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "x", false)
+          vim.schedule(function()
+            commands.probe_selection({ open_cmd = "vsplit", ask = true })
+          end)
+        end, { noremap = true, silent = true, desc = "gopath: probe selected path (vsplit)" })
+      end
+    end
+  end
 end
 
 return M

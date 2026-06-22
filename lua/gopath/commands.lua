@@ -1,9 +1,6 @@
 ---@module 'gopath.commands'
----@brief User-facing commands: resolve & open / copy / debug.
----@description
---- Routes resolved results to the appropriate opener (edit/split/vsplit/tab).
---- Debug output is collected by `collect_debug_info`, formatted by
---- `format_debug_lines` and emitted via vim.notify — never via print().
+---@brief User-facing commands: resolve & open / copy / debug / probe.
+---Handles routing to appropriate opener based on user's chosen mode (edit/split/vsplit/tab).
 
 local RESOLVE = require("gopath.resolve")
 local CONFIG  = require("gopath.config")
@@ -46,38 +43,21 @@ function M.resolve_and_open(kind)
   local cfg      = CONFIG.get()
   local open_cmd = KIND_TO_CMD[kind or "edit"] or "edit"
 
-  if res.exists == false then
-    -- Truncated path handling
-    if cfg.truncated and cfg.truncated.enable then
-      local ok_tok, token = pcall(function()
-        return require("gopath.providers.token").get_token()
-      end)
-      if ok_tok and token then
-        local truncated = require("gopath.truncated")
-        if truncated.is_truncated(token) then
-          local handled = truncated.try_resolve(token, {
-            use_cache = cfg.truncated.use_cache ~= false,
-            open_cmd  = open_cmd,
-          })
-          if handled then return end
-        end
-      end
-    end
+  if res.exists == false and cfg.alternate and cfg.alternate.enable then
+    -- Try fuzzy alternate resolution (Levenshtein similarity in same dir)
+    local alternate = require("gopath.alternate")
+    local handled = alternate.try_resolve(res.path, {
+      similarity_threshold = cfg.alternate.similarity_threshold or 75,
+      open_mode = kind or "edit",
+    })
+    if handled then return end
 
-    -- Fuzzy alternate resolution
-    if cfg.alternate and cfg.alternate.enable then
-      local alternate = require("gopath.alternate")
-      local handled   = alternate.try_resolve(res.path, {
-        similarity_threshold = cfg.alternate.similarity_threshold or 75,
-        open_cmd             = open_cmd,
-        line                 = res.range and res.range.line or nil,
-        col                  = res.range and res.range.col  or nil,
-      })
-      if handled then return end
-    end
+    -- Fuzzy alternate failed → try nearest existing ancestor directory
+    if M.try_nearest_folder(res.path) then return end
   end
 
   open_for_kind(res, kind or "edit")
+  _ = open_cmd  -- used above via alternate.try_resolve
 end
 
 ---Copy the resolved location to the system clipboard as "path:line:col".
@@ -102,7 +82,106 @@ function M.resolve_and_copy()
   LOG.info("copied to clipboard")
 end
 
--- ─── Debug command helpers ────────────────────────────────────────────────────
+-- ── Visual selection helpers ─────────────────────────────────────────────────
+
+---Read visual selection (single line) or nil if not in visual mode.
+---@return string|nil
+local function get_visual_selection()
+  local mode = vim.api.nvim_get_mode().mode
+  if mode ~= "v" and mode ~= "V" and mode ~= "\022" then return nil end
+  ---@diagnostic disable-next-line: deprecated
+  local srow, scol = unpack(vim.api.nvim_buf_get_mark(0, "<"))
+  ---@diagnostic disable-next-line: deprecated
+  local erow, ecol = unpack(vim.api.nvim_buf_get_mark(0, ">"))
+  if srow == 0 or erow == 0 then return nil end
+  local line = vim.api.nvim_buf_get_lines(0, srow - 1, srow, false)[1] or ""
+  if srow ~= erow then return line:match("%S") and line or nil end
+  local i = math.min(scol + 1, #line + 1)
+  local j = math.min(ecol + 1, #line + 1)
+  if j < i then i, j = j, i end
+  local slice = line:sub(i, j):gsub("^%s+", ""):gsub("%s+$", "")
+  return slice ~= "" and slice or nil
+end
+
+---Get a path-ish token in normal mode (<cfile>, then <cword>).
+---@return string|nil
+local function get_normal_token()
+  local tok = vim.fn.expand("<cfile>")
+  if type(tok) == "string" and tok ~= "" then return tok end
+  tok = vim.fn.expand("<cword>")
+  return (type(tok) == "string" and tok ~= "") and tok or nil
+end
+
+-- ── Probe command (pathprobe strategy) ───────────────────────────────────────
+
+---Probe: resolve the path under cursor / in visual selection using suffix-based
+---filesystem search.  Falls back to vim.ui.select when multiple matches found.
+---@param opts { open_cmd?: string, ask?: boolean, roots?: string[], max_components?: integer }|nil
+function M.probe_selection(opts)
+  opts = opts or {}
+  local open_cmd = opts.open_cmd or "edit"
+
+  local raw = get_visual_selection() or get_normal_token()
+  if not raw then
+    vim.notify("[gopath] No path-like token under cursor / in selection", vim.log.levels.WARN)
+    return
+  end
+
+  local cfg    = CONFIG.get()
+  local ts_cfg = cfg.tailsearch or {}
+  local TS     = require("gopath.resolvers.common.tailsearch")
+
+  TS.probe(raw, {
+    roots          = opts.roots          or ts_cfg.roots,
+    max_components = opts.max_components or ts_cfg.max_components or 6,
+    limit          = ts_cfg.limit        or 100,
+    ask            = opts.ask ~= false and ts_cfg.ask_on_ambiguous ~= false,
+  }, function(res)
+    if not res then
+      vim.notify("[gopath] probe: no match found for '" .. raw .. "'", vim.log.levels.WARN)
+      return
+    end
+    open_for_kind(res, open_cmd == "vsplit" and "vsplit"
+                     or open_cmd == "split"  and "window"
+                     or open_cmd == "tab"    and "tab"
+                     or "edit")
+  end)
+end
+
+-- ── Nearest-folder fallback ───────────────────────────────────────────────────
+
+---When exact file resolution and fuzzy alternate both fail, try to open the
+---nearest existing ancestor directory segment.
+---@param path string  the unresolved path
+---@return boolean  true if an existing dir was found and opened
+function M.try_nearest_folder(path)
+  if not path or path == "" then return false end
+  local norm = (vim.fs.normalize and vim.fs.normalize(path)) or path
+  local segs = {}
+  for s in norm:gmatch("[^/\\]+") do segs[#segs + 1] = s end
+
+  local uv = vim.uv or vim.loop
+  for i = #segs, 1, -1 do
+    local candidate = table.concat(segs, "/", 1, i)
+    local cwd = (uv.cwd and uv.cwd()) or vim.fn.getcwd()
+    local try_paths = { candidate, "/" .. candidate, cwd .. "/" .. candidate }
+
+    for _, p in ipairs(try_paths) do
+      local ok_norm, pn = pcall(vim.fs.normalize, p)
+      if ok_norm then
+        local st = uv.fs_stat(pn)
+        if st and st.type == "directory" then
+          vim.cmd.edit(vim.fn.fnameescape(pn))
+          vim.notify("[gopath] Opened nearest dir: " .. pn, vim.log.levels.INFO)
+          return true
+        end
+      end
+    end
+  end
+  return false
+end
+
+-- ─── Debug command ────────────────────────────────────────────────────────────
 
 ---@class GopathDebugInfo
 ---@field filetype   string
