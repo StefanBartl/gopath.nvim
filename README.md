@@ -1,6 +1,6 @@
-> This project is highly experimental and currently in alpha phase. Expect errors and changes.
+> This project is in beta. Core features are stable; APIs may evolve.
 
-# Gopath.nvim - Intelligent Navigation for Neovim
+# Gopath.nvim — Intelligent Navigation for Neovim
 ```
    ___  ___  ___  __ _____  _  _
   / __|/ _ \| _ \/_\|_   _|| || |
@@ -8,567 +8,330 @@
   \___|\___/|_|/_/ \_\|_|  |_||_|
 ```
 
-![version](https://img.shields.io/badge/version-0.2.0-blue.svg)
-![status](https://img.shields.io/badge/status-stable-success.svg)
+![version](https://img.shields.io/badge/version-0.3.0-blue.svg)
+![status](https://img.shields.io/badge/status-beta-orange.svg)
 ![Neovim](https://img.shields.io/badge/Neovim-0.9%2B-success.svg)
 ![Lazy.nvim](https://img.shields.io/badge/lazy.nvim-supported-success.svg)
 ![Lua](https://img.shields.io/badge/language-Lua-yellow.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)
 
-A powerful, modular navigation plugin for Neovim that intelligently resolves symbols, modules, and file paths using LSP, Treesitter, and custom resolvers. Features fuzzy alternate resolution and automatic external file opening.
+A modular file-navigation plugin for Neovim. Resolves symbols, require() paths, and arbitrary file references using a multi-phase pipeline: LSP → Treesitter → whole-line extraction → suffix search → fuzzy alternate.
 
 ---
 
-## Table of content
+## Contents
 
-- [Gopath.nvim - Intelligent Navigation for Neovim](#gopathnvim-intelligent-navigation-for-neovim)
-  - [✨ Features](#features)
-    - [Smart Navigation](#smart-navigation)
-    - [Fuzzy Alternate Resolution](#fuzzy-alternate-resolution)
-    - [External File Opening](#external-file-opening)
-    - [Line/Column Support](#linecolumn-support)
-  - [Direct Symbol Definition Jump](#direct-symbol-definition-jump)
-  - [Summary](#summary)
-  - [📦 Installation](#installation)
-  - [🚀 Usage](#usage)
-  - [💡 Examples](#examples)
-  - [⚙️ Configuration](#configuration)
-  - [🎨 Language Support](#language-support)
-  - [🐛 Troubleshooting](#troubleshooting)
-  - [📚 Advanced Usage](#advanced-usage)
-  - [🗺️ Roadmap](#roadmap)
-  - [🤝 Contributing](#contributing)
-  - [💬 Feedback](#feedback)
-  - [📄 License](#license)
-  - [🙏 Acknowledgments](#acknowledgments)
+- [Features](#features)
+- [Installation](#installation)
+- [Keymaps](#keymaps)
+- [Commands](#commands)
+- [Resolution Pipeline](#resolution-pipeline)
+- [Configuration](#configuration)
+- [Language Support](#language-support)
+- [Health Check](#health-check)
+- [Troubleshooting](#troubleshooting)
 
 ---
 
-## ✨ Features
+## Features
 
-### Smart Navigation
- **Multi-Provider Resolution**: LSP → Treesitter → Builtin fallback chain
- **Universal File Support**: Works in **any filetype** (Lua, Markdown, Text, etc.)
- **Context-Aware**: Understands Lua modules, require() paths, table chains, and more
- **Help Integration**: Seamless `:help` tag resolution for `vim.api`, `vim.fn`, `vim.loop`
+### Core navigation
+- **Multi-provider**: LSP → Treesitter → Builtin, configurable order
+- **Lua-aware**: `require("a.b")`, variable chains (`config.get()`), table keys
+- **Help tags**: `vim.api.*`, `vim.fn.*`, `vim.loop` → `:help` target
+- **Env vars**: `$VAR/path/file.md`, `${VAR}\rest\of\path.txt`
+- **Line/column**: `file.lua:42:8`, `file.lua(42)`, `file.lua +42`
 
----
+### Whole-line extraction  *(new in 0.3 — absorbed from pathfinder)*
+Scans the **entire current line** for path-like strings using three heuristics:
+- Stacktrace patterns (`path:line:col`, `path:line`)
+- Extension-driven expansion (150+ extensions)
+- Absolute paths (`/unix/path`, `C:\windows\path`, `\\unc\path`)
 
-### Fuzzy Alternate Resolution
-When a file path has a typo or doesn't exist:
-* Finds similar files using Levenshtein distance (configurable threshold)
-* Interactive selection with similarity percentages
-* Auto-sorted by match quality
+Works even when the cursor is **not** on the path segment itself (e.g. you're on a log message word and the path is elsewhere in the line).
 
-**Example:**
-```lua
--- Typo in path
-"lua/cofnig.lua"  -- Press gP
-→ Shows: config.lua (87%), confirm.lua (65%)
-```
-
----
-
-### External File Opening
-Automatically opens non-text files with system default apps:
-* **Images**: png, jpg, gif, svg, webp...
-* **Documents**: pdf, docx, xlsx, pptx...
-* **Media**: mp4, mp3, avi, mkv...
-* **URLs**: http://, https://, file://
-
-**Cross-platform**: macOS (`open`), Linux (`xdg-open`), Windows (PowerShell)
-
----
-
-### Line/Column Support
-Gopath automatically parses and respects line and column numbers in file paths
-(works in any filetype):
-`"lua/gopath/config.lua:15:8"` -> Opens file and cursor jumps directly in line and row ()
-
-Also works in...
-- Error message format:
-`Error in ...nvim-data/lazy/gopath.nvim/lua/gopath/init.lua:42`
-
-- Parenthesis format:
-`init.lua(42)`
-
-- Vim-style format:
-`init.lua +42`
-
----
-
-### Environment Variable Path Resolution
-
-Gopath expands environment variable prefixes in file paths before resolution.
-This allows using short, portable references instead of hard-coded absolute paths.
-
-Supported syntaxes:
+### Suffix-based search  *(new in 0.3 — absorbed from pathprobe)*
+Resolves **partial, truncated, and relative** paths by matching path tails across multiple search roots (buffer dir → cwd → git root → stdpath config/data/cache).
 
 ```
-$VAR/rest/of/path.md
-${VAR}/rest/of/path.md
-$VAR\rest\of\path.md        (Windows backslash)
-${VAR}\rest\of\path.md
-$VAR/path/file.md:42        (with line number)
-$VAR/path/file.md:42:8      (with line and column)
+...nvim-data/lazy/gopath.nvim/lua/gopath/init.lua:42
+gopath/resolvers/common/tailsearch.lua
+health.lua
 ```
 
-Example in a Markdown file:
+### Visual selection probe
+`<leader>pp` in **visual mode**: select a path token and resolve it via suffix search.
 
-```markdown
-[tools]($ENV_VAR_DIR/Dev/SomeFile.md)
-[config](${NVIM_CONFIG}/lua/plugins/init.lua:15)
-```
+### Fuzzy alternate resolution
+When the exact file does not exist, suggests similar files using Levenshtein distance.
 
-Variables are read from `vim.env` first (runtime assignments), then from
-`os.getenv` (shell environment inherited at startup).
+### Nearest-folder fallback
+If no file and no alternate is found, opens the nearest existing ancestor directory (picked up by netrw / oil / nvim-tree).
 
-Setting a variable for the current Neovim session:
+### External file opening
+Images, PDFs, media files open automatically in the system default application.
+
+---
+
+## Installation
+
+### lazy.nvim
 
 ```lua
-vim.env.REPOS_DIR = "/home/user/repos"
+{
+  "StefanBartl/gopath.nvim",
+  event = "VeryLazy",
+  dependencies = {
+    "nvim-treesitter/nvim-treesitter",  -- optional but recommended
+  },
+  opts = {
+    mode = "hybrid",
+  },
+}
 ```
 
-Or permanently in the shell profile (`~/.bashrc`, `~/.zshrc`, Windows user environment):
+### Recommended CLI tools
 
-```sh
-export REPOS_DIR=/home/user/repos
+| Tool | Purpose |
+|------|---------|
+| `fd` / `fdfind` | Fast file search for tailsearch and truncated.finder |
+| `rg` (ripgrep)  | Fallback search when fd is unavailable |
+| `git`           | Git-root detection for search roots |
+
+---
+
+## Keymaps
+
+All keymaps are configurable. Defaults:
+
+| Key | Mode | Action |
+|-----|------|--------|
+| `gP` | n | Open in current window |
+| `g\|` | n | Open in horizontal split |
+| `g\` | n | Open in vertical split |
+| `g}` | n | Open in new tab |
+| `gY` | n | Copy `path:line:col` to clipboard |
+| `g?` | n | Debug resolution under cursor |
+| `<leader>pp` | n | Probe path under cursor (suffix search, vsplit) |
+| `<leader>pp` | v | Probe selected text (suffix search, vsplit) |
+
+### Disable / remap
+
+```lua
+opts = {
+  mappings = {
+    open_here  = "gP",
+    open_split = "g|",
+    open_vsplit = "g\\",
+    open_tab   = "g}",
+    copy_location = "gY",
+    debug      = "g?",
+    probe      = "<leader>pp",   -- false to disable
+  },
+}
 ```
 
-The feature is enabled by default and can be disabled per config:
+---
+
+## Commands
+
+### Unified command
+
+```
+:Gopath <subcommand> [args]
+```
+
+Tab-completion works at every level.
+
+| Command | Action |
+|---------|--------|
+| `:Gopath open [edit\|split\|vsplit\|tab]` | Resolve and open |
+| `:Gopath copy` | Copy `path:line:col` to clipboard |
+| `:Gopath debug` | Print resolution chain to `:messages` |
+| `:Gopath probe [edit\|split\|vsplit]` | Probe path under cursor / selection |
+| `:Gopath cache build` | Rebuild filesystem index |
+| `:Gopath cache info` | Show cache statistics |
+| `:Gopath cache add-root <dir>` | Add directory to cache search roots |
+
+### Individual aliases
+
+All original commands are preserved as aliases:
+
+| Alias | Equivalent |
+|-------|-----------|
+| `:GopathOpen [mode]` | `:Gopath open [mode]` |
+| `:GopathCopy` | `:Gopath copy` |
+| `:GopathDebug` | `:Gopath debug` |
+| `:GopathResolve` | `:Gopath debug` |
+| `:GopathProbe[!]` | `:Gopath probe` (`!` = split) |
+| `:GopathCacheBuild` | `:Gopath cache build` |
+| `:GopathCacheInfo` | `:Gopath cache info` |
+| `:GopathCacheAddRoot <dir>` | `:Gopath cache add-root <dir>` |
+
+---
+
+## Resolution Pipeline
+
+Each phase runs in order; the first success is returned.
+
+| Phase | Resolver | Trigger |
+|-------|----------|---------|
+| 1 | `:help` subject | token looks like a vim help tag |
+| 2 | `$VAR` env path | token starts with `$` or `${` |
+| 3 | filetoken | `<cfile>` under cursor; searches rtp, &path, tailsearch |
+| 3.5 | **linepath** | scans whole current line; absolute → cwd-rel → tailsearch |
+| 4 | Language (Lua) | LSP / Treesitter / builtin Lua resolvers |
+| 5 | Fallback | raw `<cfile>` result or filetoken low-confidence |
+
+When a file is not found:
+1. **Fuzzy alternate** — Levenshtein similarity in the same directory
+2. **Nearest folder** — opens closest existing ancestor directory
+
+---
+
+## Configuration
+
+Full reference with defaults:
 
 ```lua
 require("gopath").setup({
+  -- Resolution mode: "hybrid" | "lsp" | "treesitter" | "builtin"
+  mode  = "hybrid",
+  order = { "lsp", "treesitter", "builtin" },
+  lsp_timeout_ms = 200,
+
+  -- Language-specific resolvers
+  languages = {
+    lua = { enable = true },
+  },
+
+  -- Whole-line path extraction (Phase 3.5)
+  linepath = {
+    enable = true,
+  },
+
+  -- Suffix-based filesystem search
+  tailsearch = {
+    enable           = true,
+    max_components   = 6,       -- number of trailing path segments to try
+    ask_on_ambiguous = true,    -- show vim.ui.select when multiple matches
+    roots            = nil,     -- nil = auto: bufdir→cwd→git root→stdpaths
+    limit            = 100,     -- max files returned per root
+  },
+
+  -- Fuzzy alternate when file not found
+  alternate = {
+    enable               = true,
+    similarity_threshold = 75,  -- 0-100; higher = stricter
+  },
+
+  -- External file opener (images, PDFs, etc.)
+  external = {
+    enable     = true,
+    extensions = nil,  -- nil = use built-in list
+  },
+
+  -- $VAR / ${VAR} prefix expansion
   env_variable_resolution = {
-    enable = false,
+    enable = true,
+  },
+
+  -- Truncated path cache ("..." prefix paths)
+  truncated = {
+    enable                 = true,
+    use_cache              = true,
+    cache_refresh_interval = 600,   -- seconds between auto-refreshes
+    max_cache_age          = 3600,  -- seconds before cache is considered stale
+    live_search_fallback   = true,
+    similarity_threshold   = 75,
+    cache_roots            = nil,   -- nil = auto-detect drives/stdpaths
+    max_depth              = 6,
+    excluded_dirs          = { ".git", "node_modules", "target", "build", ".cache" },
+    auto_rebuild_on_save   = false,
+  },
+
+  -- Keymaps (false = disabled, string | string[] = key(s))
+  mappings = {
+    open_here     = "gP",
+    open_split    = "g|",
+    open_vsplit   = "g\\",
+    open_tab      = "g}",
+    copy_location = "gY",
+    debug         = "g?",
+    probe         = "<leader>pp",  -- n + v mode
+  },
+
+  -- User commands (false = all disabled; individual keys = false to skip)
+  commands = {
+    resolve = true,
+    open    = true,
+    copy    = true,
+    debug   = true,
   },
 })
 ```
 
 ---
 
-## Direct Symbol Definition Jump
-Jump not just to file, but to exact line where symbol is defined.
-**Example:**
+## Language Support
 
-```lua
-local config = require("gopath.config")
+### Lua (full support)
+- `require("a.b.c")` → resolves to `lua/a/b/c.lua`
+- `local x = require("mod"); x.func()` → cursor on `x` → opens mod.lua
+- Table chain: `config.get()` → opens definition of `get` in `config` module
+- `local_to_module` enhancement: LSP results pointing to `require()` lines
+- Value origin: follows config table values to their source module
 
--- Later in file...
-config.get()
-^^^^^^
--- Cursor here on config → gP
--- Opens gopath/config.lua (not at specific line, module-level)
-```
-
----
-
-## Summary
-
-Feature 3 is now fully implemented:
-
-✅ **LSP prioritization**: `order = { "lsp", "treesitter", "builtin" }`
-✅ **Enhanced symbol_locator**: Better LSP handling, fallback logic
-✅ **New identifier_locator**: Bare variable → module resolution (Feature 2!)
-✅ **Smart registry**: Proper provider ordering and fallbacks
-✅ **Precise navigation**: Jump directly to symbol definitions
-
-**Bonus:** Feature 2 (Symbol-to-Path) is also complete as part of this implementation!
-
-**What works now:**
-- `local x = require("mod")` → cursor on `x` → opens `mod.lua`
-- `x.func()` → cursor on `func` → opens `mod.lua` at `func` definition
-- `require("mod").func` → opens `mod.lua` at `func` definition
-- All with LSP precision when available, treesitter fallback when not
-
+### All filetypes (universal)
+- File paths (relative, absolute, with `:line:col`, `(line)`, `+line`)
+- URLs → `vim.ui.open` / system browser
+- `:help` tags
+- `$ENV_VAR/path/file.md`
+- Whole-line stacktrace extraction
+- Suffix-based partial-path search
 
 ---
 
-## 📦 Installation
+## Health Check
 
-### Using lazy.nvim (Recommended)
-
-#### Minimal Setup (with defaults)
-```lua
-{
-  "yourusername/gopath.nvim",
-  event = "VeryLazy",
-  config = function()
-    require("gopath").setup()
-  end,
-}
+```vim
+:checkhealth gopath
 ```
 
-#### Custom Configuration
-```lua
-{
-  "StefanBartl/gopath.nvim",
-  event = "VeryLazy",
-  dependencies = {
-    "nvim-treesitter/nvim-treesitter", -- Optional but recommended
-  },
-  opts = {
-    mode = "hybrid",  -- "hybrid" | "lsp" | "treesitter" | "builtin"
-
-    -- Fuzzy alternate resolution
-    alternate = {
-      enable = true,
-      similarity_threshold = 75,  -- 0-100
-    },
-
-    -- External file opening
-    external = {
-      enable = true,
-    },
-
-    -- Custom keymaps (optional - defaults shown)
-    mappings = {
-      open_here = "gP",        -- Open in current window (recommend: { "gP", "<2-LeftMouse>" })
-      open_split = "g|",       -- Open in horizontal split
-      open_vsplit = "g\\",     -- Open in vertical split
-      open_tab = "g}",         -- Open in new tab
-      copy_location = "gY",    -- Copy path:line:col
-      debug = "g?",            -- Debug resolution
-      -- Set any to false to disable
-    },
-
-    -- User commands (optional)
-    commands = {
-      resolve = true,  -- :GopathResolve
-      open = true,     -- :GopathOpen [edit|window|vsplit|tab]
-      copy = true,     -- :GopathCopy
-      debug = true,    -- :GopathDebug
-    },
-  },
-}
-```
-
-### Using packer.nvim
-```lua
-use {
-  "StefanBartl/gopath.nvim",
-  config = function()
-    require("gopath").setup({
-      -- Your config here
-    })
-  end,
-}
-```
+Checks:
+- Neovim version compatibility
+- External tools: `fd`/`fdfind`, `rg`, `git`
+- Active LSP clients
+- Tree-sitter parsers
+- Configuration (linepath, tailsearch, alternate, keymaps)
+- Truncated path cache status
 
 ---
 
-## 🚀 Usage
+## Troubleshooting
 
-### Default Keymaps
+### `gP` does nothing
+1. `:Gopath debug` — shows what the resolver found (or why it failed)
+2. `:checkhealth gopath` — verify external tools and config
+3. Ensure Neovim ≥ 0.9
 
-After installation, these keymaps work **in any buffer** (code, markdown, help, terminal, messages):
+### Path not found
+- Try `<leader>pp` (probe) — uses suffix search across more roots
+- Run `:Gopath probe` to see if tailsearch finds it
+- Add an explicit root: `:Gopath cache add-root <dir>`
 
-| Keymap | Action | Description |
-|--------|--------|-------------|
-| `gP` | Open here | Open target in current window |
-| `g\|` | Open split | Open target in horizontal split |
-| `g\` | Open vsplit | Open target in vertical split |
-| `g}` | Open tab | Open target in new tab |
-| `gY` | Copy location | Copy `path:line:col` to clipboard |
-| `g?` | Debug | Show resolution debug info |
+### Truncated path (`...`) not resolving
+- Check cache: `:Gopath cache info`
+- Rebuild: `:Gopath cache build`
+- Ensure `fd` or `rg` is installed (`:checkhealth gopath`)
 
-**Disable default keymaps:**
-```lua
-opts = {
-  mappings = false,  -- Disable all default keymaps
-}
-```
-
-**Custom keymaps:**
-```lua
--- In your lazy.nvim config
-keys = {
-  { "<leader>gd", function() require("gopath.commands").resolve_and_open() end, desc = "Go to definition" },
-  { "<leader>gs", function() require("gopath.commands").resolve_and_open("window") end, desc = "Go to split" },
-},
-opts = {
-  mappings = false,  -- Disable defaults when using custom
-}
-```
-
-### User Commands
-
-| Command | Description |
-|---------|-------------|
-| `:GopathResolve` | Show resolution debug info |
-| `:GopathOpen [mode]` | Open target (modes: `edit`, `window`, `vsplit`, `tab`) |
-| `:GopathCopy` | Copy location to clipboard |
-| `:GopathDebug` | Debug resolution under cursor |
-| `:GopathCacheBuild` | Rebuild the filesystem cache (truncated-path resolution) |
-| `:GopathCacheInfo` | Show cache statistics (files indexed, age, status) |
-| `:GopathCacheAddRoot <dir>` | Add a directory to the cache scan roots |
-
-Run **`:checkhealth gopath`** to verify your setup (config, Treesitter parser,
-optional `fd`/`rg` tools, and cache status).
+### Multiple matches / wrong file opened
+- `tailsearch.ask_on_ambiguous = true` (default) shows `vim.ui.select`
+- Set `tailsearch.roots` explicitly to narrow the search scope
 
 ---
 
-## 💡 Examples
+## License
 
-### Lua Module Navigation
-```lua
-local config = require("gopath.config")
---                      ^^^^^^^^^^^^^^
--- Cursor here → gP → Opens lua/gopath/config.lua
-
-config.get()
---     ^^^
--- Cursor here → gP → Jumps to get() function definition
-```
-
-### Markdown Links
-```markdown
-Check out [this file](lua/gopath/init.lua)
-                      ^^^^^^^^^^^^^^^^^^^^
-Cursor here → gP → Opens the file
-
-Visit [GitHub](https://github.com/user/repo)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Cursor here → gP → Opens in browser
-```
-
-### Image Files
-```markdown
-![Logo](assets/logo.png)
-        ^^^^^^^^^^^^^^^^
-Cursor here → gP → Opens in image viewer
-```
-
-### Typo Correction
-```lua
-require("gopaht.config")
---       ^^^^^^
--- Typo: "gopaht" instead of "gopath"
--- gP → Shows selection:
---   gopath.config (92%)
---   gopath.commands (78%)
-```
-
-### Help Tags
-```lua
-vim.api.nvim_buf_get_lines(0, 0, -1, false)
---      ^^^^^^^^^^^^^^^^^^^
--- Cursor here → gP → Opens :help nvim_buf_get_lines()
-```
-
----
-
-## ⚙️ Configuration
-
-### Modes
-
-| Mode | Description | Providers Used |
-|------|-------------|----------------|
-| `hybrid` (default) | Try all providers in order | LSP → Treesitter → Builtin |
-| `lsp` | LSP-only (fastest for LSP-enabled files) | LSP only |
-| `treesitter` | Treesitter-only (semantic analysis) | Treesitter only |
-| `builtin` | Builtin-only (no dependencies) | Builtin only |
-
-### Provider Order
-```lua
-opts = {
-  mode = "hybrid",
-  order = { "treesitter", "lsp", "builtin" },  -- Custom order
-}
-```
-
-### Alternate Resolution
-```lua
-opts = {
-  alternate = {
-    enable = true,
-    similarity_threshold = 80,  -- Higher = stricter matching (0-100)
-  },
-}
-```
-
-### External File Opening
-```lua
-opts = {
-  external = {
-    enable = true,
-    extensions = { "png", "jpg", "pdf" },  -- Custom list (nil = use defaults)
-  },
-}
-```
-
----
-
-## 🎨 Language Support
-
-### Built-in Support
-
-| Language | Filetypes | Resolves |
-|----------|-----------|----------|
-| **Lua** | `lua` | `require()`, module/symbol chains, tables, fields, `@module`/`@see` |
-| **Python** | `python` | `import a.b`, `from a.b import c` (incl. submodules), relative `from .x` |
-| **JavaScript / TypeScript** | `javascript(react)`, `typescript(react)` | `import … from './x'`, `require('./x')`, bare `node_modules` specifiers |
-| **Rust** | `rust` | `mod x;`, `use crate::… / super:: / self::` |
-| **Go** | `go` | `import "module/pkg"` (local module, vendor, module cache) |
-| **C / C++** | `c`, `cpp` | `#include "…"` and `#include <…>` |
-| **C#** | `cs` | `using My.App.Namespace;` (heuristic namespace→path) |
-| **Zig** | `zig` | `@import("../file.zig")` (relative files) |
-| **Java** | `java` | `import com.example.Foo;`, static & wildcard imports |
-
-> Language resolvers find definitions **offline**, without an LSP. When an LSP is
-> attached, it is preferred for precision (in `hybrid`/`lsp` mode). Standard-library
-> and third-party package internals are intentionally left to the LSP.
-
-**Disable a language** (universal features still work):
-```lua
-opts = {
-  languages = {
-    python = { enable = false },
-  },
-}
-```
-
-### Custom Resolvers
-
-Provide your own resolver for any filetype. It runs **before** the built-in
-resolvers, so you can override or extend the defaults. A resolver is any table
-with a `resolve()` function returning a `GopathResult` (or `nil` to pass):
-
-```lua
-opts = {
-  languages = {
-    lua = {
-      custom_resolvers = {
-        -- either a module name string …
-        "my.custom.resolver",
-        -- … or an inline table
-        {
-          resolve = function()
-            -- inspect the cursor / current line, return a result or nil
-            -- return { language="lua", kind="module", path="/abs/path.lua",
-            --          source="builtin", confidence=1.0, exists=true }
-          end,
-        },
-      },
-    },
-  },
-}
-```
-
-### Universal Features (work in any filetype)
-* ✅ File paths (relative, absolute, with line numbers)
-* ✅ URLs (http://, https://, file://)
-* ✅ Help tags (`:help` subjects)
-* ✅ `<cfile>` expansion
-* ✅ Fuzzy alternate resolution
-* ✅ External file opening
-* ✅ Truncated path resolution (`...nvim/lua/foo/bar.lua:42` from error output)
-
----
-
-## 🐛 Troubleshooting
-
-### Nothing happens when I press `gP`
-1. Check if plugin is loaded: `:lua print(vim.inspect(require("gopath")))`
-2. Run `:GopathDebug` to see resolution details
-3. Check Neovim version (requires 0.9+)
-
-### "No match: no-match"
-* The text under cursor couldn't be resolved
-* Try visual selection or move cursor to a different position
-* Check if file path is correct
-
-### External files open with wrong app
-* **Windows**: Check file associations in Settings → Apps → Default apps
-* **macOS**: Right-click file → Get Info → Open with
-* **Linux**: Check `xdg-mime` default associations
-
-### Alternate resolution not working
-* Check threshold: Lower values find more matches
-* Verify target directory exists
-* Run `:GopathDebug` to see what path was attempted
-
----
-
-## 📚 Advanced Usage
-
-For advanced features like:
-* Custom language resolvers
-* Provider configuration
-* Debugging internals
-* Contributing guidelines
-
-See [DEV-README.md](DEV-README.md)
-
----
-
-## 🗺️ Roadmap
-
-### Planned Features
-- [x] User-defined custom language resolvers
-- [x] TypeScript/JavaScript support
-- [x] C/C++/C# support
-- [x] Zig support
-- [x] Rust support
-- [x] Java support
-- [x] Python import resolution
-- [x] Go package navigation
-- [x] Async file scanning for large directories (bounded concurrency)
-- [ ] Configurable UI backend for alternate selection (Telescope, fzf-lua)
-- [ ] File preview in alternate selection
-- [ ] Learning system (prioritize frequently selected alternates)
-
----
-
-### Under Consideration
-- [ ] Remote file support (SSH, HTTP)
-- [ ] Git integration (jump to remote repository)
-- [ ] Project-local configuration files
-- [ ] Custom similarity algorithms
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-See [DEV-README.md](DEV-README.md) for development guidelines.
-
----
-
-## 💬 Feedback
-
-Your feedback is very welcome!
-
-Use the [GitHub Issue Tracker](https://github.com/yourusername/gopath.nvim/issues) to:
-* Report bugs
-* Suggest new features
-* Ask usage questions
-* Share thoughts on workflow
-
-For discussions, visit [GitHub Discussions](https://github.com/yourusername/gopath.nvim/discussions).
-
-If you find this plugin useful, please give it a ⭐ on GitHub!
-
----
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 Acknowledgments
-
-* Inspired by Vim's `gf` command
-* Built on Neovim's LSP and Treesitter APIs
-* Community feedback and contributions
-
----
+MIT
