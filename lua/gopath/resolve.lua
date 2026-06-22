@@ -4,12 +4,11 @@
 --- Entry point for all cursor-based resolution. Tries resolvers in this order:
 ---   1. Help (:h subject) — always, all filetypes.
 ---   2. Env var path ($VAR/...) — always, before filetoken sees raw token.
----   3. Filetoken — always, all filetypes; short-circuits only when the file
----      actually *exists* on disk so that language-specific resolvers (e.g. Lua
----      require_path) can run first when the raw token is not a real path.
----   4. Language-specific pipeline (lsp / treesitter / builtin) — only when the
----      filetype has a config entry and is not disabled.
----   5. Filetoken fallback — the non-existing filetoken result from step 3, if any.
+---   3. Filetoken — high-confidence existing hit returned immediately;
+---      low-confidence / non-existent result held as fallback.
+---   3.5 Linepath — whole-line path extraction (when cascade enabled).
+---   4. Language-specific pipeline (lsp / treesitter / builtin).
+---   5. Filetoken fallback — the low-confidence result from step 3, if any.
 ---   6. Raw cfile — last resort.
 
 local C    = require("gopath.config")
@@ -49,16 +48,31 @@ function M.resolve_at_cursor(opts)
     end
   end
 
-  -- 3. Filetoken: short-circuit only on confirmed-existing files.
-  --    Non-existing result is saved so language resolvers get priority.
-  local ftok_fallback = nil
+  -- 3. Filetoken: high-confidence existing hit returned immediately.
+  --    Low-confidence or non-existent result held so Phase 3.5/4 can improve on it.
+  local filetoken_fallback = nil
   do
     local ftok = require("gopath.resolvers.common.filetoken").resolve()
     if ftok then
-      if ftok.exists then
+      if ftok.exists and (ftok.confidence or 0) >= 0.6 then
         return ftok, nil
       end
-      ftok_fallback = ftok
+      filetoken_fallback = ftok
+    end
+  end
+
+  -- 3.5. Whole-line path extraction (linepath / pathfinder strategy).
+  --      Runs only when linepath.cascade = true (default).
+  do
+    local lp_cfg = cfg.linepath
+    if not lp_cfg or lp_cfg.enable ~= false then
+      if not lp_cfg or lp_cfg.cascade ~= false then
+        local ok, lp_mod = pcall(require, "gopath.resolvers.common.linepath")
+        if ok then
+          local lp = lp_mod.resolve()
+          if lp then return lp, nil end
+        end
+      end
     end
   end
 
@@ -67,7 +81,7 @@ function M.resolve_at_cursor(opts)
 
   if lang == false or (type(lang) == "table" and lang.enable == false) then
     LOG.debug("language disabled for filetype: " .. ft)
-    return ftok_fallback or nil, "language-disabled"
+    return filetoken_fallback or nil, "language-disabled"
   end
 
   local lang_enabled = type(lang) == "table"
@@ -96,9 +110,9 @@ function M.resolve_at_cursor(opts)
     end
   end
 
-  -- 5. Return the filetoken non-exist result (more specific than raw cfile)
-  if ftok_fallback then
-    return ftok_fallback, nil
+  -- 5. Filetoken fallback (more specific than raw cfile)
+  if filetoken_fallback then
+    return filetoken_fallback, nil
   end
 
   -- 6. Last resort: raw cfile
