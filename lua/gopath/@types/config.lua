@@ -44,6 +44,17 @@
 ---@field watch_patterns string[]|nil
 ---@field auto_rebuild_on_save boolean
 
+---@class GopathLinepath
+---@field enable boolean Default: true. Scan the whole current line for path-like candidates.
+---@field cascade boolean Default: true. Run linepath inside the resolve pipeline.
+
+---@class GopathTailsearch
+---@field enable boolean Default: true. Resolve path tails via cache + filesystem suffix search.
+---@field max_components integer Default: 6. Longest path suffix (in components) to try.
+---@field ask_on_ambiguous boolean Default: true. Show vim.ui.select when several files match.
+---@field roots string[]|nil Default: nil (auto: bufdir, cwd, git root, stdpath dirs).
+---@field limit integer Default: 100. Maximum matches collected per search.
+
 ---@class GopathEnvVariableResolution
 ---@field enable boolean
 --- When true, tokens starting with $VAR or ${VAR} are expanded
@@ -62,3 +73,5 @@
 ---@field mappings? GopathKeymaps|false Keymaps (false = disable all)
 ---@field commands? GopathCommands|false User commands (false = disable all)
 ---@field truncated GopathTruncated
+---@field linepath? GopathLinepath Whole-line path extraction
+---@field tailsearch? GopathTailsearch Cache + filesystem suffix search

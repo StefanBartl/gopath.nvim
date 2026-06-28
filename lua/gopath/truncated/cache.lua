@@ -87,39 +87,28 @@ function M.setup(opts)
 		config.scan_roots = opts.roots
 	else
 		-- === Auto-detect Default Roots ===
+		-- Deliberately conservative: indexing a whole drive (C:\) or the entire
+		-- user profile to max_depth on startup produces a huge, slow cache. We
+		-- stick to the directories that actually hold openable files for this
+		-- editor. Users who need more can pass `truncated.cache_roots`.
+		local seen = {}
 		config.scan_roots = {}
-
-		-- Current working directory (always useful)
-		table.insert(config.scan_roots, vim.fn.getcwd())
-
-		-- Neovim config directory
-		table.insert(config.scan_roots, vim.fn.stdpath("config"))
-
-		-- Neovim data directory
-		table.insert(config.scan_roots, vim.fn.stdpath("data"))
-
-		-- Platform-specific additions
-		if vim.fn.has("win32") == 1 or vim.fn.has("win64") == 1 then
-			-- === Windows: Add System Drive ===
-			-- Default to C:\ but check SYSTEMDRIVE env var
-			local system_drive = vim.env.SYSTEMDRIVE or "C:"
-			table.insert(config.scan_roots, system_drive .. "\\")
-
-			-- Add user profile directory
-			if vim.env.USERPROFILE then
-				table.insert(config.scan_roots, vim.env.USERPROFILE)
-			end
-		else
-			-- === Unix: Add Home Directory ===
-			local home = vim.env.HOME or "~"
-			table.insert(config.scan_roots, home)
+		local function add(p)
+			if type(p) ~= "string" or p == "" then return end
+			if seen[p] then return end
+			if vim.fn.isdirectory(p) ~= 1 then return end
+			seen[p] = true
+			table.insert(config.scan_roots, p)
 		end
 
-		-- Git repository root (if in one)
+		add(vim.fn.getcwd())                 -- project / working directory
+		add(vim.fn.stdpath("config"))        -- nvim config (init, lua/, …)
+		add(vim.fn.stdpath("data"))          -- plugins (lazy/, …)
+		add(vim.fn.stdpath("cache"))         -- runtime/cache files
+
+		-- Git repository root (if in one).
 		local git_root = vim.fn.systemlist("git rev-parse --show-toplevel 2>/dev/null")[1]
-		if git_root and git_root ~= "" and vim.fn.isdirectory(git_root) == 1 then
-			table.insert(config.scan_roots, git_root)
-		end
+		add(git_root)
 	end
 
 	-- === Apply Other Config Options ===

@@ -17,7 +17,6 @@ local M = {}
 local find     = require("gopath.resolvers.common.extractor.find")
 local helpers  = require("gopath.resolvers.common.extractor.helpers")
 local TS       = require("gopath.resolvers.common.tailsearch")
-local UP       = require("gopath.util.path")
 
 local uv = vim.uv or vim.loop
 
@@ -39,9 +38,7 @@ function M.resolve()
   if #candidates == 0 then return nil end
 
   local ts_cfg = cfg.tailsearch or {}
-  local roots    = ts_cfg.roots  or TS.guess_roots()
   local max_comp = ts_cfg.max_components or 6
-  local limit    = ts_cfg.limit  or 100
 
   local function make_result(path, lineno, col, source, confidence)
     return {
@@ -78,11 +75,13 @@ function M.resolve()
       return make_result(rel, lineno, col, "linepath-relative", 0.88)
     end
 
-    -- 3) Suffix search (sanitize: strip quotes / ellipsis)
+    -- 3) Suffix search via cache only (instant, non-blocking). The live
+    --    filesystem walk is deferred to the async command layer to keep the
+    --    resolve pipeline from freezing the UI on large trees.
     local tail = path:gsub("\\", "/"):gsub('["\''.. "`]+", ""):gsub("^%.*%/*", "")
     if tail ~= "" then
-      local res = TS.resolve_sync(tail, {
-        roots = roots, max_components = max_comp, limit = limit,
+      local res = TS.resolve_cached(tail, {
+        max_components = max_comp,
         line = lineno, col = col,
       })
       if res then

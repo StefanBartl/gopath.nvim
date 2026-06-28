@@ -31,17 +31,13 @@ local function open_for_kind(res, kind)
   return OPEN.open(res, kind or "edit")
 end
 
----Resolve and open with the specified window mode.
----@param kind string  "edit"|"window"|"vsplit"|"tab"
-function M.resolve_and_open(kind)
-  local res, err = RESOLVE.resolve_at_cursor({})
-  if not res then
-    LOG.warn("no match: " .. (err or "unknown"))
-    return
-  end
-
-  local cfg      = CONFIG.get()
-  local open_cmd = KIND_TO_CMD[kind or "edit"] or "edit"
+---Open a resolved result, applying the fuzzy-alternate and nearest-folder
+---fallbacks when the file does not exist.
+---@private
+---@param res GopathResult
+---@param kind string
+local function finish_open(res, kind)
+  local cfg = CONFIG.get()
 
   if res.exists == false and cfg.alternate and cfg.alternate.enable then
     -- Try fuzzy alternate resolution (Levenshtein similarity in same dir)
@@ -57,7 +53,75 @@ function M.resolve_and_open(kind)
   end
 
   open_for_kind(res, kind or "edit")
-  _ = open_cmd  -- used above via alternate.try_resolve
+end
+
+---Resolve and open with the specified window mode.
+---
+---The synchronous pipeline only consults instant sources (help, env, rtp, and
+---the in-memory truncated-path cache). When it cannot find an existing file,
+---the expensive filesystem search runs ASYNCHRONOUSLY so the UI never freezes:
+---a "Dateisuche läuft…" message is shown and the buffer opens once a match is
+---found.
+---@param kind string  "edit"|"window"|"vsplit"|"tab"
+function M.resolve_and_open(kind)
+  kind = kind or "edit"
+  local res, err = RESOLVE.resolve_at_cursor({})
+
+  -- Fast path: an existing file was resolved instantly (help, env, rtp, cache…).
+  if res and res.exists ~= false then
+    return finish_open(res, kind)
+  end
+
+  -- Nothing concrete yet → try an async live filesystem search before giving up.
+  local cfg    = CONFIG.get()
+  local ts_cfg = cfg.tailsearch or {}
+  if ts_cfg.enable == false then
+    if res then return finish_open(res, kind) end
+    LOG.warn("no match: " .. (err or "unknown"))
+    return
+  end
+
+  local TS = require("gopath.resolvers.common.tailsearch")
+
+  -- Derive a search tail (+ line/col) from the speculative result or <cfile>.
+  local tail, line, col
+  if res and res.path and res.path ~= "" then
+    tail = TS.sanitize(res.path)
+    line = res.range and res.range.line
+    col  = res.range and res.range.col
+  else
+    local cfile = vim.fn.expand("<cfile>")
+    if type(cfile) == "string" and cfile ~= "" then
+      tail, line, col = TS.sanitize(cfile)
+    end
+  end
+
+  if not tail or tail == "" then
+    if res then return finish_open(res, kind) end
+    LOG.warn("no match: " .. (err or "unknown"))
+    return
+  end
+
+  TS.resolve_async(tail, {
+    roots          = ts_cfg.roots,
+    limit          = ts_cfg.limit or 100,
+    max_components = ts_cfg.max_components or 6,
+    line           = line,
+    col            = col,
+  }, function(found)
+    vim.schedule(function()
+      if found then
+        return finish_open(found, kind)
+      end
+      -- Live search missed → fall back to whatever the sync pass produced
+      -- (drives the alternate / nearest-folder fallbacks on the original path).
+      if res then return finish_open(res, kind) end
+      LOG.warn("no match for '" .. tail .. "'")
+    end)
+  end, function()
+    -- on_live_start: only fires when the slow filesystem walk actually begins.
+    vim.notify("[gopath] Dateisuche läuft…", vim.log.levels.INFO)
+  end)
 end
 
 ---Copy the resolved location to the system clipboard as "path:line:col".

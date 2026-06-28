@@ -3,9 +3,11 @@
 --- Works for partial, relative, and truncated paths (with or without "..." prefix)
 --- by matching path tails against multiple search roots via vim.fs.find.
 ---
---- Two modes:
----   resolve_sync(tail, opts) → GopathResult|nil   -- for pipeline use (no UI)
----   probe(raw, opts, on_done)                      -- for commands (async, with vim.ui.select)
+--- Modes:
+---   resolve_cached(tail, opts) → GopathResult|nil  -- pipeline fast path, cache only (never blocks)
+---   resolve_async(tail, opts, on_done, on_live_start) -- cache → async live walk (non-blocking)
+---   resolve_sync(tail, opts) → GopathResult|nil    -- cache → blocking vim.fs.find (direct callers)
+---   probe(raw, opts, on_done)                       -- for commands (async, with vim.ui.select)
 
 local M = {}
 local uv = vim.uv or vim.loop
@@ -129,6 +131,45 @@ function M.pick_best(matches)
   return best
 end
 
+---Look up `tail` in the in-memory truncated-path cache (instant, non-blocking).
+---Tries path suffixes longest-first so a truncated leading segment (e.g. the
+---"...a" fragment left of "AppData") is dropped until a match is found.
+---Returns an empty list when the cache is disabled, empty, or still building.
+---@param tail string
+---@param max_components integer|nil  longest suffix to try (default 6)
+---@return string[]  normalized absolute paths
+function M.cache_lookup(tail, max_components)
+  if type(tail) ~= "string" or tail == "" then return {} end
+  local ok, cache = pcall(require, "gopath.truncated.cache")
+  if not ok then return {} end
+
+  -- Longest (most specific) suffix first; return on the first one that hits so
+  -- we never fall through to an over-broad single-filename match.
+  for _, suf in ipairs(M.suffix_candidates(tail, max_components or 6)) do
+    local ok2, hits = pcall(cache.search, suf)
+    if ok2 and type(hits) == "table" and #hits > 0 then
+      local out, seen = {}, {}
+      for _, p in ipairs(hits) do
+        local np = normalize(p)
+        if not seen[np] then seen[np] = true; out[#out + 1] = np end
+      end
+      if #out > 0 then return out end
+    end
+  end
+  return {}
+end
+
+---Build a GopathResult for a resolved path.
+---@param path string
+---@param conf number
+---@param rng  GopathRange|nil
+---@return table
+local function make_result(path, conf, rng)
+  return { language = vim.bo.filetype or "text", kind = "file",
+           path = path, range = rng,
+           chain = nil, source = "tailsearch", confidence = conf, exists = true }
+end
+
 -- ── Token sanitization ───────────────────────────────────────────────────────
 
 ---Strip `:line:col` suffix and clean up a raw token into a path tail.
@@ -174,6 +215,13 @@ function M.resolve_sync(tail, opts)
   local rng      = (opts.line and opts.line > 0)
                    and { line = opts.line, col = opts.col or 1 } or nil
 
+  -- Cache fast path (instant, in-memory). Avoids the blocking vim.fs.find walk
+  -- whenever the truncated-path cache already indexed the target.
+  local cached = M.cache_lookup(tail, max_comp)
+  if #cached > 0 then
+    return make_result(M.pick_best(cached), #cached == 1 and 0.85 or 0.72, rng)
+  end
+
   local candidates = M.suffix_candidates(tail, max_comp)
   local seen, all  = {}, {}
 
@@ -184,16 +232,65 @@ function M.resolve_sync(tail, opts)
     end
     if #hits == 1 then
       -- unambiguous hit on this suffix → high confidence
-      return { language = vim.bo.filetype or "text", kind = "file",
-               path = hits[1], range = rng,
-               chain = nil, source = "tailsearch", confidence = 0.85, exists = true }
+      return make_result(hits[1], 0.85, rng)
     end
   end
 
   if #all == 0 then return nil end
-  return { language = vim.bo.filetype or "text", kind = "file",
-           path = M.pick_best(all), range = rng,
-           chain = nil, source = "tailsearch", confidence = 0.72, exists = true }
+  return make_result(M.pick_best(all), 0.72, rng)
+end
+
+-- ── Cache-only resolution (pipeline fast path) ────────────────────────────────
+
+---Resolve `tail` using ONLY the in-memory cache. Never touches the filesystem,
+---so it is safe to call synchronously inside the resolve pipeline without the
+---multi-second freeze that a live `vim.fs.find` walk would cause. Returns nil on
+---a cache miss so the caller can fall back to `resolve_async`.
+---@param tail string  already sanitized path tail
+---@param opts { line?: integer, col?: integer, max_components?: integer }|nil
+---@return table|nil  GopathResult
+function M.resolve_cached(tail, opts)
+  if not tail or tail == "" then return nil end
+  opts = opts or {}
+  local rng = (opts.line and opts.line > 0)
+              and { line = opts.line, col = opts.col or 1 } or nil
+  local cached = M.cache_lookup(tail, opts.max_components)
+  if #cached == 0 then return nil end
+  return make_result(M.pick_best(cached), #cached == 1 and 0.85 or 0.72, rng)
+end
+
+-- ── Async resolution (non-blocking live search) ───────────────────────────────
+
+---Resolve `tail` without blocking the UI. Tries the cache first (instant); on a
+---miss runs the async libuv filesystem walk. `on_live_start` (if given) fires
+---exactly when the slow live search begins, so callers can show a progress
+---message only when it is actually needed.
+---@param tail string  already sanitized path tail
+---@param opts { roots?: string[], limit?: integer, line?: integer, col?: integer, max_components?: integer }|nil
+---@param on_done fun(result: table|nil)
+---@param on_live_start fun()|nil
+function M.resolve_async(tail, opts, on_done, on_live_start)
+  if not tail or tail == "" then on_done(nil); return end
+  opts = opts or {}
+  local rng = (opts.line and opts.line > 0)
+              and { line = opts.line, col = opts.col or 1 } or nil
+
+  -- 1) Cache fast path.
+  local cached = M.cache_lookup(tail, opts.max_components)
+  if #cached > 0 then
+    on_done(make_result(M.pick_best(cached), #cached == 1 and 0.9 or 0.8, rng))
+    return
+  end
+
+  -- 2) Async live filesystem search.
+  local ok, finder = pcall(require, "gopath.truncated.finder")
+  if not ok then on_done(nil); return end
+  if on_live_start then on_live_start() end
+
+  finder.find_async(tail, { roots = opts.roots, limit = opts.limit or 100 }, function(hits)
+    if not hits or #hits == 0 then on_done(nil); return end
+    on_done(make_result(M.pick_best(hits), #hits == 1 and 0.9 or 0.8, rng))
+  end)
 end
 
 -- ── Async probe (for commands) ───────────────────────────────────────────────
@@ -217,41 +314,46 @@ function M.probe(raw, opts, on_done)
   local rng      = (line_nr and line_nr > 0)
                    and { line = line_nr, col = col_nr or 1 } or nil
 
-  local function make_result(path, conf)
+  local _ = max_comp  -- suffix expansion handled by cache + tail-suffix match
+
+  local function probe_result(path, conf)
     return { language = vim.bo.filetype or "text", kind = "file",
              path = path, range = rng,
              chain = nil, source = "tailsearch", confidence = conf, exists = true }
   end
 
-  local candidates = M.suffix_candidates(tail, max_comp)
-  local seen, all  = {}, {}
-
-  for _, suf in ipairs(candidates) do
-    local hits = M.find_by_tail(suf, roots, limit)
-    for _, p in ipairs(hits) do
-      if not seen[p] then seen[p] = true; all[#all + 1] = p end
+  ---Disambiguate `matches` and report the chosen result.
+  ---@param matches string[]
+  ---@param base_conf number
+  local function finish(matches, base_conf)
+    if #matches == 0 then on_done(nil); return end
+    if #matches == 1 or not ask then
+      on_done(probe_result(M.pick_best(matches), base_conf))
+      return
     end
-    if #hits == 1 then on_done(make_result(hits[1], 0.9)); return end
+    vim.ui.select(matches, {
+      prompt = "gopath: multiple matches — pick one",
+      format_item = function(item)
+        local r0 = roots[1]
+        if type(r0) == "string" and #r0 > 1 and item:sub(1, #r0) == r0 then
+          return "./" .. item:sub(#r0 + 2)
+        end
+        return item
+      end,
+    }, function(choice)
+      on_done(choice and probe_result(choice, 0.85) or nil)
+    end)
   end
 
-  if #all == 0 then on_done(nil); return end
-  if #all == 1 or not ask then
-    on_done(make_result(M.pick_best(all), 0.8))
-    return
-  end
+  -- 1) Cache fast path (instant).
+  local cached = M.cache_lookup(tail, max_comp)
+  if #cached > 0 then finish(cached, 0.85); return end
 
-  -- Ambiguous: ask user
-  vim.ui.select(all, {
-    prompt = "gopath: multiple matches — pick one",
-    format_item = function(item)
-      local r0 = roots[1]
-      if type(r0) == "string" and #r0 > 1 and item:sub(1, #r0) == r0 then
-        return "./" .. item:sub(#r0 + 2)
-      end
-      return item
-    end,
-  }, function(choice)
-    on_done(choice and make_result(choice, 0.85) or nil)
+  -- 2) Async live search (non-blocking).
+  local ok, finder = pcall(require, "gopath.truncated.finder")
+  if not ok then on_done(nil); return end
+  finder.find_async(tail, { roots = roots, limit = limit }, function(hits)
+    finish(hits or {}, 0.85)
   end)
 end
 
