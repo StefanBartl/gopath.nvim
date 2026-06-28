@@ -24,6 +24,15 @@ local function _setup_cache(config)
   local cache = require("gopath.truncated.cache")
   local LOG   = require("gopath.util.log")
 
+  -- Configure scan roots / depth / exclusions. Without this the cache would
+  -- index nothing (scan_roots stays empty) and every resolve would fall back
+  -- to the slow live search.
+  cache.setup({
+    roots         = tcfg.cache_roots,
+    max_depth     = tcfg.max_depth,
+    excluded_dirs = tcfg.excluded_dirs,
+  })
+
   -- Load persisted cache immediately so the first resolve can use it.
   pcall(function() cache.load_from_disk() end)
 

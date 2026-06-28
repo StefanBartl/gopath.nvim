@@ -119,21 +119,20 @@ function M.resolve()
     end
   end
 
-  -- Tailsearch fallback: suffix-based search across project roots.
-  -- Runs before building a speculative absolute path so that partial/truncated
-  -- paths like "neo-tree/ui/renderer.lua" are found even without an rtp hit.
+  -- Tailsearch fast path: consult ONLY the in-memory cache here. The live
+  -- filesystem walk is intentionally NOT run inside the synchronous pipeline —
+  -- it would block the UI for seconds on large trees. When the cache misses,
+  -- we hand back the speculative (exists=false) result below and the command
+  -- layer performs the search asynchronously (see commands.resolve_and_open).
   if not abs then
     local cfg = require("gopath.config").get()
     if cfg.tailsearch and cfg.tailsearch.enable ~= false then
       local ok, TS = pcall(require, "gopath.resolvers.common.tailsearch")
       if ok then
-        local ts_cfg = cfg.tailsearch
-        local res = TS.resolve_sync(token, {
-          roots          = ts_cfg.roots,
-          max_components = ts_cfg.max_components or 6,
-          limit          = ts_cfg.limit or 100,
+        local res = TS.resolve_cached(token, {
           line           = parsed.line,
           col            = parsed.col,
+          max_components = cfg.tailsearch.max_components or 6,
         })
         if res then return res end
       end
