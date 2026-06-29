@@ -2,6 +2,11 @@
 
 This document provides in-depth technical information for developers who want to extend, customize, or contribute to gopath.nvim.
 
+> **Subsystem deep dives** (user-facing, EN + DE):
+> [Cache](../CACHE.md) · [Resolution pipeline](../RESOLUTION.md) ·
+> [Lua symbol resolution](../LUA-SYMBOLS.md). Full docs index:
+> [docs/README.md](../README.md).
+
 ---
 
 ## Table of content
@@ -39,7 +44,7 @@ This document provides in-depth technical information for developers who want to
   - [📊 Performance Considerations](#performance-considerations)
     - [Caching](#caching)
     - [LSP Timeout](#lsp-timeout)
-    - [Async Operations (planned)](#async-operations-planned)
+    - [Async Operations](#async-operations)
   - [🔐 Security Considerations](#security-considerations)
     - [Path Sanitization](#path-sanitization)
     - [External Command Injection](#external-command-injection)
@@ -64,34 +69,41 @@ This document provides in-depth technical information for developers who want to
 ```sh
 gopath.nvim/
 ├── lua/gopath/
-│   ├── init.lua              # Public API & setup
+│   ├── init.lua              # Public API & setup (incl. cache.setup wiring)
 │   ├── config.lua            # Configuration management
-│   ├── resolve.lua           # Resolution orchestrator
+│   ├── resolve.lua           # Resolution orchestrator (sync pipeline)
 │   ├── registry.lua          # Provider & resolver registry
-│   ├── commands.lua          # User commands
+│   ├── commands.lua          # Command impls + async resolve_and_open
 │   ├── keymaps.lua           # Keymap registration
-│   ├── user_commands.lua     # Command registration
+│   ├── usercommands.lua      # :Gopath… user-command registration
+│   ├── health.lua            # :checkhealth gopath
 │   │
 │   ├── providers/            # Provider implementations
 │   │   ├── builtin.lua       # Vim builtin functions
+│   │   ├── token.lua         # Smart token extraction under cursor
 │   │   ├── lsp.lua           # LSP client integration
 │   │   └── treesitter.lua    # Treesitter queries
 │   │
 │   ├── resolvers/            # Language-specific resolvers
 │   │   ├── common/           # Universal resolvers
 │   │   │   ├── filetoken.lua # <cfile> resolution
+│   │   │   ├── linepath.lua  # whole-line path extraction
+│   │   │   ├── tailsearch.lua# suffix search (cache / sync / async)
+│   │   │   ├── env_path.lua  # $VAR / ${VAR} expansion
 │   │   │   └── help.lua      # :help tag resolution
-│   │   └── lua/              # Lua-specific resolvers
-│   │       ├── require_path.lua
-│   │       ├── chain.lua
-│   │       ├── value_origin.lua
-│   │       └── ...
+│   │   └── lua/              # Lua-specific resolvers (see LUA-SYMBOLS.md)
+│   │       ├── require_path.lua  chain.lua  binding_index.lua
+│   │       ├── alias_index.lua   identifier_locator.lua
+│   │       ├── symbol_locator.lua value_origin.lua
+│   │       └── local_to_module.lua table_locator.lua
 │   │
-│   ├── open/                 # Opening strategies
-│   │   ├── edit.lua          # Current window
-│   │   ├── window.lua        # Horizontal split
-│   │   ├── vsplit.lua        # Vertical split
-│   │   ├── tab.lua           # New tab
+│   ├── truncated/            # Truncated-path cache (see CACHE.md)
+│   │   ├── init.lua          # try_resolve + selection UI
+│   │   ├── cache.lua         # async filesystem index (in-memory + JSON)
+│   │   └── finder.lua        # live search (sync fd/rg + async libuv walk)
+│   │
+│   ├── open/                 # Unified opener
+│   │   ├── init.lua          # edit/split/vsplit/tab + jump + externals
 │   │   └── help.lua          # Help window
 │   │
 │   ├── alternate/            # Fuzzy resolution
@@ -108,8 +120,11 @@ gopath.nvim/
 │   │       └── opener.lua    # System opener
 │   │
 │   └── util/                 # Utilities
-│       ├── path.lua          # Path operations
-│       └── safe.lua          # Error handling
+│       ├── path.lua          # Path search strategies
+│       ├── cross.lua         # Cross-platform separators (lib.nvim)
+│       ├── location.lua      # :line:col parsing (see util/location.md)
+│       ├── log.lua  safe.lua  safe_notify.lua
+└──     └── (error handling, logging, deferred notify)
 ```
 
 ---
@@ -432,9 +447,11 @@ opts = {
 
 ---
 
-### Line/Column Support (currently lua only)
+### Line/Column Support (all filetypes)
 
-Gopath automatically parses and respects line and column numbers in file paths:
+Line and column parsing is filetype-agnostic — see
+[location.md](./util/location.md). Gopath automatically parses and respects
+line and column numbers in file paths:
 
 #### Supported Formats
 
@@ -620,7 +637,16 @@ opts = {
 
 ### Caching
 
-Resolvers use **changedtick** caching to avoid redundant computations:
+Two distinct caches exist:
+
+1. **Per-buffer `changedtick` caches** in the Lua resolvers (below), to avoid
+   recomputing the binding/alias index while a buffer is unchanged.
+2. **The persistent filesystem cache** (`gopath.truncated.cache`) that indexes
+   the filesystem in the background for fast truncated-path resolution — its
+   scan strategy, matching and lifecycle are documented in
+   [CACHE.md](../CACHE.md).
+
+The `changedtick` pattern:
 
 ```lua
 -- lua/gopath/resolvers/lua/binding_index.lua
@@ -657,17 +683,19 @@ opts = {
 * **Slow LSP servers**: 500ms
 * **Patient users**: 1000ms+
 
-### Async Operations (planned)
+### Async Operations
 
-Future versions will support async resolution to prevent UI blocking:
+Expensive filesystem searches run **asynchronously** so the UI never blocks.
+The synchronous `resolve_at_cursor` pipeline only consults instant sources
+(help, env, rtp, `&path`, and the in-memory truncated-path cache). When no
+existing file is found, `commands.resolve_and_open` derives a search tail and
+hands it to `tailsearch.resolve_async`, which is cache-first and otherwise runs
+a non-blocking libuv directory walk (`finder.find_async`); a single
+`"[gopath] Dateisuche läuft…"` message is shown only when that live walk
+actually starts, and the buffer opens once a match arrives.
 
-```lua
-require("gopath").resolve_async({
-  on_complete = function(result)
-    -- Handle result
-  end,
-})
-```
+See [RESOLUTION.md](../RESOLUTION.md) (fast path vs. async search) and
+[CACHE.md](../CACHE.md) (the cache and live fallback).
 
 ---
 
@@ -675,13 +703,14 @@ require("gopath").resolve_async({
 
 ### Path Sanitization
 
-All paths are sanitized before opening:
+All paths are sanitized before opening, and converted to OS-native separators
+via `lib.nvim` (see [`util/cross.lua`](../../lua/gopath/util/cross.lua)):
 
 ```lua
--- lua/gopath/open/edit.lua
+-- lua/gopath/open/init.lua
 
-local escaped = vim.fn.fnameescape(res.path)
-vim.cmd.edit(escaped)
+local target = CROSS.to_native(res.path)   -- OS-native separators (lib.nvim)
+vim.cmd.edit(vim.fn.fnameescape(target))
 ```
 
 ### External Command Injection

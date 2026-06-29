@@ -1,3 +1,0 @@
-
-[pip tools]($REPOS_DIR\WKDBooks\Development\INSTALL\ARCH_LINUX\02_INSTALL_DEV_TOOLS.md)
-

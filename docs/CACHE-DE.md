@@ -280,6 +280,25 @@ Cursor aus.
 
 ---
 
+## Performance-Eigenschaften
+
+Ungefähre Größenordnungen (hardware- und baumabhängig):
+
+| Operation | Kosten |
+|-----------|--------|
+| Cache-Build, ~1 000 Dateien | ~0,5 s (Hintergrund) |
+| Cache-Build, ~10 000 Dateien | ~3 s (Hintergrund) |
+| Cache-Build, ~50 000 Dateien | ~15 s (Hintergrund) |
+| **Cache-Lookup** | **< 10 ms** |
+| Live-Suche (async libuv-Walk) | ~100 ms – wenige Sekunden, off main loop |
+| Cache-Größe auf Disk | ~100 KB pro 10 000 Dateien |
+
+Der Kern des Designs: Builds sind langsam, blockieren aber **nie** die UI,
+während die Lookups, die man interaktiv tatsächlich macht, praktisch instant
+sind.
+
+---
+
 ## Design-Notizen & Ideen
 
 - Der Cache ist bewusst eine **flache Pfadliste** mit String-Matching statt

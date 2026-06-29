@@ -271,6 +271,24 @@ limit) — see the [main README](../README.md#configuration).
 
 ---
 
+## Performance characteristics
+
+Approximate, order-of-magnitude figures (hardware- and tree-dependent):
+
+| Operation | Cost |
+|-----------|------|
+| Cache build, ~1 000 files | ~0.5 s (background) |
+| Cache build, ~10 000 files | ~3 s (background) |
+| Cache build, ~50 000 files | ~15 s (background) |
+| **Cache lookup** | **< 10 ms** |
+| Live search (async libuv walk) | ~100 ms – a few seconds, off the main loop |
+| On-disk cache size | ~100 KB per 10 000 files |
+
+The point of the design: builds are slow but **never block** the UI, while the
+lookups you actually do interactively are effectively instant.
+
+---
+
 ## Design notes & future ideas
 
 - The cache is intentionally a **flat path list** with string matching rather
