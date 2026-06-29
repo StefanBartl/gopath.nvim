@@ -6,8 +6,9 @@
 --- placement and the optional line/col jump. Help results are handled by
 --- `gopath.open.help` and routed separately by `gopath.commands`.
 
-local LOC = require("gopath.util.location")
-local LOG = require("gopath.util.log")
+local LOC   = require("gopath.util.location")
+local LOG   = require("gopath.util.log")
+local CROSS = require("gopath.util.cross")
 
 local M = {}
 
@@ -55,7 +56,9 @@ function M.open(res, mode)
   local place = PLACEMENT[mode or "edit"] or PLACEMENT.edit
   place()
 
-  local ok, err = pcall(vim.cmd.edit, vim.fn.fnameescape(res.path))
+  -- Hand the OS / editor an OS-native path (backslashes on Windows) via lib.nvim.
+  local target = CROSS.to_native(res.path)
+  local ok, err = pcall(vim.cmd.edit, vim.fn.fnameescape(target))
   if not ok then
     LOG.error("Could not open file: " .. tostring(err))
     return
