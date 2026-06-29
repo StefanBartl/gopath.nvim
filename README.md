@@ -28,6 +28,7 @@ A modular file-navigation plugin for Neovim. Resolves symbols, require() paths, 
 - [Commands](#commands)
 - [Resolution Pipeline](#resolution-pipeline)
 - [Configuration](#configuration)
+- [Documentation](#documentation)
 - [Language Support](#language-support)
 - [Health Check](#health-check)
 - [Troubleshooting](#troubleshooting)
@@ -194,6 +195,9 @@ When a file is not found:
 1. **Fuzzy alternate** — Levenshtein similarity in the same directory
 2. **Nearest folder** — opens closest existing ancestor directory
 
+> Full walkthrough (async open flow, token normalization, fallbacks):
+> [docs/RESOLUTION.md](./docs/RESOLUTION.md).
+
 ---
 
 ## Configuration
@@ -243,7 +247,7 @@ require("gopath").setup({
     enable = true,
   },
 
-  -- Truncated path cache ("..." prefix paths)
+  -- Truncated path cache ("..." prefix paths) — see docs/CACHE.md
   truncated = {
     enable                 = true,
     use_cache              = true,
@@ -277,6 +281,17 @@ require("gopath").setup({
   },
 })
 ```
+
+---
+
+## Documentation
+
+Deep-dive docs for the more complex subsystems, available in English and German:
+
+| Topic | English | Deutsch |
+|-------|---------|---------|
+| Filesystem cache & truncated-path resolution | [Cache](./docs/CACHE.md) | [Cache-DE](./docs/CACHE-DE.md) |
+| Resolution pipeline (cursor → opened file) | [Resolution](./docs/RESOLUTION.md) | [Resolution-DE](./docs/RESOLUTION-DE.md) |
 
 ---
 
