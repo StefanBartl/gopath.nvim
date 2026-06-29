@@ -83,6 +83,7 @@ Images, PDFs, media files open automatically in the system default application.
   "StefanBartl/gopath.nvim",
   event = "VeryLazy",
   dependencies = {
+    "StefanBartl/lib.nvim",             -- cross-platform path helpers
     "nvim-treesitter/nvim-treesitter",  -- optional but recommended
   },
   opts = {
@@ -90,6 +91,11 @@ Images, PDFs, media files open automatically in the system default application.
   },
 }
 ```
+
+> **`lib.nvim`** provides the cross-platform separator handling (forward-slash
+> canonicalization internally, OS-native paths when opening files). gopath
+> degrades to built-in fallbacks and warns once if it is missing, but installing
+> it is recommended for correct behaviour on Windows.
 
 ### Recommended CLI tools
 

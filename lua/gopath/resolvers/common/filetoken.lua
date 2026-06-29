@@ -8,9 +8,10 @@
 --- separators — such as Lua module names like "a.b.c.d" — are rejected here
 --- so that language-specific resolvers (require_path, …) can handle them.
 
-local P   = require("gopath.providers.builtin")
-local U   = require("gopath.util.path")
-local LOC = require("gopath.util.location")
+local P     = require("gopath.providers.builtin")
+local U     = require("gopath.util.path")
+local LOC   = require("gopath.util.location")
+local CROSS = require("gopath.util.cross")
 
 local M = {}
 
@@ -82,7 +83,9 @@ local function parse_token(raw)
 
   local path = parsed.path
   path = path:gsub('^"(.*)"$', "%1"):gsub("^'(.*)'$", "%1")  -- strip quotes
-  path = path:gsub("^%.%.%./", "")                            -- strip leading .../
+  path = CROSS.to_forward(path)                               -- normalize separators to "/"
+  path = path:gsub("^%.%.%./", "")                            -- strip leading .../ (truncated)
+  path = path:gsub("^%./", "")                                -- strip leading ./ (relative)
   path = path:gsub("^%s+", ""):gsub("%s+$", "")               -- trim
 
   if not looks_like_path(path) then return nil end
@@ -139,15 +142,22 @@ function M.resolve()
     end
   end
 
-  -- Build absolute path even if not found (last resort)
+  -- Build absolute path even if not found (last resort).
+  -- CROSS.has_drive handles "C:/" / "C:\" prefixes cross-platform.
   if not abs then
-    if token:match("^[/\\]") or token:match("^[A-Za-z]:") then
+    if token:match("^[/\\]") or CROSS.has_drive(token) then
       abs = token
     else
       local cwd = vim.fn.expand("%:p:h")
       abs = vim.fn.fnamemodify(cwd .. "/" .. token, ":p")
     end
   end
+
+  -- Canonicalize to forward slashes regardless of which search produced `abs`
+  -- (search_with_vim_path / rtp return native "\" paths on Windows, and so does
+  -- expand("%:p:h")). gopath stores forward-slash paths internally; the open
+  -- layer converts back to OS-native via lib.nvim.
+  abs = CROSS.to_forward(abs)
 
   local exists = U.exists(abs)
 

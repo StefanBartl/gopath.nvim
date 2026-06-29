@@ -42,9 +42,14 @@ function M.extract_at_cursor()
 
   -- Clean token
   token = token:gsub("^%s+", ""):gsub("%s+$", "")  -- Trim whitespace
+  -- Strip leading "(" pulled in from a markdown link "](path)" or a wrapping
+  -- function call. "(" is part of path_chars (to support "path(10)"), so a
+  -- leading one has to be removed explicitly.
+  token = token:gsub("^%(+", "")
   -- Strip a single leading dot from chain context (".foo" -> "foo"),
-  -- but preserve an ellipsis prefix ("...foo") used for truncated paths.
-  if not token:match("^%.%.") then
+  -- but preserve an ellipsis prefix ("...foo") used for truncated paths AND
+  -- relative-path prefixes ("./foo", ".\foo") which must keep their dot.
+  if not token:match("^%.%.") and not token:match("^%.[/\\]") then
     token = token:gsub("^%.", "")
   end
   token = token:gsub("%)$", "")  -- Strip trailing paren (function calls)
