@@ -286,12 +286,16 @@ require("gopath").setup({
 
 ## Documentation
 
-Deep-dive docs for the more complex subsystems, available in English and German:
+Deep-dive docs for the more complex subsystems, available in English and German.
+Full index: [docs/README.md](./docs/README.md).
 
 | Topic | English | Deutsch |
 |-------|---------|---------|
 | Filesystem cache & truncated-path resolution | [Cache](./docs/CACHE.md) | [Cache-DE](./docs/CACHE-DE.md) |
 | Resolution pipeline (cursor → opened file) | [Resolution](./docs/RESOLUTION.md) | [Resolution-DE](./docs/RESOLUTION-DE.md) |
+| Lua symbol & require resolution | [Lua Symbols](./docs/LUA-SYMBOLS.md) | [Lua-Symbols-DE](./docs/LUA-SYMBOLS-DE.md) |
+
+For contributors, see the [Developer Notes](./docs/Developer-Notes/DEV-README.md).
 
 ---
 

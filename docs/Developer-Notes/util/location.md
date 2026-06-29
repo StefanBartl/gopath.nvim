@@ -24,7 +24,7 @@
     - [Edge Cases](#edge-cases)
   - [Performance Considerations](#performance-considerations)
     - [Pattern Matching Efficiency](#pattern-matching-efficiency)
-    - [Caching (Future)](#caching-future)
+    - [Caching](#caching)
   - [Future Enhancements](#future-enhancements)
     - [1. Custom Format Support](#1-custom-format-support)
     - [2. Range Parsing](#2-range-parsing)
@@ -42,6 +42,12 @@
 ## Overview
 
 The location parsing system provides a centralized, consistent way to handle file paths with optional line and column information across all resolvers and openers in gopath.nvim.
+
+It is **filetype-agnostic**: every resolver (universal and language-specific)
+funnels through `parse_location`, so `:line:col` jumping works in any buffer —
+not just Lua. See the [Resolution Pipeline](../../RESOLUTION.md) for where the
+parsed range is consumed, and [DEV-README](../DEV-README.md) for the wider
+architecture.
 
 ---
 
@@ -391,9 +397,12 @@ Patterns are tried in **descending specificity order**:
 - Early exit on match (most formats are `:line` or `:line:col`)
 - Avoids unnecessary pattern attempts
 
-### Caching (Future)
+### Caching
 
-Currently no caching. Future optimization:
+Location parsing is **intentionally uncached**: it is a handful of anchored
+`string.match` calls on a short string, far cheaper than a table lookup plus the
+bookkeeping a cache would add. The pattern below is only worth introducing if
+profiling ever shows `parse_location` to be a bottleneck:
 
 ```lua
 -- Cache parsed results for repeated calls on same string
