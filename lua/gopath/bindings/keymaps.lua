@@ -1,4 +1,4 @@
----@module 'gopath.keymaps'
+---@module 'gopath.bindings.keymaps'
 --- Automatic keymap registration based on config.
 --- Supports single lhs (string) or multiple lhs (string[]).
 

@@ -14,6 +14,13 @@ Deep dives into the more complex features, available in English and German.
 | Resolution pipeline (cursor → opened file) | [RESOLUTION.md](./RESOLUTION.md) | [RESOLUTION-DE.md](./RESOLUTION-DE.md) |
 | Lua symbol & require resolution | [LUA-SYMBOLS.md](./LUA-SYMBOLS.md) | [LUA-SYMBOLS-DE.md](./LUA-SYMBOLS-DE.md) |
 
+## Reference
+
+| Topic | Page |
+|-------|------|
+| Keymap / user command / autocommand cheatsheet | [BINDINGS.md](./BINDINGS.md) |
+| Roadmap & checklist audits | [ROADMAP.md](./ROADMAP.md) |
+
 ## Developer notes
 
 For contributors and people extending gopath.

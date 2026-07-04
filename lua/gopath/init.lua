@@ -4,8 +4,7 @@
 --- Main entry point called by package managers (lazy.nvim, packer, …).
 --- Delegates to focused helpers so that `setup()` itself stays thin:
 ---   • Config merge  → gopath.config
----   • Keymaps       → gopath.keymaps
----   • User commands → gopath.usercommands
+---   • Bindings      → gopath.bindings (keymaps, usrcmds, autocmds, which-key)
 ---   • Cache init    → private `_setup_cache()`
 
 local C = require("gopath.config")
@@ -53,22 +52,6 @@ local function _setup_cache(config)
       end)
     end, 2000)
   end
-
-  -- Optional: rebuild cache on file-save events.
-  if tcfg.auto_rebuild_on_save then
-    vim.api.nvim_create_autocmd("BufWritePost", {
-      group   = vim.api.nvim_create_augroup("GopathCacheAutoRebuild", { clear = true }),
-      pattern = tcfg.watch_patterns or { "*.lua", "*.vim" },
-      callback = function()
-        -- Debounced: at most one rebuild per 5 minutes.
-        vim.defer_fn(function()
-          if cache.needs_refresh(300) then
-            cache.build_async(function() end)
-          end
-        end, 1000)
-      end,
-    })
-  end
 end
 
 ---Set up gopath.nvim with user options and register keymaps / commands.
@@ -77,8 +60,7 @@ function M.setup(opts)
   C.setup(opts)
   local config = C.get()
 
-  require("gopath.keymaps").setup(config)
-  require("gopath.usercommands").setup(config)
+  require("gopath.bindings").setup(config)
   _setup_cache(config)
 end
 

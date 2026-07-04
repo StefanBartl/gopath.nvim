@@ -13,8 +13,11 @@
 ![Neovim](https://img.shields.io/badge/Neovim-0.9%2B-success.svg)
 ![Lazy.nvim](https://img.shields.io/badge/lazy.nvim-supported-success.svg)
 ![Lua](https://img.shields.io/badge/language-Lua-yellow.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)
+
+> 💡 Pairs well with [buffer-ctx.nvim](https://github.com/StefanBartl/buffer-ctx.nvim):
+> use buffer-ctx to generate a `require("foo.bar")` / `path:line` reference,
+> and gopath to jump straight back to it from anywhere.
 
 A modular file-navigation plugin for Neovim. Resolves symbols, require() paths, and arbitrary file references using a multi-phase pipeline: LSP → Treesitter → whole-line extraction → suffix search → fuzzy alternate.
 
@@ -97,6 +100,30 @@ Images, PDFs, media files open automatically in the system default application.
 > canonicalization internally, OS-native paths when opening files). gopath
 > degrades to built-in fallbacks and warns once if it is missing, but installing
 > it is recommended for correct behaviour on Windows.
+
+### packer
+
+```lua
+use {
+  "StefanBartl/gopath.nvim",
+  requires = {
+    "StefanBartl/lib.nvim",             -- optional, cross-platform path helpers
+    "nvim-treesitter/nvim-treesitter",  -- optional but recommended
+  },
+  config = function()
+    require("gopath").setup({
+      mode = "hybrid",
+    })
+  end,
+}
+```
+
+### Optional dependencies
+
+- *(optional)* [lib.nvim](https://github.com/StefanBartl/lib.nvim) — cross-platform
+  path separators and notify styling; falls back to built-ins when absent
+- *(optional)* [which-key.nvim](https://github.com/folke/which-key.nvim) — labels
+  the `probe` keymap when installed
 
 ### Recommended CLI tools
 
@@ -279,6 +306,9 @@ require("gopath").setup({
     copy    = true,
     debug   = true,
   },
+
+  -- Label the probe keymap via which-key.nvim, if installed (no-op otherwise)
+  which_key = true,
 })
 ```
 
@@ -294,6 +324,10 @@ Full index: [docs/README.md](./docs/README.md).
 | Filesystem cache & truncated-path resolution | [Cache](./docs/CACHE.md) | [Cache-DE](./docs/CACHE-DE.md) |
 | Resolution pipeline (cursor → opened file) | [Resolution](./docs/RESOLUTION.md) | [Resolution-DE](./docs/RESOLUTION-DE.md) |
 | Lua symbol & require resolution | [Lua Symbols](./docs/LUA-SYMBOLS.md) | [Lua-Symbols-DE](./docs/LUA-SYMBOLS-DE.md) |
+
+See also: [docs/BINDINGS.md](./docs/BINDINGS.md) (full keymap/command/autocmd
+cheatsheet) and [docs/ROADMAP.md](./docs/ROADMAP.md) (implemented features,
+checklist audits, planned work).
 
 For contributors, see the [Developer Notes](./docs/Developer-Notes/DEV-README.md).
 
@@ -329,6 +363,7 @@ Checks:
 - External tools: `fd`/`fdfind`, `rg`, `git`
 - Active LSP clients
 - Tree-sitter parsers
+- which-key.nvim availability
 - Configuration (linepath, tailsearch, alternate, keymaps)
 - Truncated path cache status
 
@@ -354,9 +389,3 @@ Checks:
 ### Multiple matches / wrong file opened
 - `tailsearch.ask_on_ambiguous = true` (default) shows `vim.ui.select`
 - Set `tailsearch.roots` explicitly to narrow the search scope
-
----
-
-## License
-
-MIT

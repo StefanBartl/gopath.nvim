@@ -76,6 +76,22 @@ local function check_lsp()
   end
 end
 
+local function check_which_key()
+  start_s("which-key")
+  local ok_cfg, cfg_mod = pcall(require, "gopath.config")
+  local which_key_enabled = ok_cfg and cfg_mod.get().which_key ~= false
+
+  if require_ok("which-key") then
+    if which_key_enabled then
+      ok_s("which-key.nvim installed — probe keymap label registered")
+    else
+      info_s("which-key.nvim installed, but which_key = false in config")
+    end
+  else
+    info_s("which-key.nvim not installed — optional, no label for the probe keymap")
+  end
+end
+
 local function check_treesitter()
   start_s("Tree-sitter")
   if require_ok("nvim-treesitter") then
@@ -232,6 +248,7 @@ function M.check()
   check_external_tools()
   check_lsp()
   check_treesitter()
+  check_which_key()
   check_config()
   check_truncated()
   check_languages()

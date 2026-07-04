@@ -8,6 +8,7 @@
 
 local U   = require("gopath.util.path")
 local LOC = require("gopath.util.location")
+local LOG = require("gopath.util.log")
 
 local M = {}
 
@@ -165,12 +166,7 @@ function M.resolve()
 
     local var_value = resolve_var(var_name)
     if not var_value then
-        if cfg.dev_mode then
-            vim.notify(
-                string.format("[gopath/env_path] Variable not set: $%s", var_name),
-                vim.log.levels.DEBUG
-            )
-        end
+        LOG.debug(string.format("env_path: variable not set: $%s", var_name))
         return nil
     end
 
@@ -189,15 +185,10 @@ function M.resolve()
 
     local exists = U.exists(abs)
 
-    if cfg.dev_mode then
-        vim.notify(
-            string.format(
-                "[gopath/env_path] $%s=%s  ->  %s  (exists=%s)",
-                var_name, var_value, abs, tostring(exists)
-            ),
-            vim.log.levels.DEBUG
-        )
-    end
+    LOG.debug(string.format(
+        "env_path: $%s=%s  ->  %s  (exists=%s)",
+        var_name, var_value, abs, tostring(exists)
+    ))
 
     return {
         language   = vim.bo.filetype or "text",

@@ -1,6 +1,8 @@
 ---@module 'gopath.external.helpers.opener'
 --- Cross-platform system opener for external files.
 
+local LOG = require("gopath.util.log")
+
 local M = {}
 
 ---Detect operating system.
@@ -54,19 +56,13 @@ function M.open_with_system(path)
 
   local os_type = detect_os()
   if os_type == "unknown" then
-    vim.notify(
-      "[gopath] Unsupported operating system for external opener",
-      vim.log.levels.ERROR
-    )
+    LOG.error("Unsupported operating system for external opener")
     return false
   end
 
   local cmd = build_opener_command(path, os_type)
   if not cmd then
-    vim.notify(
-      "[gopath] Failed to build opener command",
-      vim.log.levels.ERROR
-    )
+    LOG.error("Failed to build opener command")
     return false
   end
 
@@ -78,10 +74,7 @@ function M.open_with_system(path)
         local err_msg = table.concat(data, "\n"):gsub("^%s+", ""):gsub("%s+$", "")
         if err_msg ~= "" then
           vim.schedule(function()
-            vim.notify(
-              string.format("[gopath] External opener error: %s", err_msg),
-              vim.log.levels.WARN
-            )
+            LOG.warn(string.format("External opener error: %s", err_msg))
           end)
         end
       end
@@ -89,16 +82,10 @@ function M.open_with_system(path)
   })
 
   if job_id > 0 then
-    vim.notify(
-      string.format("[gopath] Opening externally: %s", vim.fn.fnamemodify(path, ":t")),
-      vim.log.levels.INFO
-    )
+    LOG.info(string.format("Opening externally: %s", vim.fn.fnamemodify(path, ":t")))
     return true
   else
-    vim.notify(
-      "[gopath] Failed to start external opener",
-      vim.log.levels.ERROR
-    )
+    LOG.error("Failed to start external opener")
     return false
   end
 end

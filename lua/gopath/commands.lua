@@ -120,7 +120,7 @@ function M.resolve_and_open(kind)
     end)
   end, function()
     -- on_live_start: only fires when the slow filesystem walk actually begins.
-    vim.notify("[gopath] Dateisuche läuft…", vim.log.levels.INFO)
+    LOG.info("Dateisuche läuft…")
   end)
 end
 
@@ -187,7 +187,7 @@ function M.probe_selection(opts)
 
   local raw = get_visual_selection() or get_normal_token()
   if not raw then
-    vim.notify("[gopath] No path-like token under cursor / in selection", vim.log.levels.WARN)
+    LOG.warn("No path-like token under cursor / in selection")
     return
   end
 
@@ -202,7 +202,7 @@ function M.probe_selection(opts)
     ask            = opts.ask ~= false and ts_cfg.ask_on_ambiguous ~= false,
   }, function(res)
     if not res then
-      vim.notify("[gopath] probe: no match found for '" .. raw .. "'", vim.log.levels.WARN)
+      LOG.warn("probe: no match found for '" .. raw .. "'")
       return
     end
     open_for_kind(res, open_cmd == "vsplit" and "vsplit"
@@ -236,7 +236,7 @@ function M.try_nearest_folder(path)
         local st = uv.fs_stat(pn)
         if st and st.type == "directory" then
           vim.cmd.edit(vim.fn.fnameescape(pn))
-          vim.notify("[gopath] Opened nearest dir: " .. pn, vim.log.levels.INFO)
+          LOG.info("Opened nearest dir: " .. pn)
           return true
         end
       end
@@ -371,7 +371,7 @@ end
 function M.debug_under_cursor()
   local info  = collect_debug_info()
   local lines = format_debug_lines(info)
-  vim.notify(table.concat(lines, "\n"), vim.log.levels.INFO)
+  LOG.info(table.concat(lines, "\n"))
 end
 
 return M
