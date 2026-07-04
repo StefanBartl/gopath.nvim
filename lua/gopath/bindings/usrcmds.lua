@@ -1,4 +1,4 @@
----@module 'gopath.usercommands'
+---@module 'gopath.bindings.usrcmds'
 ---@brief User command registration: unified :Gopath + individual convenience commands.
 ---
 --- Unified command:
@@ -13,6 +13,8 @@
 --- Individual aliases kept for backward compatibility:
 ---   :GopathOpen [mode]  :GopathCopy  :GopathDebug  :GopathResolve
 ---   :GopathCacheBuild   :GopathCacheInfo  :GopathCacheAddRoot
+
+local LOG = require("gopath.util.log")
 
 local M = {}
 
@@ -63,16 +65,16 @@ local function register_gopath_cmd(config, commands)
 
     elseif sub == "cache" then
       if not truncated_enabled then
-        vim.notify("[gopath] truncated cache is disabled in config", vim.log.levels.WARN)
+        LOG.warn("truncated cache is disabled in config")
         return
       end
       local cache = require("gopath.truncated.cache")
 
       if arg2 == "build" then
-        vim.notify("[gopath] Building filesystem cache…", vim.log.levels.INFO)
+        LOG.info("Building filesystem cache…")
         cache.build_async(function(ok)
-          vim.notify("[gopath] Cache build " .. (ok and "complete" or "failed"),
-            ok and vim.log.levels.INFO or vim.log.levels.ERROR)
+          local msg = "Cache build " .. (ok and "complete" or "failed")
+          if ok then LOG.info(msg) else LOG.error(msg) end
         end)
 
       elseif arg2 == "info" then
@@ -92,22 +94,21 @@ local function register_gopath_cmd(config, commands)
       elseif arg2 == "add-root" then
         local dir = arg3 ~= "" and arg3 or nil
         if not dir then
-          vim.notify("[gopath] Usage: :Gopath cache add-root <directory>", vim.log.levels.ERROR)
+          LOG.error("Usage: :Gopath cache add-root <directory>")
           return
         end
         cache.add_root(vim.fn.expand(dir), true)
 
       else
-        vim.notify("[gopath] :Gopath cache: unknown subcommand '" .. arg2
-          .. "'. Use build | info | add-root", vim.log.levels.ERROR)
+        LOG.error(":Gopath cache: unknown subcommand '" .. arg2
+          .. "'. Use build | info | add-root")
       end
 
     else
-      vim.notify(
-        "[gopath] Unknown subcommand '" .. sub .. "'.\n"
+      LOG.error(
+        "Unknown subcommand '" .. sub .. "'.\n"
         .. "Usage: :Gopath open|copy|debug|probe|cache …\n"
-        .. "Run :checkhealth gopath for more info.",
-        vim.log.levels.ERROR)
+        .. "Run :checkhealth gopath for more info.")
     end
   end, {
     nargs    = "*",
@@ -199,10 +200,10 @@ local function register_individual(config, commands)
   if truncated_enabled then
     vim.api.nvim_create_user_command("GopathCacheBuild", function()
       local cache = require("gopath.truncated.cache")
-      vim.notify("[gopath] Building filesystem cache…", vim.log.levels.INFO)
+      LOG.info("Building filesystem cache…")
       cache.build_async(function(ok)
-        vim.notify("[gopath] Cache " .. (ok and "built" or "build failed"),
-          ok and vim.log.levels.INFO or vim.log.levels.ERROR)
+        local msg = "Cache " .. (ok and "built" or "build failed")
+        if ok then LOG.info(msg) else LOG.error(msg) end
       end)
     end, { desc = "Gopath: rebuild fs cache (alias for :Gopath cache build)" })
 
@@ -224,7 +225,7 @@ local function register_individual(config, commands)
     vim.api.nvim_create_user_command("GopathCacheAddRoot", function(o)
       local dir = o.args
       if not dir or dir == "" then
-        vim.notify("[gopath] Usage: :GopathCacheAddRoot <dir>", vim.log.levels.ERROR)
+        LOG.error("Usage: :GopathCacheAddRoot <dir>")
         return
       end
       local cache = require("gopath.truncated.cache")

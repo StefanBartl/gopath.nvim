@@ -24,11 +24,10 @@ do
   else
     cross = nil
     vim.schedule(function()
-      vim.notify(
-        "[gopath] optional dependency 'lib.nvim' not found — using built-in "
+      require("gopath.util.log").warn(
+        "optional dependency 'lib.nvim' not found — using built-in "
           .. "path-separator fallbacks. Add it to your plugin spec "
-          .. "(dependencies = { 'StefanBartl/lib.nvim' }) for full cross-platform support.",
-        vim.log.levels.WARN
+          .. "(dependencies = { 'StefanBartl/lib.nvim' }) for full cross-platform support."
       )
     end)
   end

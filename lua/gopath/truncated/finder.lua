@@ -3,6 +3,8 @@
 --- Called by gopath.truncated when the in-memory cache misses.
 --- Tries fd/fdfind first, falls back to rg.
 
+local LOG = require("gopath.util.log")
+
 local M = {}
 local uv = vim.uv or vim.loop
 
@@ -89,8 +91,7 @@ function M.find(tail, opts)
 
   local tool = detect_tool()
   if not tool then
-    vim.notify("[gopath] truncated.finder: no external search tool (install fd or rg)",
-      vim.log.levels.WARN)
+    LOG.warn("truncated.finder: no external search tool (install fd or rg)")
     return {}
   end
 

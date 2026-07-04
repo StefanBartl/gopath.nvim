@@ -1,7 +1,6 @@
 *gopath.txt*  Intelligent file navigation for Neovim              *gopath.nvim*
 
 Author:  Stefan Bartl
-License: MIT
 Version: 0.3.0
 
 ==============================================================================

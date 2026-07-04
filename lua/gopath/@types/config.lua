@@ -8,6 +8,7 @@
 ---@field open_tab string|string[]|false Default: "g}"
 ---@field copy_location string|string[]|false Default: "gY"
 ---@field debug string|string[]|false Default: "g?"
+---@field probe string|string[]|false Default: "<leader>pp" (n + v mode)
 
 ---@class GopathCommands
 ---@field resolve boolean Default: true (creates :GopathResolve)
@@ -72,6 +73,7 @@
 ---@field env_variable_resolution? GopathEnvVariableResolution Expand $VAR prefixes in paths
 ---@field mappings? GopathKeymaps|false Keymaps (false = disable all)
 ---@field commands? GopathCommands|false User commands (false = disable all)
+---@field which_key? boolean Default: true. Label the probe keymap via which-key.nvim, if installed.
 ---@field truncated GopathTruncated
 ---@field linepath? GopathLinepath Whole-line path extraction
 ---@field tailsearch? GopathTailsearch Cache + filesystem suffix search
