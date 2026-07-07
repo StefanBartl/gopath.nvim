@@ -122,6 +122,9 @@ use {
 
 - *(optional)* [lib.nvim](https://github.com/StefanBartl/lib.nvim) — cross-platform
   path separators and notify styling; falls back to built-ins when absent
+- *(optional)* [open.nvim](https://github.com/StefanBartl/open.nvim) — external
+  files (images, PDFs, URLs, …) are routed through its `default` handler
+  (WSL-aware); falls back to gopath's built-in per-OS opener when absent
 - *(optional)* [which-key.nvim](https://github.com/folke/which-key.nvim) — labels
   the `probe` keymap when installed
 
