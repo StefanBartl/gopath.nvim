@@ -92,6 +92,16 @@ local function check_which_key()
   end
 end
 
+local function check_open_nvim()
+  start_s("open.nvim")
+  if require_ok("open_nvim") then
+    ok_s("open.nvim installed — external files routed through its 'default' handler (WSL-aware)")
+  else
+    info_s("open.nvim not installed — external files use gopath's built-in per-OS opener\n"
+        .. "  install StefanBartl/open.nvim for shared handlers and WSL support")
+  end
+end
+
 local function check_treesitter()
   start_s("Tree-sitter")
   if require_ok("nvim-treesitter") then
@@ -247,6 +257,7 @@ function M.check()
   check_neovim()
   check_external_tools()
   check_lsp()
+  check_open_nvim()
   check_treesitter()
   check_which_key()
   check_config()
