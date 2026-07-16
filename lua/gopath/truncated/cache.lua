@@ -91,24 +91,20 @@ function M.setup(opts)
 		-- user profile to max_depth on startup produces a huge, slow cache. We
 		-- stick to the directories that actually hold openable files for this
 		-- editor. Users who need more can pass `truncated.cache_roots`.
-		local seen = {}
+		local candidates = {
+			vim.fn.getcwd(),                                                       -- project / working directory
+			vim.fn.stdpath("config"),                                              -- nvim config (init, lua/, …)
+			vim.fn.stdpath("data"),                                                -- plugins (lazy/, …)
+			vim.fn.stdpath("cache"),                                               -- runtime/cache files
+			vim.fn.systemlist("git rev-parse --show-toplevel 2>/dev/null")[1],     -- git repository root (if in one)
+		}
 		config.scan_roots = {}
-		local function add(p)
-			if type(p) ~= "string" or p == "" then return end
-			if seen[p] then return end
-			if vim.fn.isdirectory(p) ~= 1 then return end
-			seen[p] = true
-			table.insert(config.scan_roots, p)
+		for _, p in ipairs(candidates) do
+			if type(p) == "string" and p ~= "" and vim.fn.isdirectory(p) == 1 then
+				table.insert(config.scan_roots, p)
+			end
 		end
-
-		add(vim.fn.getcwd())                 -- project / working directory
-		add(vim.fn.stdpath("config"))        -- nvim config (init, lua/, …)
-		add(vim.fn.stdpath("data"))          -- plugins (lazy/, …)
-		add(vim.fn.stdpath("cache"))         -- runtime/cache files
-
-		-- Git repository root (if in one).
-		local git_root = vim.fn.systemlist("git rev-parse --show-toplevel 2>/dev/null")[1]
-		add(git_root)
+		config.scan_roots = require("lib.lua.tables").dedup_list(config.scan_roots)
 	end
 
 	-- === Apply Other Config Options ===

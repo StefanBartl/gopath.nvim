@@ -75,16 +75,16 @@ local function try_locate_with_roots(abs, extra_chain, last_key)
   -- einfache Root-Inferenz lokal (kein Export aus table_locator nötig)
   local lines = vim.fn.readfile(abs)
   local function infer_roots_from_lines(lines_)
-    local roots, seen = { "M" }, { M = true }
+    local roots = { "M" }
     for i = 1, #lines_ do
       local s = lines_[i] or ""
       local id = s:match("^%s*local%s+([%w_]+)%s*=%s*{")
                or s:match("^%s*local%s+([%w_]+)%s*=%s*setmetatable%s*%(")
-      if id and not seen[id] then roots[#roots+1], seen[id] = id, true end
+      if id then roots[#roots+1] = id end
       local rid = s:match("^%s*return%s+([%w_]+)%s*$")
-      if rid and not seen[rid] then roots[#roots+1], seen[rid] = rid, true end
+      if rid then roots[#roots+1] = rid end
     end
-    return roots
+    return require("lib.lua.tables").dedup_list(roots)
   end
 
   local roots = infer_roots_from_lines(lines)
