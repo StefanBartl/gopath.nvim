@@ -148,11 +148,11 @@ function M.cache_lookup(tail, max_components)
   for _, suf in ipairs(M.suffix_candidates(tail, max_components or 6)) do
     local ok2, hits = pcall(cache.search, suf)
     if ok2 and type(hits) == "table" and #hits > 0 then
-      local out, seen = {}, {}
+      local out = {}
       for _, p in ipairs(hits) do
-        local np = normalize(p)
-        if not seen[np] then seen[np] = true; out[#out + 1] = np end
+        out[#out + 1] = normalize(p)
       end
+      out = require("lib.lua.tables").dedup_list(out)
       if #out > 0 then return out end
     end
   end
@@ -223,12 +223,12 @@ function M.resolve_sync(tail, opts)
   end
 
   local candidates = M.suffix_candidates(tail, max_comp)
-  local seen, all  = {}, {}
+  local all = {}
 
   for _, suf in ipairs(candidates) do
     local hits = M.find_by_tail(suf, roots, limit)
     for _, p in ipairs(hits) do
-      if not seen[p] then seen[p] = true; all[#all + 1] = p end
+      all[#all + 1] = p
     end
     if #hits == 1 then
       -- unambiguous hit on this suffix → high confidence
@@ -236,6 +236,7 @@ function M.resolve_sync(tail, opts)
     end
   end
 
+  all = require("lib.lua.tables").dedup_list(all)
   if #all == 0 then return nil end
   return make_result(M.pick_best(all), 0.72, rng)
 end
