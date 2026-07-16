@@ -8,7 +8,11 @@
 
 local M = {}
 
----Parse a string that may contain path with line/column information
+---Parse a string that may contain path with line/column information.
+---Delegates the actual format matching to lib.lua.strings.location (same 5
+---formats), adapted back to this module's own contract: always returns a
+---table (never nil), and a matched line with no explicit column defaults to
+---col = 1 (lib.nvim's version leaves col nil in that case).
 ---@param str string Input string (e.g., "path/to/file.lua:42:15")
 ---@return table location { path: string, line: integer|nil, col: integer|nil }
 function M.parse_location(str)
@@ -19,62 +23,12 @@ function M.parse_location(str)
   -- Strip leading/trailing whitespace
   str = str:gsub("^%s+", ""):gsub("%s+$", "")
 
-  -- Format 1: path:line:col (most specific)
-  local path, line, col = str:match("^(.+):(%d+):(%d+)$")
-  if path and line and col then
-    return {
-      path = path,
-      line = tonumber(line),
-      col = tonumber(col),
-    }
+  local result = require("lib.lua.strings.location").parse_location(str)
+  if not result then
+    return { path = str, line = nil, col = nil }
   end
-
-  -- Format 2: path:line (very common)
-  path, line = str:match("^(.+):(%d+)$")
-  if path and line then
-    return {
-      path = path,
-      line = tonumber(line),
-      col = 1,
-    }
-  end
-
-  -- Format 3: path(line:col) (some error formats)
-  path, line, col = str:match("^(.+)%((%d+):(%d+)%)$")
-  if path and line and col then
-    return {
-      path = path,
-      line = tonumber(line),
-      col = tonumber(col),
-    }
-  end
-
-  -- Format 4: path(line) (error message style)
-  path, line = str:match("^(.+)%((%d+)%)$")
-  if path and line then
-    return {
-      path = path,
-      line = tonumber(line),
-      col = 1,
-    }
-  end
-
-  -- Format 5: path +line (vim-style, with space before +)
-  path, line = str:match("^(.+)%s+%+(%d+)$")
-  if path and line then
-    return {
-      path = path,
-      line = tonumber(line),
-      col = 1,
-    }
-  end
-
-  -- No location info found
-  return {
-    path = str,
-    line = nil,
-    col = nil,
-  }
+  result.col = result.col or (result.line and 1 or nil)
+  return result
 end
 
 ---Merge parsed location with existing range, preferring parsed values
