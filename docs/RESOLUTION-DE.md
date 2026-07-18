@@ -146,8 +146,11 @@ dieselbe async-Maschinerie und zeigt bei Mehrdeutigkeit einen
 
 1. **Externe Dateien** (Bilder, PDFs, …) werden über `gopath.external` an den
    System-Opener übergeben.
-2. Ein nicht existierender Pfad wird gemeldet (`File not found`), statt einen
-   leeren Buffer anzulegen.
+2. Ein nicht existierender Pfad wird zur Anlage angeboten via
+   [`gopath.create`](../lua/gopath/create.lua) (`create_on_missing`, siehe
+   unten), statt nur `File not found` zu melden. Bei Bestätigung wird die
+   Datei (+ übergeordnete Verzeichnisse) angelegt und `M.open` ruft sich mit
+   `exists = true` erneut auf.
 3. Zuerst die Fensterplatzierung — `edit` / `split` / `vsplit` / `tabnew` —
    dann wird die Datei mit einem **OS-nativen** Pfad geöffnet (lib.nvim).
 4. Trägt das Ergebnis ein `range`, springt der Cursor auf `line:col` und zentriert
@@ -163,9 +166,25 @@ Reihe nach:
 1. **Fuzzy-Alternate** — Levenshtein-Ähnlichkeit gegen Dateien im selben
    Verzeichnis ([`alternate/`](../lua/gopath/alternate)), gesteuert über
    `alternate.similarity_threshold`.
-2. **Nächster Ordner** — öffnet das nächstgelegene existierende
-   Vorfahren-Verzeichnis des nicht aufgelösten Pfads, damit man so nah wie
-   möglich landet.
+2. **Anlegen bei Fehlen** — scheitert auch das, fragt `gopath.open` (Button-
+   Dialog über lib.nvim's `ui.kit.confirm`, mit `vim.ui.select`-Fallback wenn
+   lib.nvim fehlt), ob die Datei angelegt werden soll. Siehe
+   [`gopath.create`](../lua/gopath/create.lua) und den `create_on_missing`
+   Config-Block. Opt-out mit `create_on_missing.enable = false`, oder die
+   Nachfrage überspringen mit `confirm = false`. Das eigene Keymap `gC` /
+   `:GopathCheck` prüft die Existenz direkt (ohne vorherigen Öffnungsversuch)
+   und bietet die Anlage immer an — unabhängig vom `enable`-Opt-out.
+
+Früher gab es einen dritten Fallback, der das nächstgelegene existierende
+Vorfahren-*Verzeichnis* des nicht aufgelösten Pfads als Buffer öffnete —
+entfernt, weil ein Verzeichnis sich nicht wie eine Datei in einem
+Neovim-Buffer öffnen lässt (man landete kommentarlos in netrw). Existiert für
+den aufgelösten Pfad ein Vorfahren-Verzeichnis und ist
+[filetree.nvim](https://github.com/StefanBartl/filetree.nvim) installiert und
+eingerichtet, bietet der Anlage-Dialog stattdessen einen zweiten Button,
+**„Open in filetree"**: er setzt Neovims cwd auf dieses Verzeichnis und
+verwurzelt/fokussiert dort filetree.nvims Baum. Der Button erscheint nur,
+wenn beide Bedingungen erfüllt sind — sonst ist der Dialog nur Create/Cancel.
 
 ---
 

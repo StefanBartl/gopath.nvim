@@ -140,8 +140,10 @@ same async machinery and presents a `vim.ui.select` picker on ambiguity.
 
 1. **External files** (images, PDFs, …) are handed to the system opener via
    `gopath.external`.
-2. A non-existent path is reported (`File not found`) rather than creating an
-   empty buffer.
+2. A non-existent path is offered for creation via
+   [`gopath.create`](../lua/gopath/create.lua) (`create_on_missing`, see
+   below) instead of just reporting `File not found`. On confirmation the
+   file (+ parent dirs) is created and `M.open` re-enters with `exists = true`.
 3. Window placement runs first — `edit` / `split` / `vsplit` / `tabnew` —
    then the file is opened with an **OS-native** path (lib.nvim).
 4. If the result carries a `range`, the cursor jumps to `line:col` and centers
@@ -156,8 +158,25 @@ When resolution yields a path that does not exist, `commands` tries, in order:
 1. **Fuzzy alternate** — Levenshtein similarity against files in the same
    directory ([`alternate/`](../lua/gopath/alternate)), gated by
    `alternate.similarity_threshold`.
-2. **Nearest folder** — opens the closest existing ancestor directory of the
-   unresolved path, so you land as close as possible.
+2. **Create on missing** — if that fails too, `gopath.open` asks (button
+   dialog via lib.nvim's `ui.kit.confirm`, falling back to `vim.ui.select`
+   when lib.nvim is absent) whether to create the file. See
+   [`gopath.create`](../lua/gopath/create.lua) and the `create_on_missing`
+   config block. Opt-out with `create_on_missing.enable = false`, or skip the
+   prompt with `confirm = false`. The dedicated `gC` / `:GopathCheck`
+   keymap/command checks existence directly (no open attempt first) and
+   always offers to create, bypassing the `enable` opt-out.
+
+There used to be a third fallback that opened the nearest existing ancestor
+*directory* of the unresolved path as a buffer — removed, because a directory
+can't be opened in a Neovim buffer the way a file can (it just handed you to
+netrw with no warning). When the resolved path has an existing ancestor
+directory and [filetree.nvim](https://github.com/StefanBartl/filetree.nvim)
+is installed and set up, the create-on-missing dialog offers a second
+button, **"Open in filetree"**, instead: it sets Neovim's cwd to that
+directory and roots/focuses filetree.nvim's tree there. The button is only
+shown when both conditions hold; otherwise the dialog is just
+Create/Cancel.
 
 ---
 

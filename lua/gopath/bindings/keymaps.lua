@@ -88,6 +88,11 @@ function M.setup(config)
     commands.debug_under_cursor()
   end, "debug under cursor")
 
+  -- Check: report existence of path under cursor; offer to create if missing
+  map_many("n", maps.check, function()
+    commands.check_under_cursor()
+  end, "check path exists / offer create")
+
   -- Probe: suffix-based search in normal and visual mode
   if maps.probe then
     local lhs_list = normalize_lhs(maps.probe)

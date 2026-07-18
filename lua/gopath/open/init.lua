@@ -49,7 +49,10 @@ function M.open(res, mode)
   end
 
   if res.exists == false then
-    LOG.error("File not found: " .. res.path)
+    local CREATE = require("gopath.create")
+    CREATE.offer(res, function(created_res)
+      M.open(created_res, mode)
+    end)
     return
   end
 

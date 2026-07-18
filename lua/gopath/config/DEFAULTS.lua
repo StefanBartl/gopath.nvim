@@ -42,6 +42,11 @@ return {
     enable = true,
   },
 
+  create_on_missing = {
+    enable  = true,
+    confirm = true,
+  },
+
   truncated = {
     enable                  = true,
     use_cache               = true,
@@ -80,6 +85,7 @@ return {
     copy_location  = "gY",
     debug          = "g?",
     probe          = "<leader>pp",
+    check          = "gC",
   },
 
   commands = {
@@ -87,6 +93,7 @@ return {
     open    = true,
     copy    = true,
     debug   = true,
+    check   = true,
   },
 
   -- which-key.nvim is a soft dependency: label registration for the

@@ -31,8 +31,11 @@ local function open_for_kind(res, kind)
   return OPEN.open(res, kind or "edit")
 end
 
----Open a resolved result, applying the fuzzy-alternate and nearest-folder
----fallbacks when the file does not exist.
+---Open a resolved result, applying the fuzzy-alternate fallback when the
+---file does not exist. A missing file that fuzzy-alternate can't resolve
+---either falls through to `gopath.open`, which offers to create it (see
+---`gopath.create`) — a directory can't be "opened" in a buffer the way a
+---file can, so there is no more silent "open nearest folder" fallback here.
 ---@private
 ---@param res GopathResult
 ---@param kind string
@@ -47,9 +50,6 @@ local function finish_open(res, kind)
       open_mode = kind or "edit",
     })
     if handled then return end
-
-    -- Fuzzy alternate failed → try nearest existing ancestor directory
-    if M.try_nearest_folder(res.path) then return end
   end
 
   open_for_kind(res, kind or "edit")
@@ -122,6 +122,33 @@ function M.resolve_and_open(kind)
     -- on_live_start: only fires when the slow filesystem walk actually begins.
     LOG.info("Dateisuche läuft…")
   end)
+end
+
+---Check whether the path under cursor exists, without opening it.
+---Reports existence; when missing, offers to create it (always offers, even
+---if `create_on_missing.enable = false` — this is an explicit user action)
+---and jumps into the freshly created file on confirmation.
+function M.check_under_cursor()
+  local res, err = RESOLVE.resolve_at_cursor({})
+  if not res or not res.path then
+    LOG.warn("no match to check: " .. (err or "unknown"))
+    return
+  end
+
+  if res.kind == "help" then
+    LOG.info("help target — nothing to check: " .. tostring(res.subject))
+    return
+  end
+
+  if res.exists ~= false then
+    LOG.info("exists: " .. res.path)
+    return
+  end
+
+  local CREATE = require("gopath.create")
+  CREATE.offer(res, function(created_res)
+    OPEN.open(created_res, "edit")
+  end, { force = true })
 end
 
 ---Copy the resolved location to the system clipboard as "path:line:col".
@@ -210,39 +237,6 @@ function M.probe_selection(opts)
                      or open_cmd == "tab"    and "tab"
                      or "edit")
   end)
-end
-
--- ── Nearest-folder fallback ───────────────────────────────────────────────────
-
----When exact file resolution and fuzzy alternate both fail, try to open the
----nearest existing ancestor directory segment.
----@param path string  the unresolved path
----@return boolean  true if an existing dir was found and opened
-function M.try_nearest_folder(path)
-  if not path or path == "" then return false end
-  local norm = (vim.fs.normalize and vim.fs.normalize(path)) or path
-  local segs = {}
-  for s in norm:gmatch("[^/\\]+") do segs[#segs + 1] = s end
-
-  local uv = vim.uv or vim.loop
-  for i = #segs, 1, -1 do
-    local candidate = table.concat(segs, "/", 1, i)
-    local cwd = (uv.cwd and uv.cwd()) or vim.fn.getcwd()
-    local try_paths = { candidate, "/" .. candidate, cwd .. "/" .. candidate }
-
-    for _, p in ipairs(try_paths) do
-      local ok_norm, pn = pcall(vim.fs.normalize, p)
-      if ok_norm then
-        local st = uv.fs_stat(pn)
-        if st and st.type == "directory" then
-          vim.cmd.edit(vim.fn.fnameescape(pn))
-          LOG.info("Opened nearest dir: " .. pn)
-          return true
-        end
-      end
-    end
-  end
-  return false
 end
 
 -- ─── Debug command ────────────────────────────────────────────────────────────

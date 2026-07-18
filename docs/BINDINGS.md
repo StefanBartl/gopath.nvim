@@ -30,12 +30,37 @@ README.md → Configuration for the exact option shapes.
 | `g}` | n | `open_tab` | Resolve and open in new tab |
 | `gY` | n | `copy_location` | Copy `path:line:col` to clipboard |
 | `g?` | n | `debug` | Print resolution chain to `:messages` |
+| `gC` | n | `check` | Check path under cursor exists; offer to create if missing (does not open on hit) |
 | `<leader>pp` | n | `probe` | Probe path under cursor (suffix search, vsplit) |
 | `<leader>pp` | v | `probe` | Probe selected text (suffix search, vsplit) |
 
 Set any config key to `false` to disable that single mapping, or
 `mappings = false` to disable all of them. Values may be a single lhs string
 or a list of lhs strings (`{ "gP", "<leader>gp" }`).
+
+### Create-on-missing
+
+When `open_here`/`open_split`/`open_vsplit`/`open_tab` resolve to a path that
+does not exist (and the fuzzy-alternate fallback in
+`gopath.commands.finish_open` also comes up empty), `gopath.open` calls
+`gopath.create.offer()`: a button dialog (lib.nvim's `ui.kit.confirm`,
+falling back to `vim.ui.select` when lib.nvim is absent) asking to create the
+file. "Create file" creates it (+ parent dirs via `mkdir -p`) and re-opens it
+in the originally requested window mode, jumping to `res.range` if present.
+
+There is **no** automatic "open nearest existing folder" fallback — a
+directory can't be opened in a buffer the way a file can. Instead, when the
+unresolved path has an existing ancestor directory *and*
+[filetree.nvim](https://github.com/StefanBartl/filetree.nvim) is installed
+and set up, the dialog offers a second button, **"Open in filetree"**: sets
+cwd to that directory and roots/focuses filetree.nvim's tree there.
+
+Config: `create_on_missing = { enable = true, confirm = true }`.
+- `enable = false` restores the old "File not found" error for the passive
+  open keymaps only. The `check` keymap/command still offers to create
+  (explicit user action, bypasses the opt-out).
+- `confirm = false` skips the dialog and creates the file silently whenever
+  offered (no "Open in filetree" choice in this mode).
 
 ---
 
@@ -51,6 +76,7 @@ or a list of lhs strings (`{ "gP", "<leader>gp" }`).
 | `copy` | — | Copy `path:line:col` to clipboard |
 | `debug` | — | Print resolution chain to `:messages` |
 | `probe` | `[edit\|split\|vsplit]` | Probe path under cursor / selection |
+| `check` | — | Check path under cursor exists; offer to create if missing |
 | `cache build` | — | Rebuild filesystem index |
 | `cache info` | — | Show cache statistics |
 | `cache add-root` | `<dir>` | Add directory to cache search roots |
@@ -67,6 +93,7 @@ Kept for backward compatibility; each is a thin wrapper around the
 | `:GopathOpen [mode]` | `:Gopath open [mode]` | `open` |
 | `:GopathCopy` | `:Gopath copy` | `copy` |
 | `:GopathDebug` | `:Gopath debug` | `debug` |
+| `:GopathCheck` | `:Gopath check` | `check` |
 | `:GopathProbe[!]` | `:Gopath probe` (`!` = split) | always on |
 | `:GopathCacheBuild` | `:Gopath cache build` | requires `truncated.enable` |
 | `:GopathCacheInfo` | `:Gopath cache info` | requires `truncated.enable` |

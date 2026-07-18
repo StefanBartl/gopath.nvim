@@ -120,13 +120,18 @@ use {
 
 ### Optional dependencies
 
-- *(optional)* [lib.nvim](https://github.com/StefanBartl/lib.nvim) — cross-platform
-  path separators and notify styling; falls back to built-ins when absent
+- *(optional)* [lib.nvim](https://github.com/StefanBartl/lib.nvim) — declared
+  dependency for cross-platform path separators, notify styling, and the
+  `ui.kit.confirm` create-on-missing dialog; falls back to built-ins /
+  `vim.ui.select` when absent
 - *(optional)* [open.nvim](https://github.com/StefanBartl/open.nvim) — external
   files (images, PDFs, URLs, …) are routed through its `default` handler
   (WSL-aware); falls back to gopath's built-in per-OS opener when absent
 - *(optional)* [which-key.nvim](https://github.com/folke/which-key.nvim) — labels
   the `probe` keymap when installed
+- *(optional)* [filetree.nvim](https://github.com/StefanBartl/filetree.nvim) —
+  adds an "Open in filetree" button to the create-on-missing dialog when the
+  unresolved path has an existing ancestor directory
 
 ### Recommended CLI tools
 
@@ -150,8 +155,16 @@ All keymaps are configurable. Defaults:
 | `g}` | n | Open in new tab |
 | `gY` | n | Copy `path:line:col` to clipboard |
 | `g?` | n | Debug resolution under cursor |
+| `gC` | n | Check path exists; offer to create it if missing (no open on hit) |
 | `<leader>pp` | n | Probe path under cursor (suffix search, vsplit) |
 | `<leader>pp` | v | Probe selected text (suffix search, vsplit) |
+
+When `gP`/`g\|`/`g\`/`g}` resolve to a path that doesn't exist (and the
+fuzzy-alternate / nearest-folder fallbacks don't find anything either),
+gopath now offers to create the file and jumps straight into it. Disable
+this with `create_on_missing.enable = false` (see Configuration below) —
+`gC` / `:GopathCheck` still offer to create even then, since that's an
+explicit user action.
 
 ### Disable / remap
 
@@ -164,6 +177,7 @@ opts = {
     open_tab   = "g}",
     copy_location = "gY",
     debug      = "g?",
+    check      = "gC",
     probe      = "<leader>pp",   -- false to disable
   },
 }
@@ -186,6 +200,7 @@ Tab-completion works at every level.
 | `:Gopath open [edit\|split\|vsplit\|tab]` | Resolve and open |
 | `:Gopath copy` | Copy `path:line:col` to clipboard |
 | `:Gopath debug` | Print resolution chain to `:messages` |
+| `:Gopath check` | Check path under cursor exists; offer to create if missing |
 | `:Gopath probe [edit\|split\|vsplit]` | Probe path under cursor / selection |
 | `:Gopath cache build` | Rebuild filesystem index |
 | `:Gopath cache info` | Show cache statistics |
@@ -200,6 +215,7 @@ All original commands are preserved as aliases:
 | `:GopathOpen [mode]` | `:Gopath open [mode]` |
 | `:GopathCopy` | `:Gopath copy` |
 | `:GopathDebug` | `:Gopath debug` |
+| `:GopathCheck` | `:Gopath check` |
 | `:GopathResolve` | `:Gopath debug` |
 | `:GopathProbe[!]` | `:Gopath probe` (`!` = split) |
 | `:GopathCacheBuild` | `:Gopath cache build` |
@@ -223,7 +239,10 @@ Each phase runs in order; the first success is returned.
 
 When a file is not found:
 1. **Fuzzy alternate** — Levenshtein similarity in the same directory
-2. **Nearest folder** — opens closest existing ancestor directory
+2. **Create on missing** — offers to create the file (button dialog via
+   lib.nvim, `vim.ui.select` fallback); if an ancestor directory exists and
+   [filetree.nvim](https://github.com/StefanBartl/filetree.nvim) is set up,
+   also offers to open that directory there instead
 
 > Full walkthrough (async open flow, token normalization, fallbacks):
 > [docs/RESOLUTION.md](./docs/RESOLUTION.md).
@@ -277,6 +296,14 @@ require("gopath").setup({
     enable = true,
   },
 
+  -- Offer to create a resolved-but-missing file instead of just erroring
+  -- (gP/g|/g\/g}). `gC` / :GopathCheck always offer, regardless of `enable`.
+  -- Dialog: lib.nvim's ui.kit.confirm, falling back to vim.ui.select.
+  create_on_missing = {
+    enable  = true,
+    confirm = true,  -- false = create silently, no dialog
+  },
+
   -- Truncated path cache ("..." prefix paths) — see docs/CACHE.md
   truncated = {
     enable                 = true,
@@ -299,6 +326,7 @@ require("gopath").setup({
     open_tab      = "g}",
     copy_location = "gY",
     debug         = "g?",
+    check         = "gC",
     probe         = "<leader>pp",  -- n + v mode
   },
 
@@ -308,6 +336,7 @@ require("gopath").setup({
     open    = true,
     copy    = true,
     debug   = true,
+    check   = true,
   },
 
   -- Label the probe keymap via which-key.nvim, if installed (no-op otherwise)

@@ -23,7 +23,7 @@ local M = {}
 local OPEN_MODES   = { "edit", "split", "vsplit", "tab" }
 local PROBE_MODES  = { "edit", "split", "vsplit" }
 local CACHE_SUBS   = { "build", "info", "add-root" }
-local SUBCOMMANDS  = { "open", "copy", "debug", "probe", "cache" }
+local SUBCOMMANDS  = { "open", "copy", "debug", "probe", "cache", "check" }
 
 ---Normalize open/probe mode strings to the keys used by commands.lua.
 ---@param raw string
@@ -56,6 +56,9 @@ local function register_gopath_cmd(config, commands)
 
     elseif sub == "debug" then
       commands.debug_under_cursor()
+
+    elseif sub == "check" then
+      commands.check_under_cursor()
 
     elseif sub == "probe" then
       commands.probe_selection({
@@ -107,7 +110,7 @@ local function register_gopath_cmd(config, commands)
     else
       LOG.error(
         "Unknown subcommand '" .. sub .. "'.\n"
-        .. "Usage: :Gopath open|copy|debug|probe|cache …\n"
+        .. "Usage: :Gopath open|copy|debug|check|probe|cache …\n"
         .. "Run :checkhealth gopath for more info.")
     end
   end, {
@@ -184,6 +187,12 @@ local function register_individual(config, commands)
     vim.api.nvim_create_user_command("GopathDebug", function()
       commands.debug_under_cursor()
     end, { desc = "Gopath: debug resolution (alias for :Gopath debug)" })
+  end
+
+  if cmds.check ~= false then
+    vim.api.nvim_create_user_command("GopathCheck", function()
+      commands.check_under_cursor()
+    end, { desc = "Gopath: check existence / offer create (alias for :Gopath check)" })
   end
 
   -- Probe command (absorbed from pathprobe)
