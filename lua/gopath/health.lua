@@ -102,6 +102,32 @@ local function check_open_nvim()
   end
 end
 
+local function check_lib_nvim()
+  start_s("lib.nvim")
+  if require_ok("lib.nvim.ui.kit") then
+    ok_s("lib.nvim installed — create-on-missing dialog uses ui.kit.confirm, notify styling active")
+  else
+    info_s("lib.nvim not installed — create-on-missing dialog falls back to vim.ui.select,\n"
+        .. "  notify/cross-path helpers use built-in fallbacks\n"
+        .. "  install StefanBartl/lib.nvim for the themed dialog and consistent styling")
+  end
+end
+
+local function check_filetree_nvim()
+  start_s("filetree.nvim")
+  local ok_ft, filetree = pcall(require, "filetree")
+  if ok_ft and type(filetree) == "table" and filetree.is_initialized() then
+    ok_s("filetree.nvim installed and set up — create-on-missing dialog offers 'Open in filetree'")
+  elseif ok_ft then
+    info_s("filetree.nvim installed but setup() not called (or not yet run) — "
+        .. "'Open in filetree' choice unavailable until then")
+  else
+    info_s("filetree.nvim not installed — create-on-missing dialog has no 'Open in filetree' choice\n"
+        .. "  install StefanBartl/filetree.nvim to open the nearest existing ancestor "
+        .. "directory there instead of just creating the file")
+  end
+end
+
 local function check_treesitter()
   start_s("Tree-sitter")
   if require_ok("nvim-treesitter") then
@@ -170,6 +196,15 @@ local function check_config()
     info_s("external.enable = false")
   end
 
+  local com = cfg.create_on_missing or {}
+  if com.enable ~= false then
+    ok_s("create_on_missing.enable = true  (offers to create missing files)")
+    info_s("  confirm = " .. tostring(com.confirm ~= false)
+        .. "  (dialog: lib.nvim ui.kit.confirm / vim.ui.select — see below)")
+  else
+    info_s("create_on_missing.enable = false — 'gC'/:GopathCheck still offers to create")
+  end
+
   start_s("Keymaps")
   local maps = cfg.mappings or {}
   local function km(name)
@@ -185,6 +220,7 @@ local function check_config()
   km("copy_location")
   km("debug")
   km("probe")
+  km("check")
 end
 
 local function check_truncated()
@@ -258,6 +294,8 @@ function M.check()
   check_external_tools()
   check_lsp()
   check_open_nvim()
+  check_lib_nvim()
+  check_filetree_nvim()
   check_treesitter()
   check_which_key()
   check_config()

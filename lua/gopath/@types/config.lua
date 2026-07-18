@@ -9,12 +9,18 @@
 ---@field copy_location string|string[]|false Default: "gY"
 ---@field debug string|string[]|false Default: "g?"
 ---@field probe string|string[]|false Default: "<leader>pp" (n + v mode)
+---@field check string|string[]|false Default: "gC"
+--- Check-only: resolve the path under cursor, report whether it exists, and
+--- (if missing) offer to create it — without going through open_here/etc.
+--- Always offers, even when `create_on_missing.enable = false` (explicit
+--- user action overrides the passive opt-out).
 
 ---@class GopathCommands
 ---@field resolve boolean Default: true (creates :GopathResolve)
 ---@field open boolean Default: true (creates :GopathOpen)
 ---@field copy boolean Default: true (creates :GopathCopy)
 ---@field debug boolean Default: true (creates :GopathDebug)
+---@field check boolean Default: true (creates :GopathCheck)
 
 ---@class GopathAlternateOptions
 ---@field enable boolean Default: true
@@ -62,6 +68,17 @@
 --- using the current process environment before file resolution.
 --- Applies to all filetypes. Default: true.
 
+---@class GopathCreateOnMissing
+---@field enable boolean Default: true.
+--- When a resolved path does not exist (and the fuzzy-alternate / nearest-folder
+--- fallbacks also fail to find something), offer to create it instead of just
+--- reporting "File not found". Set to false to restore the old error-only
+--- behaviour for the passive open keymaps (the dedicated `check` keymap still
+--- offers to create, since that is an explicit user action).
+---@field confirm boolean Default: true.
+--- Ask "create '<path>'?" via vim.ui.select before creating. Set to false to
+--- create missing files silently (no prompt) whenever offered.
+
 ---@class GopathOptions
 ---@field dev_mode boolean # Print debug notifies
 ---@field mode? "builtin"|"treesitter"|"lsp"|"hybrid" Default: "hybrid"
@@ -71,6 +88,7 @@
 ---@field alternate? GopathAlternateOptions Fuzzy alternate resolution
 ---@field external? GopathExternalOptions External file opening
 ---@field env_variable_resolution? GopathEnvVariableResolution Expand $VAR prefixes in paths
+---@field create_on_missing? GopathCreateOnMissing Offer to create missing files instead of erroring
 ---@field mappings? GopathKeymaps|false Keymaps (false = disable all)
 ---@field commands? GopathCommands|false User commands (false = disable all)
 ---@field which_key? boolean Default: true. Label the probe keymap via which-key.nvim, if installed.
