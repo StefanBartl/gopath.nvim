@@ -8,10 +8,15 @@
 --- `lib.nvim.cross` so that behaviour stays consistent across the author's
 --- plugins.
 ---
---- lib.nvim is a declared dependency (add it to your plugin spec, e.g.
---- `dependencies = { "StefanBartl/lib.nvim" }`). If it is somehow missing we
---- degrade to built-in equivalents and warn once, rather than breaking every
---- resolve.
+--- lib.nvim is a hard dependency of gopath.nvim overall (several resolver
+--- files — e.g. `alternate/helpers/matcher.lua`, `resolvers/common/
+--- tailsearch.lua` — already `require("lib.lua...")` unconditionally, with
+--- no fallback). This specific module is more defensive than that baseline:
+--- it degrades to built-in path-separator equivalents and warns once if
+--- lib.nvim is somehow missing, rather than erroring, since separator
+--- normalization is cheap to approximate locally. That does not make
+--- lib.nvim actually optional for the plugin as a whole — add it to your
+--- plugin spec (`dependencies = { "StefanBartl/lib.nvim" }`) regardless.
 
 local M = {}
 
@@ -25,9 +30,10 @@ do
     cross = nil
     vim.schedule(function()
       require("gopath.util.log").warn(
-        "optional dependency 'lib.nvim' not found — using built-in "
-          .. "path-separator fallbacks. Add it to your plugin spec "
-          .. "(dependencies = { 'StefanBartl/lib.nvim' }) for full cross-platform support."
+        "dependency 'lib.nvim' not found — using built-in "
+          .. "path-separator fallbacks here, but other gopath modules require "
+          .. "it unconditionally. Add it to your plugin spec "
+          .. "(dependencies = { 'StefanBartl/lib.nvim' })."
       )
     end)
   end
