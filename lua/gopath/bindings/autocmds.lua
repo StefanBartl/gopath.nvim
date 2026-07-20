@@ -10,6 +10,8 @@
 ---   2. Opt-in: rebuild the truncated-path filesystem cache after saving
 ---      matching files, debounced to at most once per 5 minutes.
 
+local autocmd = require("lib.nvim.autocmd")
+
 local M = {}
 
 ---@param config GopathOptions
@@ -18,11 +20,10 @@ function M.setup(config)
   -- filesystem path. Writing a buffer is the common way a new file appears
   -- mid-session, so treat it as a cache-invalidation signal. Creation through
   -- gopath's own create-on-missing invalidates directly in `gopath.create`.
-  vim.api.nvim_create_autocmd("BufWritePost", {
-    group = vim.api.nvim_create_augroup("GopathPathCacheInvalidate", { clear = true }),
-    callback = function()
-      require("gopath.util.path").invalidate_caches()
-    end,
+  autocmd.create("BufWritePost", function()
+    require("gopath.util.path").invalidate_caches()
+  end, {
+    group = autocmd.group("GopathPathCacheInvalidate", true),
   })
 
   local tcfg = config.truncated
@@ -30,18 +31,17 @@ function M.setup(config)
     return
   end
 
-  vim.api.nvim_create_autocmd("BufWritePost", {
-    group   = vim.api.nvim_create_augroup("GopathCacheAutoRebuild", { clear = true }),
+  autocmd.create("BufWritePost", function()
+    -- Debounced: at most one rebuild per 5 minutes.
+    vim.defer_fn(function()
+      local cache = require("gopath.truncated.cache")
+      if cache.needs_refresh(300) then
+        cache.build_async(function() end)
+      end
+    end, 1000)
+  end, {
+    group   = autocmd.group("GopathCacheAutoRebuild", true),
     pattern = tcfg.watch_patterns or { "*.lua", "*.vim" },
-    callback = function()
-      -- Debounced: at most one rebuild per 5 minutes.
-      vim.defer_fn(function()
-        local cache = require("gopath.truncated.cache")
-        if cache.needs_refresh(300) then
-          cache.build_async(function() end)
-        end
-      end, 1000)
-    end,
   })
 end
 

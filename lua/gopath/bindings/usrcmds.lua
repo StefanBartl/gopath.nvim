@@ -19,6 +19,7 @@
 ---   :GopathCacheBuild   :GopathCacheInfo  :GopathCacheAddRoot
 
 local composer = require("lib.nvim.usercmd.composer")
+local usercmd = require("lib.nvim.usercmd")
 local expand_path = require("lib.nvim.cross.fs.expand_path")
 local LOG = require("gopath.util.log")
 
@@ -57,15 +58,17 @@ local function cache_info()
   cache.load_from_disk()
   local state = cache._get_state()
   local age   = state.last_built and (os.time() - state.last_built) or nil
-  print("=== Gopath Cache Info ===")
-  print("  Files indexed :", #(state.paths or {}))
-  print("  Last built    :", state.last_built
-    and os.date("%Y-%m-%d %H:%M:%S", state.last_built) or "never")
-  print("  Age           :", age
-    and string.format("%d s (%d min)", age, math.floor(age / 60)) or "—")
-  print("  Needs refresh :", cache.needs_refresh() and "yes" or "no")
-  print("  Building      :", (state.building and "yes" or "no"))
-  print("=========================")
+  LOG.info(table.concat({
+    "=== Gopath Cache Info ===",
+    "  Files indexed : " .. #(state.paths or {}),
+    "  Last built    : " .. (state.last_built
+      and os.date("%Y-%m-%d %H:%M:%S", state.last_built) or "never"),
+    "  Age           : " .. (age
+      and string.format("%d s (%d min)", age, math.floor(age / 60)) or "—"),
+    "  Needs refresh : " .. (cache.needs_refresh() and "yes" or "no"),
+    "  Building      : " .. (state.building and "yes" or "no"),
+    "=========================",
+  }, "\n"))
 end
 
 ---@param dir string
@@ -134,13 +137,13 @@ local function register_individual(config, commands)
   local truncated_enabled = config.truncated and config.truncated.enable
 
   if cmds.resolve ~= false then
-    vim.api.nvim_create_user_command("GopathResolve", function()
+    usercmd.create("GopathResolve", function()
       commands.debug_under_cursor()
     end, { desc = "Gopath: show resolution result (alias for :Gopath debug)" })
   end
 
   if cmds.open ~= false then
-    vim.api.nvim_create_user_command("GopathOpen", function(o)
+    usercmd.create("GopathOpen", function(o)
       local mode = o.args ~= "" and o.args or "edit"
       if mode == "window_vsplit" then mode = "vsplit" end
       commands.resolve_and_open(norm_mode(mode))
@@ -152,25 +155,25 @@ local function register_individual(config, commands)
   end
 
   if cmds.copy ~= false then
-    vim.api.nvim_create_user_command("GopathCopy", function()
+    usercmd.create("GopathCopy", function()
       commands.resolve_and_copy()
     end, { desc = "Gopath: copy path:line:col (alias for :Gopath copy)" })
   end
 
   if cmds.debug ~= false then
-    vim.api.nvim_create_user_command("GopathDebug", function()
+    usercmd.create("GopathDebug", function()
       commands.debug_under_cursor()
     end, { desc = "Gopath: debug resolution (alias for :Gopath debug)" })
   end
 
   if cmds.check ~= false then
-    vim.api.nvim_create_user_command("GopathCheck", function()
+    usercmd.create("GopathCheck", function()
       commands.check_under_cursor()
     end, { desc = "Gopath: check existence / offer create (alias for :Gopath check)" })
   end
 
   -- Probe command (absorbed from pathprobe)
-  vim.api.nvim_create_user_command("GopathProbe", function(o)
+  usercmd.create("GopathProbe", function(o)
     local mode = o.bang and "split" or (o.args ~= "" and o.args or "vsplit")
     commands.probe_selection({ open_cmd = mode, ask = true })
   end, {
@@ -181,7 +184,7 @@ local function register_individual(config, commands)
   })
 
   if truncated_enabled then
-    vim.api.nvim_create_user_command("GopathCacheBuild", function()
+    usercmd.create("GopathCacheBuild", function()
       local cache = require("gopath.truncated.cache")
       LOG.info("Building filesystem cache…")
       cache.build_async(function(ok)
@@ -190,22 +193,10 @@ local function register_individual(config, commands)
       end)
     end, { desc = "Gopath: rebuild fs cache (alias for :Gopath cache build)" })
 
-    vim.api.nvim_create_user_command("GopathCacheInfo", function()
-      local cache = require("gopath.truncated.cache")
-      cache.load_from_disk()
-      local state = cache._get_state()
-      local age   = state.last_built and (os.time() - state.last_built) or nil
-      print("=== Gopath Cache Info ===")
-      print("  Files indexed :", #(state.paths or {}))
-      print("  Last built    :", state.last_built
-        and os.date("%Y-%m-%d %H:%M:%S", state.last_built) or "never")
-      print("  Age           :", age
-        and string.format("%d s (%d min)", age, math.floor(age / 60)) or "—")
-      print("  Needs refresh :", cache.needs_refresh() and "yes" or "no")
-      print("=========================")
-    end, { desc = "Gopath: show cache info (alias for :Gopath cache info)" })
+    usercmd.create("GopathCacheInfo", cache_info,
+      { desc = "Gopath: show cache info (alias for :Gopath cache info)" })
 
-    vim.api.nvim_create_user_command("GopathCacheAddRoot", function(o)
+    usercmd.create("GopathCacheAddRoot", function(o)
       local dir = o.args
       if not dir or dir == "" then
         LOG.error("Usage: :GopathCacheAddRoot <dir>")
