@@ -8,7 +8,7 @@ dependencies, and recommended CLI tools. For a minimal quickstart, see the
 
 - [lazy.nvim](#lazynvim)
 - [packer](#packer)
-- [Optional dependencies](#optional-dependencies)
+- [Dependencies](#dependencies)
 - [Recommended CLI tools](#recommended-cli-tools)
 
 ---
@@ -29,10 +29,13 @@ dependencies, and recommended CLI tools. For a minimal quickstart, see the
 }
 ```
 
-> **`lib.nvim`** provides the cross-platform separator handling (forward-slash
-> canonicalization internally, OS-native paths when opening files). gopath
-> degrades to built-in fallbacks and warns once if it is missing, but installing
-> it is recommended for correct behaviour on Windows.
+> **`lib.nvim`** is now **required**: the `:Gopath` command layer is built on
+> `lib.nvim.usercmd.composer`, which registers unconditionally. It also
+> provides cross-platform separator handling (forward-slash canonicalization
+> internally, OS-native paths when opening files) and the `ui.kit.confirm`
+> create-on-missing dialog — those specific integrations still degrade to
+> built-in fallbacks / `vim.ui.select` if lib.nvim is somehow missing, but
+> `:Gopath` itself will fail to register without it.
 
 ## packer
 
@@ -40,7 +43,7 @@ dependencies, and recommended CLI tools. For a minimal quickstart, see the
 use {
   "StefanBartl/gopath.nvim",
   requires = {
-    "StefanBartl/lib.nvim",             -- optional, cross-platform path helpers
+    "StefanBartl/lib.nvim",             -- required: :Gopath command layer + path helpers
     "nvim-treesitter/nvim-treesitter",  -- optional but recommended
   },
   config = function()
@@ -51,12 +54,13 @@ use {
 }
 ```
 
-## Optional dependencies
+## Dependencies
 
-- *(optional)* [lib.nvim](https://github.com/StefanBartl/lib.nvim) — declared
-  dependency for cross-platform path separators, notify styling, and the
-  `ui.kit.confirm` create-on-missing dialog; falls back to built-ins /
-  `vim.ui.select` when absent
+- **Required**: [lib.nvim](https://github.com/StefanBartl/lib.nvim) — the
+  `:Gopath` command layer (`lib.nvim.usercmd.composer`); also used for
+  cross-platform path separators, notify styling, and the `ui.kit.confirm`
+  create-on-missing dialog (those specific integrations still fall back to
+  built-ins / `vim.ui.select` if lib.nvim is somehow missing)
 - *(optional)* [open.nvim](https://github.com/StefanBartl/open.nvim) — external
   files (images, PDFs, URLs, …) are routed through its `default` handler
   (WSL-aware); falls back to gopath's built-in per-OS opener when absent

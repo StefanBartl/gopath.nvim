@@ -1,5 +1,6 @@
 ---@module 'gopath.bindings.usrcmds'
----@brief User command registration: unified :Gopath + individual convenience commands.
+---@brief User command registration: unified :Gopath (built via
+--- lib.nvim.usercmd.composer) + individual convenience commands.
 ---
 --- Unified command:
 ---   :Gopath open [edit|split|vsplit|tab]   resolve & open
@@ -10,10 +11,14 @@
 ---   :Gopath cache info                     show cache stats
 ---   :Gopath cache add-root <dir>           add cache root
 ---
---- Individual aliases kept for backward compatibility:
+--- Individual aliases kept alongside as an explicit backward-compat layer
+--- (same "keep alongside" call as pickers.nvim's compat flat aliases —
+--- these are individually toggleable via config.commands.*, a deliberate
+--- design, not accidental duplication):
 ---   :GopathOpen [mode]  :GopathCopy  :GopathDebug  :GopathResolve
 ---   :GopathCacheBuild   :GopathCacheInfo  :GopathCacheAddRoot
 
+local composer = require("lib.nvim.usercmd.composer")
 local LOG = require("gopath.util.log")
 
 local M = {}
@@ -22,8 +27,6 @@ local M = {}
 
 local OPEN_MODES   = { "edit", "split", "vsplit", "tab" }
 local PROBE_MODES  = { "edit", "split", "vsplit" }
-local CACHE_SUBS   = { "build", "info", "add-root" }
-local SUBCOMMANDS  = { "open", "copy", "debug", "probe", "cache", "check" }
 
 ---Normalize open/probe mode strings to the keys used by commands.lua.
 ---@param raw string
@@ -36,118 +39,88 @@ local function norm_mode(raw)
   return "edit"
 end
 
+-- ── Cache subcommand bodies (extracted from the old inline handler so the
+-- composer routes below can call them directly) ─────────────────────────────
+
+local function cache_build()
+  local cache = require("gopath.truncated.cache")
+  LOG.info("Building filesystem cache…")
+  cache.build_async(function(ok)
+    local msg = "Cache build " .. (ok and "complete" or "failed")
+    if ok then LOG.info(msg) else LOG.error(msg) end
+  end)
+end
+
+local function cache_info()
+  local cache = require("gopath.truncated.cache")
+  cache.load_from_disk()
+  local state = cache._get_state()
+  local age   = state.last_built and (os.time() - state.last_built) or nil
+  print("=== Gopath Cache Info ===")
+  print("  Files indexed :", #(state.paths or {}))
+  print("  Last built    :", state.last_built
+    and os.date("%Y-%m-%d %H:%M:%S", state.last_built) or "never")
+  print("  Age           :", age
+    and string.format("%d s (%d min)", age, math.floor(age / 60)) or "—")
+  print("  Needs refresh :", cache.needs_refresh() and "yes" or "no")
+  print("  Building      :", (state.building and "yes" or "no"))
+  print("=========================")
+end
+
+---@param dir string
+local function cache_add_root(dir)
+  local cache = require("gopath.truncated.cache")
+  cache.add_root(vim.fn.expand(dir), true)
+end
+
 -- ── Unified :Gopath dispatcher ───────────────────────────────────────────────
 
 ---@param config GopathOptions
 local function register_gopath_cmd(config, commands)
   local truncated_enabled = config.truncated and config.truncated.enable
 
-  vim.api.nvim_create_user_command("Gopath", function(o)
-    local args  = vim.split(o.args or "", "%s+", { trimempty = true })
-    local sub   = args[1] or ""
-    local arg2  = args[2] or ""
-    local arg3  = args[3] or ""
+  local routes = {
+    { path = { "open" },
+      args = { { name = "mode", type = "STRING", optional = true, enum = OPEN_MODES } },
+      desc = "Resolve & open the path under the cursor",
+      run = function(ctx) commands.resolve_and_open(norm_mode(ctx.args.mode)) end },
 
-    if sub == "open" then
-      commands.resolve_and_open(norm_mode(arg2))
+    { path = { "copy" },
+      desc = "Copy path:line:col to clipboard",
+      run = function() commands.resolve_and_copy() end },
 
-    elseif sub == "copy" then
-      commands.resolve_and_copy()
+    { path = { "debug" },
+      desc = "Show resolution info for the path under the cursor",
+      run = function() commands.debug_under_cursor() end },
 
-    elseif sub == "debug" then
-      commands.debug_under_cursor()
+    { path = { "check" },
+      desc = "Check existence / offer to create the path under the cursor",
+      run = function() commands.check_under_cursor() end },
 
-    elseif sub == "check" then
-      commands.check_under_cursor()
+    { path = { "probe" },
+      args = { { name = "mode", type = "STRING", optional = true, enum = PROBE_MODES } },
+      desc = "Probe path under cursor/selection",
+      run = function(ctx)
+        commands.probe_selection({ open_cmd = ctx.args.mode or "vsplit", ask = true })
+      end },
+  }
 
-    elseif sub == "probe" then
-      commands.probe_selection({
-        open_cmd = arg2 ~= "" and arg2 or "vsplit",
-        ask      = true,
-      })
+  if truncated_enabled then
+    routes[#routes + 1] = { path = { "cache", "build" },
+      desc = "Rebuild the filesystem cache",
+      run = cache_build }
+    routes[#routes + 1] = { path = { "cache", "info" },
+      desc = "Show filesystem cache stats",
+      run = cache_info }
+    routes[#routes + 1] = { path = { "cache", "add-root" },
+      args = { { name = "dir", type = "DIR" } },
+      desc = "Add a directory to the filesystem cache roots",
+      run = function(ctx) cache_add_root(ctx.args.dir) end }
+  end
 
-    elseif sub == "cache" then
-      if not truncated_enabled then
-        LOG.warn("truncated cache is disabled in config")
-        return
-      end
-      local cache = require("gopath.truncated.cache")
-
-      if arg2 == "build" then
-        LOG.info("Building filesystem cache…")
-        cache.build_async(function(ok)
-          local msg = "Cache build " .. (ok and "complete" or "failed")
-          if ok then LOG.info(msg) else LOG.error(msg) end
-        end)
-
-      elseif arg2 == "info" then
-        cache.load_from_disk()
-        local state = cache._get_state()
-        local age   = state.last_built and (os.time() - state.last_built) or nil
-        print("=== Gopath Cache Info ===")
-        print("  Files indexed :", #(state.paths or {}))
-        print("  Last built    :", state.last_built
-          and os.date("%Y-%m-%d %H:%M:%S", state.last_built) or "never")
-        print("  Age           :", age
-          and string.format("%d s (%d min)", age, math.floor(age / 60)) or "—")
-        print("  Needs refresh :", cache.needs_refresh() and "yes" or "no")
-        print("  Building      :", (state.building and "yes" or "no"))
-        print("=========================")
-
-      elseif arg2 == "add-root" then
-        local dir = arg3 ~= "" and arg3 or nil
-        if not dir then
-          LOG.error("Usage: :Gopath cache add-root <directory>")
-          return
-        end
-        cache.add_root(vim.fn.expand(dir), true)
-
-      else
-        LOG.error(":Gopath cache: unknown subcommand '" .. arg2
-          .. "'. Use build | info | add-root")
-      end
-
-    else
-      LOG.error(
-        "Unknown subcommand '" .. sub .. "'.\n"
-        .. "Usage: :Gopath open|copy|debug|check|probe|cache …\n"
-        .. "Run :checkhealth gopath for more info.")
-    end
-  end, {
-    nargs    = "*",
-    desc     = "Gopath: unified navigation command",
-    complete = function(arglead, cmdline, _)
-      local parts = vim.split(cmdline, "%s+", { trimempty = true })
-      local n = #parts
-      local editing_last = cmdline:sub(-1) ~= " "
-      local pos = editing_last and n or (n + 1)
-
-      if pos == 2 then
-        local out = {}
-        for _, s in ipairs(SUBCOMMANDS) do
-          if s:sub(1, #arglead) == arglead then out[#out + 1] = s end
-        end
-        return out
-      end
-
-      local sub_typed = (editing_last and parts[2]) or parts[2] or ""
-
-      if pos == 3 then
-        if sub_typed == "open"  then return OPEN_MODES  end
-        if sub_typed == "probe" then return PROBE_MODES end
-        if sub_typed == "cache" then return CACHE_SUBS  end
-      end
-
-      if pos == 4 and sub_typed == "cache" then
-        local cache_sub = (editing_last and parts[3]) or parts[3] or ""
-        if cache_sub == "add-root" then
-          local dirs = vim.fn.getcompletion(arglead, "dir")
-          return type(dirs) == "table" and dirs or {}
-        end
-      end
-
-      return {}
-    end,
+  composer.verb("Gopath", {
+    desc = "Gopath: unified navigation command",
+    routes = routes,
   })
 end
 
