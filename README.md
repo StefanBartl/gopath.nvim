@@ -31,7 +31,7 @@ A modular file-navigation plugin for Neovim. gopath.nvim resolves symbols, `requ
   "StefanBartl/gopath.nvim",
   event = "VeryLazy",
   dependencies = {
-    "StefanBartl/lib.nvim",             -- cross-platform path helpers
+    "StefanBartl/lib.nvim",             -- required: :Gopath command layer + path helpers
     "nvim-treesitter/nvim-treesitter",  -- optional but recommended
   },
   opts = {

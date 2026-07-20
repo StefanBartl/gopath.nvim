@@ -104,6 +104,14 @@ end
 
 local function check_lib_nvim()
   start_s("lib.nvim")
+  -- Required: the :Gopath command layer (lib.nvim.usercmd.composer)
+  -- registers unconditionally, no pcall fallback.
+  if require_ok("lib.nvim.usercmd.composer") then
+    ok_s("lib.nvim detected (:Gopath command layer available)")
+  else
+    warn_s("lib.nvim not found — :Gopath will fail to register\n"
+        .. "  install StefanBartl/lib.nvim as a dependency")
+  end
   if require_ok("lib.nvim.ui.kit") then
     ok_s("lib.nvim installed — create-on-missing dialog uses ui.kit.confirm, notify styling active")
   else
