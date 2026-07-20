@@ -6,8 +6,8 @@
 ---      (also checks the previous line for multi-line expressions).
 ---   2. Bare dotted name at cursor — catches `@module 'a.b.c'`, `@see a.b.c`
 ---      and error-message fragments like `module 'x.y' not found`.
---- Resolution is then delegated to `module_to_path` which checks rtp and
---- package.path in order.
+--- Resolution is then delegated to `PATH.search_module`, which checks rtp,
+--- package.path and finally the install dirs of installed-but-unloaded plugins.
 
 local PATH = require("gopath.util.path")
 local LOC = require("gopath.util.location")
@@ -61,20 +61,7 @@ end
 ---@param mod string Dotted module name (e.g. "custom.markdown.hl_options")
 ---@return string|nil abs Absolute file path, or nil if not found
 local function module_to_path(mod)
-  -- Convert "a.b/c" -> "a/b/c"
-  local rel = mod:gsub("%.", "/")
-
-  -- Candidates inside runtimepath
-  local abs = PATH.search_in_rtp({
-    rel .. ".lua",
-    rel .. "/init.lua",
-  })
-
-  if not abs then
-    abs = PATH.search_with_package_path(mod)
-  end
-
-  return abs
+  return PATH.search_module(mod)
 end
 
 ---Extract a dotted module name under the cursor, independent of `require(...)`.

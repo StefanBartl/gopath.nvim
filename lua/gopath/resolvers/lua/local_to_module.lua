@@ -36,9 +36,7 @@ function M.enhance_lsp_result(lsp_result)
   end
 
   -- Resolve module to file path
-  local rel = module:gsub("%.", "/")
-  local abs = PATH.search_in_rtp({ rel .. ".lua", rel .. "/init.lua" })
-           or PATH.search_with_package_path(module)
+  local abs = PATH.search_module(module)
 
   if not abs then
     return nil  -- Module not found, return original result

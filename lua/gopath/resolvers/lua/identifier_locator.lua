@@ -61,9 +61,7 @@ function M.resolve()
   end
 
   -- Resolve module to file path
-  local rel = mod:gsub("%.", "/")
-  local abs = PATH.search_in_rtp({ rel .. ".lua", rel .. "/init.lua" })
-           or PATH.search_with_package_path(mod)
+  local abs = PATH.search_module(mod)
 
   if not abs then
     return nil
