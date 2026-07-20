@@ -109,13 +109,22 @@ dispatcher itself.
 
 ## Autocommands
 
-One opt-in autocommand, registered from `lua/gopath/bindings/autocmds.lua`:
+Two autocommands, registered from `lua/gopath/bindings/autocmds.lua`:
 
 | Event | Group | Enabled when | Action |
 | --- | --- | --- | --- |
+| `BufWritePost` | `GopathPathCacheInvalidate` | always | Drop the path-lookup directory caches (`path.invalidate_caches`) |
 | `BufWritePost` | `GopathCacheAutoRebuild` | `truncated.auto_rebuild_on_save = true` | Debounced (≤ once/5min) filesystem cache rebuild, matching `truncated.watch_patterns` (default `*.lua`, `*.vim`) |
 
-Disabled by default (`auto_rebuild_on_save = false`).
+The second is disabled by default (`auto_rebuild_on_save = false`).
+
+The first is always on and deliberately cheap — it only clears three variables.
+`gopath.util.path` caches a directory listing per search root so that `gF` does
+not stat the filesystem on every keypress; writing a buffer is the usual way a
+new file appears mid-session, so a write invalidates those listings. Files
+created by gopath's own create-on-missing invalidate directly from
+`gopath.create`, and installing a plugin moves the runtimepath, which the caches
+key on. See [Resolution](RESOLUTION.md#path-lookup-caching).
 
 ---
 

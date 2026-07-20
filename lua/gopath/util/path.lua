@@ -22,21 +22,52 @@ local M = {}
 local _rtp_str  = nil   ---@type string|nil
 local _rtp_list = nil   ---@type string[]|nil
 
+-- How long a built runtimepath name index stays usable, in milliseconds.
+--
+-- The index is keyed on the runtimepath string, which catches plugins loading
+-- but not files appearing on disk. Three signals cover that directly: gopath's
+-- own create-on-missing calls `invalidate_caches`, a `BufWritePost` autocmd
+-- does the same for buffers written in this session, and installing a plugin
+-- moves the runtimepath. The TTL is only a backstop for changes made entirely
+-- outside Neovim (a git checkout, another tool), so it is deliberately long:
+-- rebuilding costs about as much as one uncached lookup, and a short TTL would
+-- rebuild on nearly every keypress, since interactive gF presses are usually
+-- seconds apart.
+--
+-- Only the FIRST path segment is indexed, so this can only ever hide a
+-- brand-new top-level entry; adding files under an existing directory resolves
+-- normally regardless of index age.
+local RTP_INDEX_TTL_MS = 30000
+
+-- Per-runtimepath-entry index of the names present at `<rtp>/` and `<rtp>/lua/`.
+-- Entries are stored in runtimepath order so lookups preserve search order.
+local _rtpidx      = nil  ---@type GopathRtpIndexEntry[]|nil
+local _rtpidx_str  = nil  ---@type string|nil
+local _rtpidx_at   = 0    ---@type integer
+
 -- Module-level plugin-directory cache, invalidated on the same signal as the
 -- rtp cache: lazily loading a plugin mutates the runtimepath, which is the
 -- cheapest available proxy for "the plugin set may have changed".
 local _pdir_str  = nil  ---@type string|nil
 local _pdir_list = nil  ---@type string[]|nil
 
+-- Index of module root -> plugin dirs owning it, sharing the rtp cache signal.
+-- Declared up here with the other caches so `invalidate_caches` below can clear
+-- it; a declaration next to its own accessor would be out of scope there and
+-- would silently create globals instead.
+local _pidx_str = nil   ---@type string|nil
+local _pidx_map = nil   ---@type table<string, string[]>|nil
+
 ---Return the current runtimepath as a list, rebuilding only when it changed.
 ---@return string[]
 local function get_rtp_list()
   local s = vim.o.runtimepath
-  if s ~= _rtp_str then
-    _rtp_str  = s
-    _rtp_list = vim.split(s, ",", { trimempty = true })
+  local list = _rtp_list
+  if s ~= _rtp_str or not list then
+    list = vim.split(s, ",", { trimempty = true })
+    _rtp_str, _rtp_list = s, list
   end
-  return _rtp_list
+  return list
 end
 
 ---Join path segments, normalising separators to forward-slash.
@@ -64,27 +95,106 @@ function M.exists(p)
   return st ~= nil and st.type == "file"
 end
 
+---Return the set of entry names directly inside `dir`, or nil when unreadable.
+---@param dir string
+---@return table<string, true>|nil
+local function scan_names(dir)
+  local fs = vim.loop.fs_scandir(dir)
+  if not fs then return nil end
+  local set = {}
+  while true do
+    local name = vim.loop.fs_scandir_next(fs)
+    if not name then break end
+    set[name] = true
+  end
+  return set
+end
+
+---First path segment of a candidate ("a/b/c.lua" -> "a", "bar.lua" -> "bar.lua").
+---This is the name that must exist directly inside a search root for the
+---candidate to have any chance of resolving there.
+---@param candidate string
+---@return string|nil
+local function first_segment(candidate)
+  return candidate:match("^([^/\\]+)")
+end
+
+---Build (or reuse) the per-runtimepath-entry name index.
+---
+---One readdir per search root replaces a stat per candidate per root. The
+---payoff is the miss case: a candidate whose first segment appears in no root
+---is rejected by hash lookup alone, without touching the filesystem.
+---@return GopathRtpIndexEntry[]
+local function get_rtp_index()
+  local s = vim.o.runtimepath
+  local now = vim.loop.now()
+  if _rtpidx and s == _rtpidx_str and (now - _rtpidx_at) < RTP_INDEX_TTL_MS then
+    return _rtpidx
+  end
+
+  local idx = {}
+  local rtp = get_rtp_list()
+  for i = 1, #rtp do
+    idx[i] = {
+      dir  = rtp[i],
+      root = scan_names(rtp[i]),
+      lua  = scan_names(M.join(rtp[i], "lua")),
+    }
+  end
+
+  _rtpidx, _rtpidx_str, _rtpidx_at = idx, s, now
+  return idx
+end
+
+---Drop every cached directory listing, forcing the next search to re-read disk.
+---Call after creating files that a subsequent lookup must be able to find.
+---@return nil
+function M.invalidate_caches()
+  _rtpidx, _rtpidx_str, _rtpidx_at = nil, nil, 0
+  _pidx_str, _pidx_map = nil, nil
+end
+
 ---Strategy 1: search for `candidates` under every runtimepath entry.
 --- For each rtp dir the search order is:
 ---   <rtp>/<candidate>
 ---   <rtp>/lua/<candidate>
 --- Then falls back to cwd/<candidate> as a last resort.
+---
+--- A cached name index gates every probe, so only paths whose first segment
+--- actually exists in that root are stat'ed. Search order is unchanged.
 ---@param candidates string[]
 ---@return string|nil  absolute path of first match
 function M.search_in_rtp(candidates)
   if not candidates or #candidates == 0 then return nil end
-  local rtp = get_rtp_list()
-  for i = 1, #rtp do
-    local base = rtp[i]
-    for j = 1, #candidates do
-      local p = M.join(base, candidates[j])
-      if M.exists(p) then return p end
+
+  -- Hoisted out of the per-root loops: the segment of a candidate never varies
+  -- by root, and this runs once per runtimepath entry otherwise.
+  local segs = {}
+  for j = 1, #candidates do
+    segs[j] = first_segment(candidates[j])
+  end
+
+  local idx = get_rtp_index()
+  for i = 1, #idx do
+    local e = idx[i]
+    if e.root then
+      for j = 1, #candidates do
+        if segs[j] and e.root[segs[j]] then
+          local p = M.join(e.dir, candidates[j])
+          if M.exists(p) then return p end
+        end
+      end
     end
-    for j = 1, #candidates do
-      local p = M.join(base, "lua", candidates[j])
-      if M.exists(p) then return p end
+    if e.lua then
+      for j = 1, #candidates do
+        if segs[j] and e.lua[segs[j]] then
+          local p = M.join(e.dir, "lua", candidates[j])
+          if M.exists(p) then return p end
+        end
+      end
     end
   end
+
   local cwd = vim.loop.cwd()
   for j = 1, #candidates do
     local p = M.join(cwd, candidates[j])
@@ -178,10 +288,6 @@ local function get_plugin_dirs()
   _pdir_str, _pdir_list = s, dirs
   return dirs
 end
-
--- Index of module root -> plugin dirs owning it, sharing the rtp cache signal.
-local _pidx_str = nil   ---@type string|nil
-local _pidx_map = nil   ---@type table<string, string[]>|nil
 
 ---Build a map from top-level module name to the plugin dirs that provide it,
 ---by listing each plugin's `lua/` directory exactly once.
