@@ -19,6 +19,7 @@
 ---   :GopathCacheBuild   :GopathCacheInfo  :GopathCacheAddRoot
 
 local composer = require("lib.nvim.usercmd.composer")
+local expand_path = require("lib.nvim.cross.fs.expand_path")
 local LOG = require("gopath.util.log")
 
 local M = {}
@@ -70,7 +71,7 @@ end
 ---@param dir string
 local function cache_add_root(dir)
   local cache = require("gopath.truncated.cache")
-  cache.add_root(vim.fn.expand(dir), true)
+  cache.add_root(expand_path(dir), true)
 end
 
 -- ── Unified :Gopath dispatcher ───────────────────────────────────────────────
@@ -211,7 +212,7 @@ local function register_individual(config, commands)
         return
       end
       local cache = require("gopath.truncated.cache")
-      cache.add_root(vim.fn.expand(dir), true)
+      cache.add_root(expand_path(dir), true)
     end, {
       nargs    = 1,
       complete = "dir",
