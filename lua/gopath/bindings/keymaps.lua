@@ -2,6 +2,8 @@
 --- Automatic keymap registration based on config.
 --- Supports single lhs (string) or multiple lhs (string[]).
 
+local map = require("lib.nvim.map")
+
 local M = {}
 
 --- Normalize lhs into a list of strings.
@@ -39,11 +41,7 @@ local function map_many(mode, lhs, rhs, desc)
   end
 
   for _, key in ipairs(lhs_list) do
-    vim.keymap.set(mode, key, rhs, {
-      noremap = true,
-      silent = true,
-      desc = "gopath: " .. desc,
-    })
+    map(mode, key, rhs, {}, "gopath: " .. desc)
   end
 end
 
@@ -99,18 +97,18 @@ function M.setup(config)
     if lhs_list then
       for _, key in ipairs(lhs_list) do
         -- Normal mode: probe <cfile> / token under cursor
-        vim.keymap.set("n", key, function()
+        map("n", key, function()
           commands.probe_selection({ open_cmd = "vsplit", ask = true })
-        end, { noremap = true, silent = true, desc = "gopath: probe path under cursor (vsplit)" })
+        end, {}, "gopath: probe path under cursor (vsplit)")
 
         -- Visual mode: probe selection
-        vim.keymap.set("v", key, function()
+        map("v", key, function()
           -- Exit visual mode first so marks '< '> are set
           vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "x", false)
           vim.schedule(function()
             commands.probe_selection({ open_cmd = "vsplit", ask = true })
           end)
-        end, { noremap = true, silent = true, desc = "gopath: probe selected path (vsplit)" })
+        end, {}, "gopath: probe selected path (vsplit)")
       end
     end
   end

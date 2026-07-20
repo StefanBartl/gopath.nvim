@@ -5,19 +5,21 @@
 --- for debug-tracing from event callbacks and luv timers where calling
 --- vim.notify directly would crash. For regular warn/error notifications that
 --- must always fire, use `gopath.util.log` instead.
+---
+--- The scheduling itself (schedule/defer/wrap) delegates to
+--- `lib.nvim.notify.safe`, which implements the same three strategies; this
+--- module only adds the gopath-specific dev_mode gate on top.
+
+local safe = require("lib.nvim.notify.safe")
 
 local M = {}
 
 -- Safe notify using vim.schedule: schedules the notify on the main loop immediately.
 -- Usage: M.safe_notify_schedule("message", vim.log.levels.INFO, { timeout = 3000 })
--- English comments in code as requested.
 function M.safe_notify_schedule(msg, level, opts)
     local config = require("gopath.config").get()
     if not config.dev_mode then return nil end
-    -- schedule a function that calls vim.notify (do not call vim.notify here)
-    vim.schedule(function()
-        vim.notify(msg, level, opts)
-    end)
+    safe.schedule(msg, level, opts)
 end
 
 -- Safe notify using vim.defer_fn: defers execution by `delay_ms`.
@@ -25,12 +27,7 @@ end
 function M.safe_notify_defer(msg, level, opts, delay_ms)
     local config = require("gopath.config").get()
     if not config.dev_mode then return nil end
-    -- ensure delay_ms is a number (fallback to 0)
-    local dt = tonumber(delay_ms) or 0
-    -- pass a function as first argument, not the result of vim.notify(...)
-    vim.defer_fn(function()
-        vim.notify(msg, level, opts)
-    end, dt)
+    safe.defer(msg, level, opts, tonumber(delay_ms) or 0)
 end
 
 -- Safe notify using schedule_wrap: returns a function that is already scheduled.
@@ -41,10 +38,7 @@ end
 function M.scheduled_notifier()
     local config = require("gopath.config").get()
     if not config.dev_mode then return nil end
-    -- schedule_wrap returns a function that queues its body on the main loop.
-    return vim.schedule_wrap(function(msg, level, opts)
-        vim.notify(msg, level, opts)
-    end)
+    return safe.wrap()
 end
 
 -- Convenience wrapper that chooses scheduling method; prevents accidental immediate calls.
@@ -57,7 +51,6 @@ function M.safe_notify(msg, level, opts, mode, delay_ms)
     if mode == "defer" then
         M.safe_notify_defer(msg, level, opts, delay_ms or 0)
     elseif mode == "wrap" then
-        -- use schedule_wrap for minimal overhead when notifying repeatedly
         local wrapped = M.scheduled_notifier()
         if not wrapped then return nil end
         wrapped(msg, level, opts)
