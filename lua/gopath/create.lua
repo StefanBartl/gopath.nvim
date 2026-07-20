@@ -18,6 +18,7 @@
 
 local LOG   = require("gopath.util.log")
 local CROSS = require("gopath.util.cross")
+local PATH  = require("gopath.util.path")
 
 local M = {}
 
@@ -56,6 +57,9 @@ local function touch(path)
     if not ok then
       return false, path_or_err
     end
+    -- The path searches cache directory listings; a file created now would
+    -- otherwise stay invisible to the next lookup until those caches expire.
+    PATH.invalidate_caches()
     return true, nil
   end
 
@@ -71,6 +75,7 @@ local function touch(path)
     return false, err or ("could not open " .. native)
   end
   f:close()
+  PATH.invalidate_caches()
   return true, nil
 end
 

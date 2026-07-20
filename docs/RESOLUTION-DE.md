@@ -22,6 +22,7 @@ die Pipeline aufbaut.
 - [Phasen-Reihenfolge](#phasen-reihenfolge)
 - [Token-Extraktion & Pfad-Normalisierung](#token-extraktion--pfad-normalisierung)
 - [Synchroner Fast-Path vs. Async-Suche](#synchroner-fast-path-vs-async-suche)
+- [Caching der Pfadsuche](#caching-der-pfadsuche)
 - [Öffnen: Fensterplatzierung, Sprung, Externe](#öffnen-fensterplatzierung-sprung-externe)
 - [Fallbacks bei „nicht gefunden"](#fallbacks-bei-nicht-gefunden)
 - [Konfiguration & Einstiegspunkte](#konfiguration--einstiegspunkte)
@@ -137,6 +138,47 @@ Dateisystem nur bei einem Miss — siehe
 Der Visual-Selection-/Cursor-**Probe** (`:GopathProbe`, `<leader>pp`) nutzt
 dieselbe async-Maschinerie und zeigt bei Mehrdeutigkeit einen
 `vim.ui.select`-Picker.
+
+---
+
+## Caching der Pfadsuche
+
+`gF` ist ein Tastendruck, deshalb ist [`util/path.lua`](../lua/gopath/util/path.lua)
+darauf ausgelegt, das Dateisystem zu meiden. Die naive Suche — jeden Kandidaten
+unter jedem runtimepath-Eintrag stat'en — kostet ~200 `fs_stat`-Aufrufe pro
+Lookup; unter Windows (besonders mit AV/EDR-Scanning) gemessene **~9,7 ms pro
+Miss** bei 50 runtimepath-Einträgen.
+
+Misses sind der Normalfall: jedes gepunktete Token unter dem Cursor läuft in die
+Kette, die meisten Aufrufe lösen also nichts auf und zahlten diesen Walk voll.
+
+Stattdessen wird jede Suchwurzel **einmalig** per `fs_scandir` gelesen und nach
+den direkt darin liegenden Namen indiziert. Ein Kandidat wird nur in einer
+Wurzel gestat'et, deren Index sein erstes Pfadsegment enthält — ein unbekanntes
+Token wird also allein per Hash-Lookup verworfen:
+
+| Lookup | ohne Cache | indiziert |
+| --- | --- | --- |
+| Modul-Miss (2 Kandidaten) | 9,7 ms | 0,09 ms |
+| Filetoken-Miss | 5,3 ms | 0,05 ms |
+| volle `search_module`-Kette, Miss | 11,3 ms | 0,31 ms |
+
+Die **Suchreihenfolge bleibt unverändert** — der Index überspringt nur Proben,
+die ohnehin nicht hätten treffen können; die Ergebnisse sind identisch zum
+ungecachten Walk.
+
+Da nur das *erste* Segment indiziert wird, braucht eine neue Datei in einem
+bereits bekannten Verzeichnis gar keine Invalidierung. Nur ein brandneuer
+Top-Level-Eintrag kann von einem veralteten Index verdeckt werden, und dafür
+greifen vier Signale:
+
+- Installieren/Laden eines Plugins ändert den runtimepath, auf den die Caches
+  schlüsseln
+- gopaths Create-on-missing ruft `path.invalidate_caches()` direkt auf
+- ein `BufWritePost`-Autocmd tut dasselbe für in dieser Session geschriebene
+  Buffer (siehe [BINDINGS.md](./BINDINGS.md#autocommands))
+- eine TTL von 30 s fängt Änderungen ab, die komplett außerhalb von Neovim
+  passieren
 
 ---
 

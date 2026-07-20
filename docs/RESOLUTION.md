@@ -22,6 +22,7 @@ relies on.
 - [Phase order](#phase-order)
 - [Token extraction & path normalization](#token-extraction--path-normalization)
 - [Synchronous fast path vs. async search](#synchronous-fast-path-vs-async-search)
+- [Path lookup caching](#path-lookup-caching)
 - [Opening: window placement, jump, externals](#opening-window-placement-jump-externals)
 - [Not-found fallbacks](#not-found-fallbacks)
 - [Configuration & entry points](#configuration--entry-points)
@@ -131,6 +132,43 @@ filesystem on a miss — see [CACHE.md](./CACHE.md#live-fallback-search).
 
 The visual-selection / cursor **probe** (`:GopathProbe`, `<leader>pp`) uses the
 same async machinery and presents a `vim.ui.select` picker on ambiguity.
+
+---
+
+## Path lookup caching
+
+`gF` is a keypress, so [`util/path.lua`](../lua/gopath/util/path.lua) is built to
+stay off the filesystem. The naive search — stat every candidate under every
+runtimepath entry — costs ~200 `fs_stat` calls per lookup, which on Windows
+(especially with AV/EDR scanning) measured **~9.7 ms per miss** against a
+50-entry runtimepath.
+
+Misses are the common case: any dotted token under the cursor is fed into the
+chain, so most invocations resolve nothing and would pay that walk in full.
+
+Instead each search root is read **once** with a single `fs_scandir`, indexed by
+the names directly inside it. A candidate is only stat'ed in a root whose index
+actually contains its first path segment, so an unknown token is rejected by
+hash lookup alone:
+
+| Lookup | Uncached | Indexed |
+| --- | --- | --- |
+| module miss (2 candidates) | 9.7 ms | 0.09 ms |
+| file-token miss | 5.3 ms | 0.05 ms |
+| full `search_module` chain, miss | 11.3 ms | 0.31 ms |
+
+Search **order is unchanged** — the index only skips probes that could not have
+matched, so results are identical to the uncached walk.
+
+Because only the *first* segment is indexed, adding a file inside an
+already-known directory needs no invalidation at all. Only a brand-new
+top-level entry can be hidden by a stale index, and four signals cover that:
+
+- installing/loading a plugin moves the runtimepath, which the caches key on
+- gopath's create-on-missing calls `path.invalidate_caches()` directly
+- a `BufWritePost` autocmd does the same for buffers written in this session
+  (see [BINDINGS.md](./BINDINGS.md#autocommands))
+- a 30 s TTL backstops changes made entirely outside Neovim
 
 ---
 
