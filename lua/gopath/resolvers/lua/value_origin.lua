@@ -114,9 +114,7 @@ function M.resolve()
   local last_key = (#chain.chain > 0) and chain.chain[#chain.chain] or nil
 
   if base_res.kind == "module" then
-    local rel = base_res.module:gsub("%.", "/")
-    local abs = PATH.search_in_rtp({ rel .. ".lua", rel .. "/init.lua" })
-              or PATH.search_with_package_path(base_res.module)
+    local abs = PATH.search_module(base_res.module)
     if not abs then return nil end
 
     local hit = try_locate_with_roots(abs, base_res.extra_chain or "", last_key)

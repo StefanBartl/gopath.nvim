@@ -155,6 +155,17 @@ gopath.nvim tries each phase in order and returns the first success.
            symbol_locator, table_locator, value_origin; backed by LSP and/or
            Treesitter according to `mode` and `order`.
 
+      Lua module names resolve through a three-step chain:
+        1. runtimepath
+        2. package.path
+        3. the lua/ tree of every *installed* plugin
+      Step 3 covers plugins a manager knows about but has not loaded yet:
+      until such a plugin loads, its directory is on neither the runtimepath
+      nor package.path, so `require("x.y")` pointing into a lazily-loaded
+      plugin would otherwise not resolve.  lazy.nvim and |vim.pack| are both
+      supported; each plugin's lua/ directory is indexed once by top-level
+      module name, so a token that is not a module costs a single lookup.
+
   Phase 5 - Fallback
       Returns the Phase 3 filetoken result (even if non-existent) so the
       alternate / nearest-folder fallbacks can handle it; then raw <cfile>.

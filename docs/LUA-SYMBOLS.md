@@ -38,6 +38,38 @@ to the defining symbol.
 
 ---
 
+## Where module names are looked up
+
+Every Lua resolver shares one lookup chain, `path.search_module`:
+
+| # | Step | Finds |
+|---|------|-------|
+| 1 | `runtimepath` | modules of loaded plugins and your own config |
+| 2 | `package.path` | luarocks and anything else on the Lua path |
+| 3 | **installed plugin `lua/` trees** | plugins the manager knows but has **not loaded yet** |
+
+Step 3 is what makes this work:
+
+```lua
+require("open_nvim.integrations.urlview").setup()
+--      ^ gF here resolves even though open.nvim is lazy-loaded on `cmd = "Open"`
+```
+
+A plugin that is installed but not yet loaded is on neither the runtimepath nor
+`package.path`, so steps 1 and 2 both miss it. Step 3 reads the plugin
+directories straight from the manager — [lazy.nvim] (`lazy.core.config`) and
+Neovim's built-in `vim.pack` are both supported, and a missing or restructured
+manager degrades to "no extra results" rather than an error.
+
+It runs **last** on purpose: a module that is actually loaded always wins over a
+merely installed one. Each plugin's `lua/` directory is indexed once by
+top-level module name, so a dotted token that is not a module at all (the common
+case) costs one hash lookup rather than a filesystem probe per plugin.
+
+[lazy.nvim]: https://github.com/folke/lazy.nvim
+
+---
+
 ## The Lua resolvers
 
 | Resolver | Role |

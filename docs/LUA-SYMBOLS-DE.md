@@ -39,6 +39,40 @@ zum definierenden Symbol durchlaufen.
 
 ---
 
+## Wo Modulnamen gesucht werden
+
+Alle Lua-Resolver teilen sich eine Suchkette, `path.search_module`:
+
+| # | Schritt | Findet |
+|---|---------|--------|
+| 1 | `runtimepath` | Module geladener Plugins und der eigenen Config |
+| 2 | `package.path` | luarocks und alles andere auf dem Lua-Pfad |
+| 3 | **`lua/`-Bäume installierter Plugins** | Plugins, die der Manager kennt, aber **noch nicht geladen** hat |
+
+Schritt 3 ist der entscheidende:
+
+```lua
+require("open_nvim.integrations.urlview").setup()
+--      ^ gF löst hier auf, obwohl open.nvim lazy über `cmd = "Open"` geladen wird
+```
+
+Ein installiertes, aber noch nicht geladenes Plugin liegt weder im runtimepath
+noch in `package.path` — Schritt 1 und 2 greifen also beide daneben. Schritt 3
+liest die Plugin-Verzeichnisse direkt vom Manager: [lazy.nvim]
+(`lazy.core.config`) und Neovims eingebautes `vim.pack` werden unterstützt; ein
+fehlender oder umgebauter Manager führt zu "keine zusätzlichen Treffer" statt zu
+einem Fehler.
+
+Der Schritt läuft bewusst **zuletzt**: ein tatsächlich geladenes Modul gewinnt
+immer gegen ein nur installiertes. Das `lua/`-Verzeichnis jedes Plugins wird
+einmalig nach Top-Level-Modulnamen indiziert — ein gepunktetes Token, das gar
+kein Modul ist (der Normalfall), kostet damit einen Hash-Lookup statt eines
+Dateisystem-Zugriffs pro Plugin.
+
+[lazy.nvim]: https://github.com/folke/lazy.nvim
+
+---
+
 ## Die Lua-Resolver
 
 | Resolver | Rolle |
