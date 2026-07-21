@@ -163,9 +163,18 @@ end
 ---@param path string
 ---@param conf number
 ---@param rng  GopathRange|nil
+---@param bufnr integer|nil  buffer to read `filetype` from (captured before any
+---  async work started); nil means "read from the current buffer now" (safe
+---  only when called synchronously)
 ---@return table
-local function make_result(path, conf, rng)
-  return { language = vim.bo.filetype or "text", kind = "file",
+local function make_result(path, conf, rng, bufnr)
+  local filetype
+  if bufnr == nil then
+    filetype = vim.bo.filetype
+  elseif vim.api.nvim_buf_is_valid(bufnr) then
+    filetype = vim.bo[bufnr].filetype
+  end
+  return { language = filetype or "text", kind = "file",
            path = path, range = rng,
            chain = nil, source = "tailsearch", confidence = conf, exists = true }
 end
@@ -275,11 +284,12 @@ function M.resolve_async(tail, opts, on_done, on_live_start)
   opts = opts or {}
   local rng = (opts.line and opts.line > 0)
               and { line = opts.line, col = opts.col or 1 } or nil
+  local bufnr = vim.api.nvim_get_current_buf()
 
   -- 1) Cache fast path.
   local cached = M.cache_lookup(tail, opts.max_components)
   if #cached > 0 then
-    on_done(make_result(M.pick_best(cached), #cached == 1 and 0.9 or 0.8, rng))
+    on_done(make_result(M.pick_best(cached), #cached == 1 and 0.9 or 0.8, rng, bufnr))
     return
   end
 
@@ -290,7 +300,7 @@ function M.resolve_async(tail, opts, on_done, on_live_start)
 
   finder.find_async(tail, { roots = opts.roots, limit = opts.limit or 100 }, function(hits)
     if not hits or #hits == 0 then on_done(nil); return end
-    on_done(make_result(M.pick_best(hits), #hits == 1 and 0.9 or 0.8, rng))
+    on_done(make_result(M.pick_best(hits), #hits == 1 and 0.9 or 0.8, rng, bufnr))
   end)
 end
 
@@ -316,11 +326,10 @@ function M.probe(raw, opts, on_done)
                    and { line = line_nr, col = col_nr or 1 } or nil
 
   local _ = max_comp  -- suffix expansion handled by cache + tail-suffix match
+  local bufnr = vim.api.nvim_get_current_buf()
 
   local function probe_result(path, conf)
-    return { language = vim.bo.filetype or "text", kind = "file",
-             path = path, range = rng,
-             chain = nil, source = "tailsearch", confidence = conf, exists = true }
+    return make_result(path, conf, rng, bufnr)
   end
 
   ---Disambiguate `matches` and report the chosen result.
