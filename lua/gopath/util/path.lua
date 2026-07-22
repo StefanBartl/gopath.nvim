@@ -91,7 +91,7 @@ end
 ---@return boolean
 function M.exists(p)
   if not p or p == "" then return false end
-  local st = vim.loop.fs_stat(p)
+  local st = vim.uv.fs_stat(p)
   return st ~= nil and st.type == "file"
 end
 
@@ -99,11 +99,11 @@ end
 ---@param dir string
 ---@return table<string, true>|nil
 local function scan_names(dir)
-  local fs = vim.loop.fs_scandir(dir)
+  local fs = vim.uv.fs_scandir(dir)
   if not fs then return nil end
   local set = {}
   while true do
-    local name = vim.loop.fs_scandir_next(fs)
+    local name = vim.uv.fs_scandir_next(fs)
     if not name then break end
     set[name] = true
   end
@@ -127,7 +127,7 @@ end
 ---@return GopathRtpIndexEntry[]
 local function get_rtp_index()
   local s = vim.o.runtimepath
-  local now = vim.loop.now()
+  local now = vim.uv.now()
   if _rtpidx and s == _rtpidx_str and (now - _rtpidx_at) < RTP_INDEX_TTL_MS then
     return _rtpidx
   end
@@ -195,7 +195,7 @@ function M.search_in_rtp(candidates)
     end
   end
 
-  local cwd = vim.loop.cwd()
+  local cwd = vim.uv.cwd()
   for j = 1, #candidates do
     local p = M.join(cwd, candidates[j])
     if M.exists(p) then return p end
@@ -305,10 +305,10 @@ local function get_plugin_lua_index()
   local map = {}
   for _, dir in ipairs(get_plugin_dirs()) do
     local lua_dir = M.join(dir, "lua")
-    local fs = vim.loop.fs_scandir(lua_dir)
+    local fs = vim.uv.fs_scandir(lua_dir)
     if fs then
       while true do
-        local name, typ = vim.loop.fs_scandir_next(fs)
+        local name, typ = vim.uv.fs_scandir_next(fs)
         if not name then break end
         -- A module root is either `lua/<root>/` or `lua/<root>.lua`.
         local root = (typ == "directory") and name or name:match("^(.+)%.lua$")

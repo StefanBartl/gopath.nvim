@@ -65,8 +65,8 @@ end
 
 local function check_lsp()
   start_s("LSP")
-  local clients = vim.lsp.get_active_clients and vim.lsp.get_active_clients()
-              or (vim.lsp.get_clients and vim.lsp.get_clients()) or {}
+  local clients = vim.lsp.get_clients and vim.lsp.get_clients()
+              or (vim.lsp.get_active_clients and vim.lsp.get_active_clients()) or {}
   if #clients > 0 then
     local names = {}
     for _, c in ipairs(clients) do names[#names + 1] = c.name end
