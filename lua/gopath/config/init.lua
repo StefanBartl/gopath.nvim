@@ -32,9 +32,7 @@ local state = vim.deepcopy(defaults)
 ---Calling setup() more than once re-merges on top of the previous state.
 ---@param opts GopathOptions|nil
 function M.setup(opts)
-  if opts and type(opts) == "table" then
-    deep_merge_into(state, opts)
-  end
+  if opts and type(opts) == "table" then deep_merge_into(state, opts) end
 end
 
 ---Return the current effective configuration (read-only reference).

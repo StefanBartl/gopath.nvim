@@ -8,9 +8,9 @@
 --- separators — such as Lua module names like "a.b.c.d" — are rejected here
 --- so that language-specific resolvers (require_path, …) can handle them.
 
-local P     = require("gopath.providers.builtin")
-local U     = require("gopath.util.path")
-local LOC   = require("gopath.util.location")
+local P = require("gopath.providers.builtin")
+local U = require("gopath.util.path")
+local LOC = require("gopath.util.location")
 local CROSS = require("gopath.util.cross")
 
 local M = {}
@@ -40,12 +40,22 @@ local function looks_like_path(str)
   -- something like "README.md" should still be accepted.
   if str:match("^[%w_][%w_%.]+") and not str:match("[/\\]") then
     local common_exts = {
-      lua=1, txt=1, md=1, vim=1, json=1, toml=1,
-      yaml=1, py=1, js=1, ts=1, html=1, css=1,
+      lua = 1,
+      txt = 1,
+      md = 1,
+      vim = 1,
+      json = 1,
+      toml = 1,
+      yaml = 1,
+      py = 1,
+      js = 1,
+      ts = 1,
+      html = 1,
+      css = 1,
     }
     local ext = str:match("%.([^%.]+)$")
     if not (ext and common_exts[ext]) then
-      return false  -- looks like a module/symbol, not a path
+      return false -- looks like a module/symbol, not a path
     end
   end
 
@@ -82,11 +92,11 @@ local function parse_token(raw)
   if not parsed.path or parsed.path == "" then return nil end
 
   local path = parsed.path
-  path = path:gsub('^"(.*)"$', "%1"):gsub("^'(.*)'$", "%1")  -- strip quotes
-  path = CROSS.to_forward(path)                               -- normalize separators to "/"
-  path = path:gsub("^%.%.%./", "")                            -- strip leading .../ (truncated)
-  path = path:gsub("^%./", "")                                -- strip leading ./ (relative)
-  path = path:gsub("^%s+", ""):gsub("%s+$", "")               -- trim
+  path = path:gsub('^"(.*)"$', "%1"):gsub("^'(.*)'$", "%1") -- strip quotes
+  path = CROSS.to_forward(path) -- normalize separators to "/"
+  path = path:gsub("^%.%.%./", "") -- strip leading .../ (truncated)
+  path = path:gsub("^%./", "") -- strip leading ./ (relative)
+  path = path:gsub("^%s+", ""):gsub("%s+$", "") -- trim
 
   if not looks_like_path(path) then return nil end
 
@@ -133,8 +143,8 @@ function M.resolve()
       local ok, TS = pcall(require, "gopath.resolvers.common.tailsearch")
       if ok then
         local res = TS.resolve_cached(token, {
-          line           = parsed.line,
-          col            = parsed.col,
+          line = parsed.line,
+          col = parsed.col,
           max_components = cfg.tailsearch.max_components or 6,
         })
         if res then return res end
@@ -162,14 +172,14 @@ function M.resolve()
   local exists = U.exists(abs)
 
   return {
-    language   = vim.bo.filetype or "text",
-    kind       = exists and "module" or "file",
-    path       = abs,
-    range      = LOC.create_range(parsed.line, parsed.col),
-    chain      = nil,
-    source     = "builtin",
+    language = vim.bo.filetype or "text",
+    kind = exists and "module" or "file",
+    path = abs,
+    range = LOC.create_range(parsed.line, parsed.col),
+    chain = nil,
+    source = "builtin",
     confidence = exists and 0.75 or 0.3,
-    exists     = exists,
+    exists = exists,
   }
 end
 

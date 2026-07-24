@@ -17,17 +17,17 @@ local M = {}
 -- Safe notify using vim.schedule: schedules the notify on the main loop immediately.
 -- Usage: M.safe_notify_schedule("message", vim.log.levels.INFO, { timeout = 3000 })
 function M.safe_notify_schedule(msg, level, opts)
-    local config = require("gopath.config").get()
-    if not config.dev_mode then return nil end
-    safe.schedule(msg, level, opts)
+  local config = require("gopath.config").get()
+  if not config.dev_mode then return nil end
+  safe.schedule(msg, level, opts)
 end
 
 -- Safe notify using vim.defer_fn: defers execution by `delay_ms`.
 -- Usage: M.safe_notify_defer("message", vim.log.levels.INFO, { timeout = 3000 }, 50)
 function M.safe_notify_defer(msg, level, opts, delay_ms)
-    local config = require("gopath.config").get()
-    if not config.dev_mode then return nil end
-    safe.defer(msg, level, opts, tonumber(delay_ms) or 0)
+  local config = require("gopath.config").get()
+  if not config.dev_mode then return nil end
+  safe.defer(msg, level, opts, tonumber(delay_ms) or 0)
 end
 
 -- Safe notify using schedule_wrap: returns a function that is already scheduled.
@@ -36,27 +36,27 @@ end
 --   local notify = require('utils.safe_notify').scheduled_notifier()
 --   notify("hello", vim.log.levels.INFO)
 function M.scheduled_notifier()
-    local config = require("gopath.config").get()
-    if not config.dev_mode then return nil end
-    return safe.wrap()
+  local config = require("gopath.config").get()
+  if not config.dev_mode then return nil end
+  return safe.wrap()
 end
 
 -- Convenience wrapper that chooses scheduling method; prevents accidental immediate calls.
 -- mode: "schedule" | "defer" | "wrap"
 function M.safe_notify(msg, level, opts, mode, delay_ms)
-    local config = require("gopath.config").get()
-    if not config.dev_mode then return nil end
+  local config = require("gopath.config").get()
+  if not config.dev_mode then return nil end
 
-    mode = mode or "schedule"
-    if mode == "defer" then
-        M.safe_notify_defer(msg, level, opts, delay_ms or 0)
-    elseif mode == "wrap" then
-        local wrapped = M.scheduled_notifier()
-        if not wrapped then return nil end
-        wrapped(msg, level, opts)
-    else
-        M.safe_notify_schedule(msg, level, opts)
-    end
+  mode = mode or "schedule"
+  if mode == "defer" then
+    M.safe_notify_defer(msg, level, opts, delay_ms or 0)
+  elseif mode == "wrap" then
+    local wrapped = M.scheduled_notifier()
+    if not wrapped then return nil end
+    wrapped(msg, level, opts)
+  else
+    M.safe_notify_schedule(msg, level, opts)
+  end
 end
 
 return M

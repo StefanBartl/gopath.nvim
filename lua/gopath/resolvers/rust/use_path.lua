@@ -11,7 +11,7 @@
 --- under `src/`, discovered via the enclosing Cargo.toml. External crates
 --- (`use serde::…`) are not resolved offline; rust-analyzer covers those.
 
-local H    = require("gopath.resolvers.common.lang_helper")
+local H = require("gopath.resolvers.common.lang_helper")
 local PATH = require("gopath.util.path")
 
 local M = {}
@@ -40,13 +40,15 @@ local function segments_to_candidates(base, segments)
   local function add_for(count)
     if count < 1 then return end
     local parts = {}
-    for i = 1, count do parts[i] = segments[i] end
+    for i = 1, count do
+      parts[i] = segments[i]
+    end
     local rel = table.concat(parts, "/")
     candidates[#candidates + 1] = PATH.join(base, rel .. ".rs")
     candidates[#candidates + 1] = PATH.join(base, rel, "mod.rs")
   end
   add_for(#segments)
-  add_for(#segments - 1)  -- last segment was probably an item (Foo, func, …)
+  add_for(#segments - 1) -- last segment was probably an item (Foo, func, …)
   return candidates
 end
 
@@ -94,10 +96,10 @@ function M.resolve()
   if not abs then return nil end
 
   return H.make_result({
-    language   = "rust",
-    path       = abs,
-    exists     = true,
-    kind       = "module",
+    language = "rust",
+    path = abs,
+    exists = true,
+    kind = "module",
     confidence = 0.8,
   })
 end

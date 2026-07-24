@@ -8,12 +8,8 @@ local COMMON_EXTS = require("gopath.resolvers.common.extractor.common_extensions
 local function strip_wrappers(raw)
   if not raw or raw == "" then return raw end
   local first, last = raw:sub(1, 1), raw:sub(-1, -1)
-  if (first == '"' and last == '"') or (first == "'" and last == "'") then
-    return raw:sub(2, -2)
-  end
-  if (first == "(" and last == ")") or (first == "<" and last == ">") then
-    return raw:sub(2, -2)
-  end
+  if (first == '"' and last == '"') or (first == "'" and last == "'") then return raw:sub(2, -2) end
+  if (first == "(" and last == ")") or (first == "<" and last == ">") then return raw:sub(2, -2) end
   return raw
 end
 
@@ -27,8 +23,12 @@ function M.stack_patterns(line)
   -- path:line:col
   for raw, ln, col in line:gmatch("([%w%p]+[%/\\][%w%p%%+~@:_%-%.,]+):(%d+):(%d+)") do
     raw = strip_wrappers(raw)
-    out[#out + 1] = { raw = raw .. ":" .. ln .. ":" .. col,
-                      path = raw, lineno = tonumber(ln), col = tonumber(col) }
+    out[#out + 1] = {
+      raw = raw .. ":" .. ln .. ":" .. col,
+      path = raw,
+      lineno = tonumber(ln),
+      col = tonumber(col),
+    }
   end
 
   -- path:line (skip duplicates already caught above)
@@ -36,11 +36,13 @@ function M.stack_patterns(line)
     raw = strip_wrappers(raw)
     local dup = false
     for _, v in ipairs(out) do
-      if v.path == raw and v.lineno == tonumber(ln) then dup = true; break end
+      if v.path == raw and v.lineno == tonumber(ln) then
+        dup = true
+        break
+      end
     end
     if not dup then
-      out[#out + 1] = { raw = raw .. ":" .. ln,
-                        path = raw, lineno = tonumber(ln), col = nil }
+      out[#out + 1] = { raw = raw .. ":" .. ln, path = raw, lineno = tonumber(ln), col = nil }
     end
   end
 
@@ -60,11 +62,16 @@ function M.by_extension(line)
       local found = line:find(ext, pos, true)
       if not found then break end
       local ext_end = found + #ext - 1
-      local left  = helpers.expand_left(line, found)
+      local left = helpers.expand_left(line, found)
       local right = helpers.expand_right(line, ext_end + 1)
-      local raw   = strip_wrappers(line:sub(left, right))
+      local raw = strip_wrappers(line:sub(left, right))
       -- Only keep if it looks path-like
-      if raw:match("[/\\]") or raw:match("^~") or raw:match("^[A-Za-z]:\\") or raw:match("^%.%.") then
+      if
+        raw:match("[/\\]")
+        or raw:match("^~")
+        or raw:match("^[A-Za-z]:\\")
+        or raw:match("^%.%.")
+      then
         out[#out + 1] = { raw = raw, path = raw, lineno = nil, col = nil }
       end
       pos = ext_end + 1

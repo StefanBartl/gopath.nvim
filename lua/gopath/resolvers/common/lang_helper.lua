@@ -10,7 +10,7 @@
 --- resolver so the differences remain explicit and readable.
 
 local PATH = require("gopath.util.path")
-local LOC  = require("gopath.util.location")
+local LOC = require("gopath.util.location")
 
 local M = {}
 
@@ -40,9 +40,7 @@ function M.find_root(markers)
   if type(markers) ~= "table" or #markers == 0 then return nil end
   local start = M.current_file_dir()
   local ok, found = pcall(vim.fs.find, markers, { upward = true, path = start, limit = 1 })
-  if ok and type(found) == "table" and found[1] then
-    return vim.fs.dirname(found[1])
-  end
+  if ok and type(found) == "table" and found[1] then return vim.fs.dirname(found[1]) end
   return nil
 end
 
@@ -57,9 +55,7 @@ function M.first_existing(candidates)
     local p = candidates[i]
     if p and p ~= "" then
       local norm = vim.fs.normalize(p)
-      if PATH.exists(norm) then
-        return vim.fn.fnamemodify(norm, ":p")
-      end
+      if PATH.exists(norm) then return vim.fn.fnamemodify(norm, ":p") end
     end
   end
   return nil
@@ -93,14 +89,14 @@ end
 ---@return GopathResult
 function M.make_result(opts)
   return {
-    language   = opts.language,
-    kind       = opts.kind or (opts.exists and "module" or "file"),
-    path       = opts.path,
-    range      = LOC.create_range(opts.line, opts.col),
-    chain      = nil,
-    source     = opts.source or "builtin",
+    language = opts.language,
+    kind = opts.kind or (opts.exists and "module" or "file"),
+    path = opts.path,
+    range = LOC.create_range(opts.line, opts.col),
+    chain = nil,
+    source = opts.source or "builtin",
     confidence = opts.confidence or (opts.exists and 0.8 or 0.3),
-    exists     = opts.exists,
+    exists = opts.exists,
   }
 end
 

@@ -29,10 +29,10 @@ function M.captures_at_pos(row, col)
   if not has_ts() then return {} end
 
   -- Neovim 0.10+
-  local ok_core, core = pcall(function() return vim.treesitter.get_captures_at_pos(0, row, col) end)
-  if ok_core and type(core) == "table" then
-    return core
-  end
+  local ok_core, core = pcall(function()
+    return vim.treesitter.get_captures_at_pos(0, row, col)
+  end)
+  if ok_core and type(core) == "table" then return core end
 
   -- Fallback: nvim-treesitter helper (0.9)
   local ok_ts, tsu = pcall(require, "nvim-treesitter.ts_utils")

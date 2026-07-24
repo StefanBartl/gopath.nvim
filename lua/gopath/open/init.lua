@@ -6,8 +6,8 @@
 --- placement and the optional line/col jump. Help results are handled by
 --- `gopath.open.help` and routed separately by `gopath.commands`.
 
-local LOC   = require("gopath.util.location")
-local LOG   = require("gopath.util.log")
+local LOC = require("gopath.util.location")
+local LOG = require("gopath.util.log")
 local CROSS = require("gopath.util.cross")
 
 local M = {}
@@ -18,10 +18,16 @@ local M = {}
 ---Each function is a no-op or issues one window-management command only.
 ---@type table<GopathOpenMode, fun()>
 local PLACEMENT = {
-  edit   = function() end,
-  window = function() vim.cmd.split() end,
-  vsplit = function() vim.cmd.vsplit() end,
-  tab    = function() vim.cmd.tabnew() end,
+  edit = function() end,
+  window = function()
+    vim.cmd.split()
+  end,
+  vsplit = function()
+    vim.cmd.vsplit()
+  end,
+  tab = function()
+    vim.cmd.tabnew()
+  end,
 }
 
 ---@private

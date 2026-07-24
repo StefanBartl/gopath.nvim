@@ -11,7 +11,9 @@ local M = {}
 
 local function split_chain(tok)
   local parts = {}
-  for p in tok:gmatch("[^%.:]+") do parts[#parts + 1] = p end
+  for p in tok:gmatch("[^%.:]+") do
+    parts[#parts + 1] = p
+  end
   if #parts < 2 then return nil end
   local base = parts[1]
   table.remove(parts, 1)
@@ -20,8 +22,8 @@ end
 
 local function regex_chain_at_cursor()
   local line = vim.api.nvim_get_current_line()
-  local col  = vim.api.nvim_win_get_cursor(0)[2] + 1
-  local left  = line:sub(1, col):match("([%w_%.:]+)%s*$")
+  local col = vim.api.nvim_win_get_cursor(0)[2] + 1
+  local left = line:sub(1, col):match("([%w_%.:]+)%s*$")
   local right = line:sub(col + 1):match("^([%w_%.:]+)")
   local tok = (left or "") .. (right or "")
   if tok == "" or not tok:find("[%.:]") then return nil end
@@ -50,13 +52,18 @@ local function ts_chain_at_cursor()
     local t = cur:type()
     if t == "identifier" or t == "property_identifier" or t == "string" then
       local txt = text_of(cur) or ""
-      txt = txt:gsub('^["\']', ""):gsub('["\']$', "")
+      txt = txt:gsub("^[\"']", ""):gsub("[\"']$", "")
       pieces[#pieces + 1] = txt
     end
     local p = cur:parent() ---@type TSNode|nil
     if not p then break end
     local pt = p:type()
-    if pt == "field_expression" or pt == "index_expression" or pt == "method_index_expression" or pt == "method" then
+    if
+      pt == "field_expression"
+      or pt == "index_expression"
+      or pt == "method_index_expression"
+      or pt == "method"
+    then
       cur = p
     else
       break
@@ -66,7 +73,9 @@ local function ts_chain_at_cursor()
   if #pieces == 0 then return nil end
 
   local rev = {}
-  for i = #pieces, 1, -1 do rev[#rev + 1] = pieces[i] end
+  for i = #pieces, 1, -1 do
+    rev[#rev + 1] = pieces[i]
+  end
   local tok = table.concat(rev, ".")
   return split_chain(tok)
 end

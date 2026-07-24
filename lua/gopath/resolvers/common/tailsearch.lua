@@ -33,7 +33,11 @@ end
 
 local function git_root(dir)
   if not is_dir(dir) then return nil end
-  local ok, proc = pcall(vim.system, { "git", "-C", dir, "rev-parse", "--show-toplevel" }, { text = true })
+  local ok, proc = pcall(
+    vim.system,
+    { "git", "-C", dir, "rev-parse", "--show-toplevel" },
+    { text = true }
+  )
   if not ok or not proc then return nil end
   local res = proc:wait()
   if not res or res.code ~= 0 or not res.stdout or res.stdout == "" then return nil end
@@ -43,7 +47,7 @@ end
 
 local function path_ends_with(abs, tail)
   if type(abs) ~= "string" or type(tail) ~= "string" then return false end
-  abs  = abs:gsub("\\", "/")
+  abs = abs:gsub("\\", "/")
   tail = tail:gsub("\\", "/")
   if #tail > #abs then return false end
   if abs:sub(-#tail) ~= tail then return false end
@@ -62,10 +66,13 @@ function M.guess_roots(extra)
   local function add(p)
     if type(p) ~= "string" or p == "" then return end
     local k = normalize(p)
-    if not seen[k] and is_dir(p) then seen[k] = true; out[#out + 1] = p end
+    if not seen[k] and is_dir(p) then
+      seen[k] = true
+      out[#out + 1] = p
+    end
   end
 
-  local cwd     = (uv.cwd and uv.cwd()) or vim.fn.getcwd()
+  local cwd = (uv.cwd and uv.cwd()) or vim.fn.getcwd()
   local bufname = vim.api.nvim_buf_get_name(0)
   if bufname and bufname ~= "" then add(vim.fs.dirname(bufname)) end
   add(cwd)
@@ -75,7 +82,11 @@ function M.guess_roots(extra)
     local p = vim.fn.stdpath(sp)
     if type(p) == "string" then add(p) end
   end
-  if extra then for _, p in ipairs(extra) do add(p) end end
+  if extra then
+    for _, p in ipairs(extra) do
+      add(p)
+    end
+  end
   return out
 end
 
@@ -86,11 +97,13 @@ end
 ---@return string[]
 function M.suffix_candidates(tail, max_components)
   local segs = {}
-  for s in tail:gmatch("[^/]+") do if s ~= "" then segs[#segs + 1] = s end end
+  for s in tail:gmatch("[^/]+") do
+    if s ~= "" then segs[#segs + 1] = s end
+  end
   local n = #segs
   if n == 0 then return {} end
   local maxc = math.max(1, math.min(max_components or 6, n))
-  local out  = {}
+  local out = {}
   for k = maxc, 1, -1 do
     out[#out + 1] = table.concat(segs, "/", n - k + 1, n)
   end
@@ -126,7 +139,9 @@ end
 function M.pick_best(matches)
   local best, blen = nil, math.huge
   for _, m in ipairs(matches) do
-    if #m < blen then best, blen = m, #m end
+    if #m < blen then
+      best, blen = m, #m
+    end
   end
   return best
 end
@@ -174,9 +189,16 @@ local function make_result(path, conf, rng, bufnr)
   elseif vim.api.nvim_buf_is_valid(bufnr) then
     filetype = vim.bo[bufnr].filetype
   end
-  return { language = filetype or "text", kind = "file",
-           path = path, range = rng,
-           chain = nil, source = "tailsearch", confidence = conf, exists = true }
+  return {
+    language = filetype or "text",
+    kind = "file",
+    path = path,
+    range = rng,
+    chain = nil,
+    source = "tailsearch",
+    confidence = conf,
+    exists = true,
+  }
 end
 
 -- ── Token sanitization ───────────────────────────────────────────────────────
@@ -186,26 +208,27 @@ end
 ---@return string tail, integer|nil line, integer|nil col
 function M.sanitize(raw)
   if type(raw) ~= "string" then return "", nil, nil end
-  raw = raw:gsub("[%)%]%.,;:]+$", "")  -- trailing punctuation
+  raw = raw:gsub("[%)%]%.,;:]+$", "") -- trailing punctuation
 
   local base, l, c = raw:match("^(.-):(%d+):(%d+)$")
   if base then
-    base = base:gsub("\\", "/"):gsub('["\''.. "`]+", ""):gsub("^%.*%/*", "")
+    base = base:gsub("\\", "/"):gsub("[\"'" .. "`]+", ""):gsub("^%.*%/*", "")
     return base, tonumber(l), tonumber(c)
   end
 
   base, l = raw:match("^(.-):(%d+)$")
   if base then
-    base = base:gsub("\\", "/"):gsub('["\''.. "`]+", ""):gsub("^%.*%/*", "")
+    base = base:gsub("\\", "/"):gsub("[\"'" .. "`]+", ""):gsub("^%.*%/*", "")
     return base, tonumber(l), nil
   end
 
-  base = raw:gsub("^%u:/", "")       -- drop Windows drive letter
-             :gsub("\\", "/")
-             :gsub('["\''.. "`]+", "")
-             :gsub("^%.*%/*", "")    -- strip leading ellipsis / ./
-             :gsub("[^%w%._%-%/]+", "/")
-             :gsub("/+", "/")
+  base = raw
+    :gsub("^%u:/", "") -- drop Windows drive letter
+    :gsub("\\", "/")
+    :gsub("[\"'" .. "`]+", "")
+    :gsub("^%.*%/*", "") -- strip leading ellipsis / ./
+    :gsub("[^%w%._%-%/]+", "/")
+    :gsub("/+", "/")
   return base, nil, nil
 end
 
@@ -218,11 +241,10 @@ end
 function M.resolve_sync(tail, opts)
   if not tail or tail == "" then return nil end
   opts = opts or {}
-  local roots    = opts.roots          or M.guess_roots()
+  local roots = opts.roots or M.guess_roots()
   local max_comp = opts.max_components or 6
-  local limit    = opts.limit          or 100
-  local rng      = (opts.line and opts.line > 0)
-                   and { line = opts.line, col = opts.col or 1 } or nil
+  local limit = opts.limit or 100
+  local rng = (opts.line and opts.line > 0) and { line = opts.line, col = opts.col or 1 } or nil
 
   -- Cache fast path (instant, in-memory). Avoids the blocking vim.fs.find walk
   -- whenever the truncated-path cache already indexed the target.
@@ -262,8 +284,7 @@ end
 function M.resolve_cached(tail, opts)
   if not tail or tail == "" then return nil end
   opts = opts or {}
-  local rng = (opts.line and opts.line > 0)
-              and { line = opts.line, col = opts.col or 1 } or nil
+  local rng = (opts.line and opts.line > 0) and { line = opts.line, col = opts.col or 1 } or nil
   local cached = M.cache_lookup(tail, opts.max_components)
   if #cached == 0 then return nil end
   return make_result(M.pick_best(cached), #cached == 1 and 0.85 or 0.72, rng)
@@ -280,10 +301,12 @@ end
 ---@param on_done fun(result: table|nil)
 ---@param on_live_start fun()|nil
 function M.resolve_async(tail, opts, on_done, on_live_start)
-  if not tail or tail == "" then on_done(nil); return end
+  if not tail or tail == "" then
+    on_done(nil)
+    return
+  end
   opts = opts or {}
-  local rng = (opts.line and opts.line > 0)
-              and { line = opts.line, col = opts.col or 1 } or nil
+  local rng = (opts.line and opts.line > 0) and { line = opts.line, col = opts.col or 1 } or nil
   local bufnr = vim.api.nvim_get_current_buf()
 
   -- 1) Cache fast path.
@@ -295,11 +318,17 @@ function M.resolve_async(tail, opts, on_done, on_live_start)
 
   -- 2) Async live filesystem search.
   local ok, finder = pcall(require, "gopath.truncated.finder")
-  if not ok then on_done(nil); return end
+  if not ok then
+    on_done(nil)
+    return
+  end
   if on_live_start then on_live_start() end
 
   finder.find_async(tail, { roots = opts.roots, limit = opts.limit or 100 }, function(hits)
-    if not hits or #hits == 0 then on_done(nil); return end
+    if not hits or #hits == 0 then
+      on_done(nil)
+      return
+    end
     on_done(make_result(M.pick_best(hits), #hits == 1 and 0.9 or 0.8, rng, bufnr))
   end)
 end
@@ -312,20 +341,25 @@ end
 ---@param opts    { roots?: string[], max_components?: integer, limit?: integer, ask?: boolean }
 ---@param on_done fun(result: table|nil)
 function M.probe(raw, opts, on_done)
-  if not raw or raw == "" then on_done(nil); return end
+  if not raw or raw == "" then
+    on_done(nil)
+    return
+  end
   opts = opts or {}
 
   local tail, line_nr, col_nr = M.sanitize(raw)
-  if tail == "" then on_done(nil); return end
+  if tail == "" then
+    on_done(nil)
+    return
+  end
 
-  local roots    = opts.roots          or M.guess_roots()
+  local roots = opts.roots or M.guess_roots()
   local max_comp = opts.max_components or 6
-  local limit    = opts.limit          or 100
-  local ask      = opts.ask ~= false
-  local rng      = (line_nr and line_nr > 0)
-                   and { line = line_nr, col = col_nr or 1 } or nil
+  local limit = opts.limit or 100
+  local ask = opts.ask ~= false
+  local rng = (line_nr and line_nr > 0) and { line = line_nr, col = col_nr or 1 } or nil
 
-  local _ = max_comp  -- suffix expansion handled by cache + tail-suffix match
+  local _ = max_comp -- suffix expansion handled by cache + tail-suffix match
   local bufnr = vim.api.nvim_get_current_buf()
 
   local function probe_result(path, conf)
@@ -336,7 +370,10 @@ function M.probe(raw, opts, on_done)
   ---@param matches string[]
   ---@param base_conf number
   local function finish(matches, base_conf)
-    if #matches == 0 then on_done(nil); return end
+    if #matches == 0 then
+      on_done(nil)
+      return
+    end
     if #matches == 1 or not ask then
       on_done(probe_result(M.pick_best(matches), base_conf))
       return
@@ -357,11 +394,17 @@ function M.probe(raw, opts, on_done)
 
   -- 1) Cache fast path (instant).
   local cached = M.cache_lookup(tail, max_comp)
-  if #cached > 0 then finish(cached, 0.85); return end
+  if #cached > 0 then
+    finish(cached, 0.85)
+    return
+  end
 
   -- 2) Async live search (non-blocking).
   local ok, finder = pcall(require, "gopath.truncated.finder")
-  if not ok then on_done(nil); return end
+  if not ok then
+    on_done(nil)
+    return
+  end
   finder.find_async(tail, { roots = roots, limit = limit }, function(hits)
     finish(hits or {}, 0.85)
   end)

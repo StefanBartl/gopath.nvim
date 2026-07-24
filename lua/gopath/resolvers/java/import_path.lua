@@ -11,15 +11,20 @@
 --- discovered via the nearest build file (pom.xml / build.gradle / .git).
 --- JDK and dependency classes are not resolved offline; jdtls covers those.
 
-local H    = require("gopath.resolvers.common.lang_helper")
+local H = require("gopath.resolvers.common.lang_helper")
 local PATH = require("gopath.util.path")
 
 local M = {}
 
-local JAVA_ROOT_MARKERS = { "pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle", ".git" }
+local JAVA_ROOT_MARKERS =
+  { "pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle", ".git" }
 -- Conventional source roots, relative to the project root.
 local SOURCE_ROOTS = {
-  "src/main/java", "src/test/java", "src/main/kotlin", "src", ".",
+  "src/main/java",
+  "src/test/java",
+  "src/main/kotlin",
+  "src",
+  ".",
 }
 
 ---Parse an `import` line into a dotted type/package and a wildcard flag.
@@ -62,12 +67,10 @@ end
 ---@return GopathResult|nil
 function M.resolve()
   local dotted, is_wildcard = parse_import(H.current_line())
-  if not dotted or not dotted:match("%.") then
-    return nil
-  end
+  if not dotted or not dotted:match("%.") then return nil end
 
   local root = H.find_root(JAVA_ROOT_MARKERS) or H.current_file_dir()
-  local rel  = dotted:gsub("%.", "/")
+  local rel = dotted:gsub("%.", "/")
 
   local abs
   for i = 1, #SOURCE_ROOTS do
@@ -83,11 +86,11 @@ function M.resolve()
   if not abs then return nil end
 
   return H.make_result({
-    language   = "java",
-    path       = abs,
-    exists     = true,
-    kind       = "module",
-    confidence = 0.85,  -- package→path mapping is reliable in Java
+    language = "java",
+    path = abs,
+    exists = true,
+    kind = "module",
+    confidence = 0.85, -- package→path mapping is reliable in Java
   })
 end
 

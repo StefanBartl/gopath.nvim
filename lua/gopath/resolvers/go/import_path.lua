@@ -15,7 +15,7 @@
 --- Go packages are directories; we open the first non-test `.go` file as the
 --- entry point (or the directory's `doc.go` when present).
 
-local H    = require("gopath.resolvers.common.lang_helper")
+local H = require("gopath.resolvers.common.lang_helper")
 local PATH = require("gopath.util.path")
 
 local M = {}
@@ -85,9 +85,7 @@ local function locate_package_dir(import_path, root, module_path)
   local modcache = vim.env.GOMODCACHE
   if not modcache or modcache == "" then
     local gopath = vim.env.GOPATH
-    if gopath and gopath ~= "" then
-      modcache = PATH.join(gopath, "pkg", "mod")
-    end
+    if gopath and gopath ~= "" then modcache = PATH.join(gopath, "pkg", "mod") end
   end
   if modcache and modcache ~= "" then
     local dir = PATH.join(modcache, import_path)
@@ -100,11 +98,9 @@ end
 ---@return GopathResult|nil
 function M.resolve()
   local import_path = parse_import(H.current_line())
-  if not import_path or not import_path:match("/") then
-    return nil
-  end
+  if not import_path or not import_path:match("/") then return nil end
 
-  local root        = H.find_root({ "go.mod" })
+  local root = H.find_root({ "go.mod" })
   local module_path = root and read_module_path(root) or nil
 
   local dir = locate_package_dir(import_path, root, module_path)
@@ -114,10 +110,10 @@ function M.resolve()
   if not abs then return nil end
 
   return H.make_result({
-    language   = "go",
-    path       = abs,
-    exists     = true,
-    kind       = "module",
+    language = "go",
+    path = abs,
+    exists = true,
+    kind = "module",
     confidence = 0.8,
   })
 end

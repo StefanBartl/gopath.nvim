@@ -3,20 +3,12 @@
 ---Handles routing to appropriate opener based on user's chosen mode (edit/split/vsplit/tab).
 
 local RESOLVE = require("gopath.resolve")
-local CONFIG  = require("gopath.config")
-local OPEN    = require("gopath.open")
-local HELP    = require("gopath.open.help")
-local LOG     = require("gopath.util.log")
+local CONFIG = require("gopath.config")
+local OPEN = require("gopath.open")
+local HELP = require("gopath.open.help")
+local LOG = require("gopath.util.log")
 
 local M = {}
-
----@type table<string, string>
-local KIND_TO_CMD = {
-  edit   = "edit",
-  window = "split",
-  vsplit = "vsplit",
-  tab    = "tabedit",
-}
 
 ---@private
 ---@param res GopathResult
@@ -24,8 +16,8 @@ local KIND_TO_CMD = {
 local function open_for_kind(res, kind)
   if res.kind == "help" then
     local target = (kind == "tab" and "tab")
-        or ((kind == "window" or kind == "vsplit") and "window")
-        or "edit"
+      or ((kind == "window" or kind == "vsplit") and "window")
+      or "edit"
     return HELP.open(res, { target = target })
   end
   return OPEN.open(res, kind or "edit")
@@ -68,12 +60,10 @@ function M.resolve_and_open(kind)
   local res, err = RESOLVE.resolve_at_cursor({})
 
   -- Fast path: an existing file was resolved instantly (help, env, rtp, cache…).
-  if res and res.exists ~= false then
-    return finish_open(res, kind)
-  end
+  if res and res.exists ~= false then return finish_open(res, kind) end
 
   -- Nothing concrete yet → try an async live filesystem search before giving up.
-  local cfg    = CONFIG.get()
+  local cfg = CONFIG.get()
   local ts_cfg = cfg.tailsearch or {}
   if ts_cfg.enable == false then
     if res then return finish_open(res, kind) end
@@ -88,7 +78,7 @@ function M.resolve_and_open(kind)
   if res and res.path and res.path ~= "" then
     tail = TS.sanitize(res.path)
     line = res.range and res.range.line
-    col  = res.range and res.range.col
+    col = res.range and res.range.col
   else
     local cfile = vim.fn.expand("<cfile>")
     if type(cfile) == "string" and cfile ~= "" then
@@ -103,16 +93,14 @@ function M.resolve_and_open(kind)
   end
 
   TS.resolve_async(tail, {
-    roots          = ts_cfg.roots,
-    limit          = ts_cfg.limit or 100,
+    roots = ts_cfg.roots,
+    limit = ts_cfg.limit or 100,
     max_components = ts_cfg.max_components or 6,
-    line           = line,
-    col            = col,
+    line = line,
+    col = col,
   }, function(found)
     vim.schedule(function()
-      if found then
-        return finish_open(found, kind)
-      end
+      if found then return finish_open(found, kind) end
       -- Live search missed → fall back to whatever the sync pass produced
       -- (drives the alternate / nearest-folder fallbacks on the original path).
       if res then return finish_open(res, kind) end
@@ -160,7 +148,7 @@ function M.resolve_and_copy()
   end
 
   local l = res.range and res.range.line or 1
-  local c = res.range and res.range.col  or 1
+  local c = res.range and res.range.col or 1
 
   local left
   if res.kind == "help" then
@@ -189,7 +177,9 @@ local function get_visual_selection()
   if srow ~= erow then return line:match("%S") and line or nil end
   local i = math.min(scol + 1, #line + 1)
   local j = math.min(ecol + 1, #line + 1)
-  if j < i then i, j = j, i end
+  if j < i then
+    i, j = j, i
+  end
   local slice = line:sub(i, j):gsub("^%s+", ""):gsub("%s+$", "")
   return slice ~= "" and slice or nil
 end
@@ -218,24 +208,27 @@ function M.probe_selection(opts)
     return
   end
 
-  local cfg    = CONFIG.get()
+  local cfg = CONFIG.get()
   local ts_cfg = cfg.tailsearch or {}
-  local TS     = require("gopath.resolvers.common.tailsearch")
+  local TS = require("gopath.resolvers.common.tailsearch")
 
   TS.probe(raw, {
-    roots          = opts.roots          or ts_cfg.roots,
+    roots = opts.roots or ts_cfg.roots,
     max_components = opts.max_components or ts_cfg.max_components or 6,
-    limit          = ts_cfg.limit        or 100,
-    ask            = opts.ask ~= false and ts_cfg.ask_on_ambiguous ~= false,
+    limit = ts_cfg.limit or 100,
+    ask = opts.ask ~= false and ts_cfg.ask_on_ambiguous ~= false,
   }, function(res)
     if not res then
       LOG.warn("probe: no match found for '" .. raw .. "'")
       return
     end
-    open_for_kind(res, open_cmd == "vsplit" and "vsplit"
-                     or open_cmd == "split"  and "window"
-                     or open_cmd == "tab"    and "tab"
-                     or "edit")
+    open_for_kind(
+      res,
+      open_cmd == "vsplit" and "vsplit"
+        or open_cmd == "split" and "window"
+        or open_cmd == "tab" and "tab"
+        or "edit"
+    )
   end)
 end
 
@@ -256,15 +249,15 @@ end
 ---@return GopathDebugInfo
 local function collect_debug_info()
   local info = {
-    filetype   = vim.bo.filetype or "?",
-    cfile      = vim.fn.expand("<cfile>"),
-    chain      = nil,
-    bind_sz    = 0,
-    bind_map   = {},
+    filetype = vim.bo.filetype or "?",
+    cfile = vim.fn.expand("<cfile>"),
+    chain = nil,
+    bind_sz = 0,
+    bind_map = {},
     identifier = nil,
     cache_info = nil,
-    result     = nil,
-    error      = nil,
+    result = nil,
+    error = nil,
   }
 
   pcall(function()
@@ -273,11 +266,13 @@ local function collect_debug_info()
 
   pcall(function()
     info.bind_map = require("gopath.resolvers.lua.binding_index").get_map()
-    for _ in pairs(info.bind_map) do info.bind_sz = info.bind_sz + 1 end
+    for _ in pairs(info.bind_map) do
+      info.bind_sz = info.bind_sz + 1
+    end
   end)
 
   pcall(function()
-    local TS   = require("gopath.providers.treesitter")
+    local TS = require("gopath.providers.treesitter")
     local node = TS.node_at_cursor()
     if node and node:type() == "identifier" then
       info.identifier = vim.treesitter.get_node_text(node, 0)
@@ -289,8 +284,8 @@ local function collect_debug_info()
     cache.load_from_disk()
     local state = cache._get_state()
     info.cache_info = {
-      files        = #(state.paths or {}),
-      last_built   = state.last_built,
+      files = #(state.paths or {}),
+      last_built = state.last_built,
       needs_refresh = cache.needs_refresh(),
     }
   end)
@@ -311,18 +306,17 @@ local function format_debug_lines(info)
   }
 
   if info.chain then
-    t[#t+1] = "  Chain: " .. info.chain.base
-        .. " -> " .. table.concat(info.chain.chain, ".")
+    t[#t + 1] = "  Chain: " .. info.chain.base .. " -> " .. table.concat(info.chain.chain, ".")
   else
-    t[#t+1] = "  Chain: nil"
+    t[#t + 1] = "  Chain: nil"
   end
 
-  t[#t+1] = "  Binding map size: " .. info.bind_sz
+  t[#t + 1] = "  Binding map size: " .. info.bind_sz
   if info.bind_sz > 0 then
-    t[#t+1] = "  Bindings (sample):"
+    t[#t + 1] = "  Bindings (sample):"
     local n = 0
     for id, mod in pairs(info.bind_map) do
-      t[#t+1] = string.format("    %s -> %s", id, mod)
+      t[#t + 1] = string.format("    %s -> %s", id, mod)
       n = n + 1
       if n >= 3 then break end
     end
@@ -330,40 +324,42 @@ local function format_debug_lines(info)
 
   if info.cache_info then
     local ci = info.cache_info
-    t[#t+1] = "  Cache:"
-    t[#t+1] = "    Files indexed:  " .. ci.files
-    t[#t+1] = "    Last built:     "
-        .. (ci.last_built and os.date("%Y-%m-%d %H:%M:%S", ci.last_built) or "never")
-    t[#t+1] = "    Needs refresh:  " .. (ci.needs_refresh and "yes" or "no")
+    t[#t + 1] = "  Cache:"
+    t[#t + 1] = "    Files indexed:  " .. ci.files
+    t[#t + 1] = "    Last built:     "
+      .. (ci.last_built and os.date("%Y-%m-%d %H:%M:%S", ci.last_built) or "never")
+    t[#t + 1] = "    Needs refresh:  " .. (ci.needs_refresh and "yes" or "no")
   end
 
   if info.result then
     local res = info.result
-    t[#t+1] = "  Result:"
-    t[#t+1] = "    language:   " .. (res.language or "?")
-    t[#t+1] = "    kind:       " .. (res.kind     or "?")
-    t[#t+1] = "    path:       " .. tostring(res.path)
-    t[#t+1] = "    source:     " .. (res.source   or "?")
-    t[#t+1] = "    confidence: " .. tostring(res.confidence)
-    t[#t+1] = "    exists:     " .. tostring(res.exists)
+    t[#t + 1] = "  Result:"
+    t[#t + 1] = "    language:   " .. (res.language or "?")
+    t[#t + 1] = "    kind:       " .. (res.kind or "?")
+    t[#t + 1] = "    path:       " .. tostring(res.path)
+    t[#t + 1] = "    source:     " .. (res.source or "?")
+    t[#t + 1] = "    confidence: " .. tostring(res.confidence)
+    t[#t + 1] = "    exists:     " .. tostring(res.exists)
     if res.range then
-      t[#t+1] = "    range:      line=" .. tostring(res.range.line)
-                   .. "  col=" .. tostring(res.range.col)
+      t[#t + 1] = "    range:      line="
+        .. tostring(res.range.line)
+        .. "  col="
+        .. tostring(res.range.col)
     else
-      t[#t+1] = "    range:      nil"
+      t[#t + 1] = "    range:      nil"
     end
   else
-    t[#t+1] = "  Result: nil"
-    t[#t+1] = "  Error:  " .. (info.error or "unknown")
+    t[#t + 1] = "  Result: nil"
+    t[#t + 1] = "  Error:  " .. (info.error or "unknown")
   end
 
-  t[#t+1] = "===================="
+  t[#t + 1] = "===================="
   return t
 end
 
 ---Show detailed resolution information via vim.notify.
 function M.debug_under_cursor()
-  local info  = collect_debug_info()
+  local info = collect_debug_info()
   local lines = format_debug_lines(info)
   LOG.info(table.concat(lines, "\n"))
 end

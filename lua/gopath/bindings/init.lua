@@ -10,9 +10,7 @@ function M.setup(config)
   require("gopath.bindings.usrcmds").setup(config)
   require("gopath.bindings.autocmds").setup(config)
 
-  if config.which_key ~= false then
-    require("gopath.bindings.which_key").setup(config)
-  end
+  if config.which_key ~= false then require("gopath.bindings.which_key").setup(config) end
 end
 
 return M

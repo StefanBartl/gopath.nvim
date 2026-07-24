@@ -11,10 +11,10 @@
 ---   5. Filetoken fallback — the low-confidence result from step 3, if any.
 ---   6. Raw cfile — last resort.
 
-local C    = require("gopath.config")
-local REG  = require("gopath.registry")
+local C = require("gopath.config")
+local REG = require("gopath.registry")
 local safe = require("gopath.util.safe")
-local LOG  = require("gopath.util.log")
+local LOG = require("gopath.util.log")
 
 local M = {}
 
@@ -27,7 +27,7 @@ local M = {}
 ---@return GopathResult|nil, string|nil  result, error
 function M.resolve_at_cursor(opts)
   local cfg = C.get()
-  local ft  = vim.bo.filetype or "text"
+  local ft = vim.bo.filetype or "text"
 
   -- 1. Help resolver (all filetypes, very cheap)
   do
@@ -54,9 +54,7 @@ function M.resolve_at_cursor(opts)
   do
     local ftok = require("gopath.resolvers.common.filetoken").resolve()
     if ftok then
-      if ftok.exists and (ftok.confidence or 0) >= 0.6 then
-        return ftok, nil
-      end
+      if ftok.exists and (ftok.confidence or 0) >= 0.6 then return ftok, nil end
       filetoken_fallback = ftok
     end
   end
@@ -104,30 +102,27 @@ function M.resolve_at_cursor(opts)
           timeout_ms = (opts and opts.timeout_ms) or cfg.lsp_timeout_ms,
         })
       end)
-      if ok and result then
-        return result, nil
-      end
+      if ok and result then return result, nil end
     end
   end
 
   -- 5. Filetoken fallback (more specific than raw cfile)
-  if filetoken_fallback then
-    return filetoken_fallback, nil
-  end
+  if filetoken_fallback then return filetoken_fallback, nil end
 
   -- 6. Last resort: raw cfile
   local cfile = vim.fn.expand("<cfile>")
   if cfile and cfile ~= "" then
     return {
-      language   = ft,
-      kind       = "file",
-      path       = cfile,
-      range      = nil,
-      chain      = nil,
-      source     = "builtin-fallback",
+      language = ft,
+      kind = "file",
+      path = cfile,
+      range = nil,
+      chain = nil,
+      source = "builtin-fallback",
       confidence = 0.5,
-      exists     = false,
-    }, nil
+      exists = false,
+    },
+      nil
   end
 
   return nil, "no-match"

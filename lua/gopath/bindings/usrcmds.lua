@@ -27,8 +27,8 @@ local M = {}
 
 -- ── Subcommand table ─────────────────────────────────────────────────────────
 
-local OPEN_MODES   = { "edit", "split", "vsplit", "tab" }
-local PROBE_MODES  = { "edit", "split", "vsplit" }
+local OPEN_MODES = { "edit", "split", "vsplit", "tab" }
+local PROBE_MODES = { "edit", "split", "vsplit" }
 
 ---Normalize open/probe mode strings to the keys used by commands.lua.
 ---@param raw string
@@ -37,7 +37,7 @@ local function norm_mode(raw)
   local m = (raw or "edit"):lower()
   if m == "split" or m == "window" then return "window" end
   if m == "vsplit" then return "vsplit" end
-  if m == "tab"   then return "tab"    end
+  if m == "tab" then return "tab" end
   return "edit"
 end
 
@@ -49,7 +49,11 @@ local function cache_build()
   LOG.info("Building filesystem cache…")
   cache.build_async(function(ok)
     local msg = "Cache build " .. (ok and "complete" or "failed")
-    if ok then LOG.info(msg) else LOG.error(msg) end
+    if ok then
+      LOG.info(msg)
+    else
+      LOG.error(msg)
+    end
   end)
 end
 
@@ -57,14 +61,14 @@ local function cache_info()
   local cache = require("gopath.truncated.cache")
   cache.load_from_disk()
   local state = cache._get_state()
-  local age   = state.last_built and (os.time() - state.last_built) or nil
+  local age = state.last_built and (os.time() - state.last_built) or nil
   LOG.info(table.concat({
     "=== Gopath Cache Info ===",
     "  Files indexed : " .. #(state.paths or {}),
-    "  Last built    : " .. (state.last_built
-      and os.date("%Y-%m-%d %H:%M:%S", state.last_built) or "never"),
-    "  Age           : " .. (age
-      and string.format("%d s (%d min)", age, math.floor(age / 60)) or "—"),
+    "  Last built    : "
+      .. (state.last_built and os.date("%Y-%m-%d %H:%M:%S", state.last_built) or "never"),
+    "  Age           : "
+      .. (age and string.format("%d s (%d min)", age, math.floor(age / 60)) or "—"),
     "  Needs refresh : " .. (cache.needs_refresh() and "yes" or "no"),
     "  Building      : " .. (state.building and "yes" or "no"),
     "=========================",
@@ -84,42 +88,68 @@ local function register_gopath_cmd(config, commands)
   local truncated_enabled = config.truncated and config.truncated.enable
 
   local routes = {
-    { path = { "open" },
+    {
+      path = { "open" },
       args = { { name = "mode", type = "STRING", optional = true, enum = OPEN_MODES } },
       desc = "Resolve & open the path under the cursor",
-      run = function(ctx) commands.resolve_and_open(norm_mode(ctx.args.mode)) end },
+      run = function(ctx)
+        commands.resolve_and_open(norm_mode(ctx.args.mode))
+      end,
+    },
 
-    { path = { "copy" },
+    {
+      path = { "copy" },
       desc = "Copy path:line:col to clipboard",
-      run = function() commands.resolve_and_copy() end },
+      run = function()
+        commands.resolve_and_copy()
+      end,
+    },
 
-    { path = { "debug" },
+    {
+      path = { "debug" },
       desc = "Show resolution info for the path under the cursor",
-      run = function() commands.debug_under_cursor() end },
+      run = function()
+        commands.debug_under_cursor()
+      end,
+    },
 
-    { path = { "check" },
+    {
+      path = { "check" },
       desc = "Check existence / offer to create the path under the cursor",
-      run = function() commands.check_under_cursor() end },
+      run = function()
+        commands.check_under_cursor()
+      end,
+    },
 
-    { path = { "probe" },
+    {
+      path = { "probe" },
       args = { { name = "mode", type = "STRING", optional = true, enum = PROBE_MODES } },
       desc = "Probe path under cursor/selection",
       run = function(ctx)
         commands.probe_selection({ open_cmd = ctx.args.mode or "vsplit", ask = true })
-      end },
+      end,
+    },
   }
 
   if truncated_enabled then
-    routes[#routes + 1] = { path = { "cache", "build" },
+    routes[#routes + 1] = {
+      path = { "cache", "build" },
       desc = "Rebuild the filesystem cache",
-      run = cache_build }
-    routes[#routes + 1] = { path = { "cache", "info" },
+      run = cache_build,
+    }
+    routes[#routes + 1] = {
+      path = { "cache", "info" },
       desc = "Show filesystem cache stats",
-      run = cache_info }
-    routes[#routes + 1] = { path = { "cache", "add-root" },
+      run = cache_info,
+    }
+    routes[#routes + 1] = {
+      path = { "cache", "add-root" },
       args = { { name = "dir", type = "DIR" } },
       desc = "Add a directory to the filesystem cache roots",
-      run = function(ctx) cache_add_root(ctx.args.dir) end }
+      run = function(ctx)
+        cache_add_root(ctx.args.dir)
+      end,
+    }
   end
 
   composer.verb("Gopath", {
@@ -148,9 +178,11 @@ local function register_individual(config, commands)
       if mode == "window_vsplit" then mode = "vsplit" end
       commands.resolve_and_open(norm_mode(mode))
     end, {
-      nargs    = "?",
-      complete = function() return OPEN_MODES end,
-      desc     = "Gopath: open target (alias for :Gopath open [mode])",
+      nargs = "?",
+      complete = function()
+        return OPEN_MODES
+      end,
+      desc = "Gopath: open target (alias for :Gopath open [mode])",
     })
   end
 
@@ -177,10 +209,12 @@ local function register_individual(config, commands)
     local mode = o.bang and "split" or (o.args ~= "" and o.args or "vsplit")
     commands.probe_selection({ open_cmd = mode, ask = true })
   end, {
-    nargs    = "?",
-    bang     = true,
-    complete = function() return PROBE_MODES end,
-    desc     = "Gopath: probe path under cursor/selection (! = split)",
+    nargs = "?",
+    bang = true,
+    complete = function()
+      return PROBE_MODES
+    end,
+    desc = "Gopath: probe path under cursor/selection (! = split)",
   })
 
   if truncated_enabled then
@@ -189,12 +223,19 @@ local function register_individual(config, commands)
       LOG.info("Building filesystem cache…")
       cache.build_async(function(ok)
         local msg = "Cache " .. (ok and "built" or "build failed")
-        if ok then LOG.info(msg) else LOG.error(msg) end
+        if ok then
+          LOG.info(msg)
+        else
+          LOG.error(msg)
+        end
       end)
     end, { desc = "Gopath: rebuild fs cache (alias for :Gopath cache build)" })
 
-    usercmd.create("GopathCacheInfo", cache_info,
-      { desc = "Gopath: show cache info (alias for :Gopath cache info)" })
+    usercmd.create(
+      "GopathCacheInfo",
+      cache_info,
+      { desc = "Gopath: show cache info (alias for :Gopath cache info)" }
+    )
 
     usercmd.create("GopathCacheAddRoot", function(o)
       local dir = o.args
@@ -205,9 +246,9 @@ local function register_individual(config, commands)
       local cache = require("gopath.truncated.cache")
       cache.add_root(expand_path(dir), true)
     end, {
-      nargs    = 1,
+      nargs = 1,
       complete = "dir",
-      desc     = "Gopath: add cache root (alias for :Gopath cache add-root <dir>)",
+      desc = "Gopath: add cache root (alias for :Gopath cache add-root <dir>)",
     })
   end
 end

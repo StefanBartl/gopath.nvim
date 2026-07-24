@@ -9,12 +9,10 @@ local M = {}
 ---@param timeout_ms integer Timeout in milliseconds
 ---@return table[]|nil results List of { path: string, range: { line: integer, col: integer } }
 function M.definition_at_cursor(timeout_ms)
-  local params = vim.lsp.util.make_position_params(0, 'utf-8')
+  local params = vim.lsp.util.make_position_params(0, "utf-8")
   local res = vim.lsp.buf_request_sync(0, "textDocument/definition", params, timeout_ms)
 
-  if not res then
-    return nil
-  end
+  if not res then return nil end
 
   local out = {}
   for _, r in pairs(res) do
