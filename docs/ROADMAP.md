@@ -21,14 +21,19 @@
   all individually configurable/disableable
 - `config/` (DEFAULTS + merge) and `bindings/` (keymaps, usrcmds, autocmds,
   which-key) module split
-- Optional lib.nvim: cross-platform path separators (`util/cross.lua`) and
-  notify delegation (`util/log.lua`); falls back to built-ins when absent
+- lib.nvim is a required dependency (keymaps/usrcmds/autocmds route through
+  it); `util/cross.lua` and `util/log.lua` degrade gracefully to built-in
+  fallbacks if it's ever missing at runtime, but it must still be declared
+  in the plugin spec (`dependencies = { "StefanBartl/lib.nvim" }`)
 - Optional which-key: labels the `probe` keymap when installed
   (`which_key = false` to disable)
 - `:checkhealth gopath`
 - `docs/BINDINGS.md` — machine-readable keymap/command/autocmd cheatsheet
-- `docs/TESTS/` — headless spec suite for the core resolution pipeline
-  (linepath, tailsearch, `:Gopath`, stack traces)
+- `docs/TESTS/` — manual test guides for the core resolution pipeline
+  (linepath, tailsearch, `:Gopath`, stack traces, direct symbol jumps)
+- CI (`.github/workflows/ci.yml`): `stylua --check`, `luacheck`, and a
+  headless smoke test (`scripts/ci/headless_tests.lua`) that boots gopath
+  and executes every `docs/TESTS/*.lua` fixture as a plain Lua chunk
 
 ---
 
@@ -60,11 +65,11 @@ Suffix-Matching, beides klein und pure-function). Konkrete Funde behoben
   `bindings/{keymaps,usrcmds,autocmds,which_key,init}.lua`).
 - ~~Keine which-key-Unterstützung~~ — `bindings/which_key.lua` (soft
   dependency, v2/v3-Fallback) ergänzt, inkl. Healthcheck-Zeile.
+- ~~Kein CI-Workflow~~ (stylua + luacheck + `docs/TESTS`-Runner headless) —
+  `.github/workflows/ci.yml` ergänzt, einziger offener "empfohlen"-Punkt aus
+  Checklist §7 damit erledigt.
 
-Verbleibender, optionaler Punkt (wie bei `buffer-ctx.nvim`):
-
-1. **CI-Workflow** (stylua + luacheck + `docs/TESTS`-Runner headless) —
-   niedrige Priorität, einziger offener "empfohlen"-Punkt aus Checklist §7.
+Damit sind alle aus dem Audit vom 2026-07-04 offenen Punkte abgearbeitet.
 
 ---
 

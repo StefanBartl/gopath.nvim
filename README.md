@@ -8,6 +8,7 @@
   \___|\___/|_|/_/ \_\|_|  |_||_|
 ```
 
+![CI](https://github.com/StefanBartl/gopath.nvim/actions/workflows/ci.yml/badge.svg)
 ![version](https://img.shields.io/badge/version-0.3.0-blue.svg)
 ![status](https://img.shields.io/badge/status-beta-orange.svg)
 ![Neovim](https://img.shields.io/badge/Neovim-0.9%2B-success.svg)
