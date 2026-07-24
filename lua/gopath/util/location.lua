@@ -16,17 +16,13 @@ local M = {}
 ---@param str string Input string (e.g., "path/to/file.lua:42:15")
 ---@return table location { path: string, line: integer|nil, col: integer|nil }
 function M.parse_location(str)
-  if not str or str == "" then
-    return { path = "", line = nil, col = nil }
-  end
+  if not str or str == "" then return { path = "", line = nil, col = nil } end
 
   -- Strip leading/trailing whitespace
   str = str:gsub("^%s+", ""):gsub("%s+$", "")
 
   local result = require("lib.lua.strings.location").parse_location(str)
-  if not result then
-    return { path = str, line = nil, col = nil }
-  end
+  if not result then return { path = str, line = nil, col = nil } end
   result.col = result.col or (result.line and 1 or nil)
   return result
 end
@@ -37,12 +33,10 @@ end
 ---@return table|nil range Merged range or nil if no line info available
 function M.merge_ranges(parsed, existing)
   -- If parsed has line info, prefer it
-  if parsed and parsed.line then
-    return {
-      line = parsed.line,
-      col = parsed.col or 1,
-    }
-  end
+  if parsed and parsed.line then return {
+    line = parsed.line,
+    col = parsed.col or 1,
+  } end
 
   -- Otherwise use existing
   if existing and existing.line then
@@ -61,9 +55,7 @@ end
 ---@param col integer|nil Column number (1-indexed)
 ---@return table|nil range Range table or nil
 function M.create_range(line, col)
-  if not line or line == 0 then
-    return nil
-  end
+  if not line or line == 0 then return nil end
 
   return {
     line = math.max(1, line),
@@ -75,13 +67,9 @@ end
 ---@param range table|nil Range table { line: integer, col: integer }
 ---@return table|nil normalized Normalized range or nil
 function M.normalize_range(range)
-  if not range then
-    return nil
-  end
+  if not range then return nil end
 
-  if not range.line or range.line == 0 then
-    return nil
-  end
+  if not range.line or range.line == 0 then return nil end
 
   return {
     line = math.max(1, range.line),

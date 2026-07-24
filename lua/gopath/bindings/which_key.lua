@@ -15,14 +15,10 @@ local M = {}
 ---@return boolean registered
 function M.setup(config)
   local ok, wk = pcall(require, "which-key")
-  if not ok or type(wk) ~= "table" then
-    return false
-  end
+  if not ok or type(wk) ~= "table" then return false end
 
   local probe = config.mappings and config.mappings.probe
-  if not probe or probe == false then
-    return false
-  end
+  if not probe or probe == false then return false end
 
   local keys = type(probe) == "table" and probe or { probe }
   local desc = "gopath: probe path under cursor/selection"

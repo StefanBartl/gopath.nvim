@@ -31,9 +31,7 @@ do
   local ok, mod = pcall(require, "lib.nvim.notify")
   if ok and type(mod) == "table" and type(mod.create) == "function" then
     local create_ok, notifier = pcall(mod.create, PREFIX)
-    if create_ok and type(notifier) == "table" then
-      lib_notify = notifier
-    end
+    if create_ok and type(notifier) == "table" then lib_notify = notifier end
   end
 end
 

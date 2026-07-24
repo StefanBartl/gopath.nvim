@@ -19,8 +19,8 @@ local M = {}
 
 -- Module-level runtimepath cache.
 -- Invalidated whenever vim.o.runtimepath changes (detected by string identity).
-local _rtp_str  = nil   ---@type string|nil
-local _rtp_list = nil   ---@type string[]|nil
+local _rtp_str = nil ---@type string|nil
+local _rtp_list = nil ---@type string[]|nil
 
 -- How long a built runtimepath name index stays usable, in milliseconds.
 --
@@ -41,22 +41,22 @@ local RTP_INDEX_TTL_MS = 30000
 
 -- Per-runtimepath-entry index of the names present at `<rtp>/` and `<rtp>/lua/`.
 -- Entries are stored in runtimepath order so lookups preserve search order.
-local _rtpidx      = nil  ---@type GopathRtpIndexEntry[]|nil
-local _rtpidx_str  = nil  ---@type string|nil
-local _rtpidx_at   = 0    ---@type integer
+local _rtpidx = nil ---@type GopathRtpIndexEntry[]|nil
+local _rtpidx_str = nil ---@type string|nil
+local _rtpidx_at = 0 ---@type integer
 
 -- Module-level plugin-directory cache, invalidated on the same signal as the
 -- rtp cache: lazily loading a plugin mutates the runtimepath, which is the
 -- cheapest available proxy for "the plugin set may have changed".
-local _pdir_str  = nil  ---@type string|nil
-local _pdir_list = nil  ---@type string[]|nil
+local _pdir_str = nil ---@type string|nil
+local _pdir_list = nil ---@type string[]|nil
 
 -- Index of module root -> plugin dirs owning it, sharing the rtp cache signal.
 -- Declared up here with the other caches so `invalidate_caches` below can clear
 -- it; a declaration next to its own accessor would be out of scope there and
 -- would silently create globals instead.
-local _pidx_str = nil   ---@type string|nil
-local _pidx_map = nil   ---@type table<string, string[]>|nil
+local _pidx_str = nil ---@type string|nil
+local _pidx_map = nil ---@type table<string, string[]>|nil
 
 ---Return the current runtimepath as a list, rebuilding only when it changed.
 ---@return string[]
@@ -78,9 +78,7 @@ function M.join(...)
   for i = 1, #parts do
     local s = parts[i] or ""
     s = s:gsub("[/\\]+", "/")
-    if s:sub(-1) == "/" and i < #parts then
-      s = s:sub(1, -2)
-    end
+    if s:sub(-1) == "/" and i < #parts then s = s:sub(1, -2) end
     parts[i] = s
   end
   return table.concat(parts, "/")
@@ -128,17 +126,15 @@ end
 local function get_rtp_index()
   local s = vim.o.runtimepath
   local now = vim.uv.now()
-  if _rtpidx and s == _rtpidx_str and (now - _rtpidx_at) < RTP_INDEX_TTL_MS then
-    return _rtpidx
-  end
+  if _rtpidx and s == _rtpidx_str and (now - _rtpidx_at) < RTP_INDEX_TTL_MS then return _rtpidx end
 
   local idx = {}
   local rtp = get_rtp_list()
   for i = 1, #rtp do
     idx[i] = {
-      dir  = rtp[i],
+      dir = rtp[i],
       root = scan_names(rtp[i]),
-      lua  = scan_names(M.join(rtp[i], "lua")),
+      lua = scan_names(M.join(rtp[i], "lua")),
     }
   end
 
@@ -209,9 +205,7 @@ end
 ---@return string|nil  absolute path
 function M.search_with_vim_path(token)
   if not token or token == "" then return nil end
-  if M.exists(token) then
-    return vim.fn.fnamemodify(token, ":p")
-  end
+  if M.exists(token) then return vim.fn.fnamemodify(token, ":p") end
   local found = vim.fn.findfile(token, vim.o.path)
   if type(found) == "string" and found ~= "" and M.exists(found) then
     return vim.fn.fnamemodify(found, ":p")
@@ -220,9 +214,7 @@ function M.search_with_vim_path(token)
   for i = 1, #suffixes do
     local cand = token .. suffixes[i]
     local f = vim.fn.findfile(cand, vim.o.path)
-    if type(f) == "string" and f ~= "" and M.exists(f) then
-      return vim.fn.fnamemodify(f, ":p")
-    end
+    if type(f) == "string" and f ~= "" and M.exists(f) then return vim.fn.fnamemodify(f, ":p") end
   end
   return nil
 end
@@ -236,9 +228,7 @@ function M.search_with_package_path(module)
   local pattern = package and package.path or nil
   if not pattern or pattern == "" then return nil end
   local path = package.searchpath(module, pattern)
-  if type(path) == "string" and M.exists(path) then
-    return vim.fn.fnamemodify(path, ":p")
-  end
+  if type(path) == "string" and M.exists(path) then return vim.fn.fnamemodify(path, ":p") end
   return nil
 end
 
@@ -251,9 +241,7 @@ end
 ---@return string[]
 local function get_plugin_dirs()
   local s = vim.o.runtimepath
-  if s == _pdir_str and _pdir_list then
-    return _pdir_list
-  end
+  if s == _pdir_str and _pdir_list then return _pdir_list end
 
   local dirs, seen = {}, {}
   local function add(d)
@@ -298,9 +286,7 @@ end
 ---@return table<string, string[]>
 local function get_plugin_lua_index()
   local s = vim.o.runtimepath
-  if s == _pidx_str and _pidx_map then
-    return _pidx_map
-  end
+  if s == _pidx_str and _pidx_map then return _pidx_map end
 
   local map = {}
   for _, dir in ipairs(get_plugin_dirs()) do
@@ -366,8 +352,8 @@ function M.search_module(module)
   if type(module) ~= "string" or module == "" then return nil end
   local rel = module:gsub("%.", "/")
   return M.search_in_rtp({ rel .. ".lua", rel .. "/init.lua" })
-      or M.search_with_package_path(module)
-      or M.search_in_plugin_dirs(module)
+    or M.search_with_package_path(module)
+    or M.search_in_plugin_dirs(module)
 end
 
 return M

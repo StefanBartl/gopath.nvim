@@ -43,14 +43,10 @@ local function find_require_module_at_cursor()
 
     -- require "x", require('x'), require [[x]]
     local s1, e1, m1 = ln:find("require%s*[%(%s]*[\"']([%w%._/%-]+)[\"']")
-    if s1 and cursor_in(s1, e1, (_ == 1 and col) or 1e9) then
-      return m1, nil, nil
-    end
+    if s1 and cursor_in(s1, e1, (_ == 1 and col) or 1e9) then return m1, nil, nil end
 
     local s2, e2, m2 = ln:find("require%s*[%(%s]*%[%[([%w%._/%-]+)%]%]")
-    if s2 and cursor_in(s2, e2, (_ == 1 and col) or 1e9) then
-      return m2, nil, nil
-    end
+    if s2 and cursor_in(s2, e2, (_ == 1 and col) or 1e9) then return m2, nil, nil end
   end
 
   return nil, nil, nil
@@ -72,21 +68,15 @@ local function find_dotted_module_at_cursor()
   local ok, token = pcall(function()
     return require("gopath.providers.token").get_token()
   end)
-  if not ok or type(token) ~= "string" or token == "" then
-    return nil
-  end
+  if not ok or type(token) ~= "string" or token == "" then return nil end
 
   -- Strip surrounding quotes left by annotations/strings.
   token = token:gsub('^"(.*)"$', "%1"):gsub("^'(.*)'$", "%1")
 
   -- Must look like a dotted module: word segments joined by dots, no path
   -- separators, at least two segments. Reject anything with slashes.
-  if token:match("[/\\]") then
-    return nil
-  end
-  if not token:match("^[%w_]+%.[%w_%.]+$") then
-    return nil
-  end
+  if token:match("[/\\]") then return nil end
+  if not token:match("^[%w_]+%.[%w_%.]+$") then return nil end
 
   return token
 end
@@ -96,29 +86,23 @@ function M.resolve()
   local mod, hint_line, hint_col = find_require_module_at_cursor()
 
   -- Fallback: dotted module under cursor without a require(...) wrapper.
-  if not mod then
-    mod = find_dotted_module_at_cursor()
-  end
+  if not mod then mod = find_dotted_module_at_cursor() end
 
-  if not mod then
-    return nil
-  end
+  if not mod then return nil end
 
   local abs = module_to_path(mod)
 
-  if not abs then
-    return nil
-  end
+  if not abs then return nil end
 
   return {
-    language   = "lua",
-    kind       = "module",
-    path       = abs,
-    range      = LOC.create_range(hint_line, hint_col),
-    chain      = nil,
-    source     = "builtin",
+    language = "lua",
+    kind = "module",
+    path = abs,
+    range = LOC.create_range(hint_line, hint_col),
+    chain = nil,
+    source = "builtin",
     confidence = 0.85,
-    exists     = true,
+    exists = true,
   }
 end
 

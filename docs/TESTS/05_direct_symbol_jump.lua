@@ -1,5 +1,12 @@
--- Direct symbol definition jump: Testing File
---- direct-symbol-definiton-jump
+-- docs/TESTS/05_direct_symbol_jump.lua
+-- Test direct symbol/definition jumps (LSP / treesitter / identifier_locator)
+-- on require() bindings and their subsequent usages.
+--
+-- HOW TO TEST
+-- ===========
+-- Place the cursor on the marked (^^^) token in each case below and press gP.
+-- The "Aktuelles Resultat" lines are notes from a prior manual run kept for
+-- context; re-verify them against the "Expected" line when re-running.
 
 -- ==== Test Case 1: Direct Symbol Jump (LSP) ====
 
@@ -25,7 +32,6 @@ config.setup()
 -- 16:11:36 msg_show.lua_print   GopathDebug     range: nil
 -- 16:11:36 msg_show.lua_print   GopathDebug ====================
 
-
 -- ==== Test Case 2: Chained Symbol (LSP fallback to Treesitter) ====
 
 local setup = require("gopath.config").setup
@@ -49,7 +55,6 @@ local setup = require("gopath.config").setup
 -- 16:11:11 msg_show.lua_print   GopathDebug     range: nil
 -- 16:11:11 msg_show.lua_print   GopathDebug ====================
 
-
 -- ==== Test Case 3: Bare Identifier to Module ====
 
 -- File: test.lua
@@ -59,9 +64,9 @@ local resolver = require("gopath.resolve")
 -- Expected: Opens gopath/resolve.lua
 -- Source: identifier_locator (NEW!)
 -- Aktuelles Resultat: öffnet die datei nicht, gibt aber aus:
- -- Debug  16:08:03 notify.debug [gopath] Opening with range: line=25, col=7
- -- Debug  16:08:03 notify.debug [gopath] Normalized range: line=25, col=7
- --   Info  16:08:03 notify.info [gopath] Jumped to line 25, col 6
+-- Debug  16:08:03 notify.debug [gopath] Opening with range: line=25, col=7
+-- Debug  16:08:03 notify.debug [gopath] Normalized range: line=25, col=7
+--   Info  16:08:03 notify.info [gopath] Jumped to line 25, col 6
 
 -- 16:09:01 msg_show.lua_print === Gopath Debug ===
 -- 16:09:01 msg_show.lua_print   Filetype: lua
@@ -126,5 +131,3 @@ config.setup({ mode = "hybrid" })
 -- 16:10:37 msg_show.lua_print   GopathDebug     exists: false
 -- 16:10:37 msg_show.lua_print   GopathDebug     range: nil
 -- 16:10:37 msg_show.lua_print   GopathDebug ====================
-
-

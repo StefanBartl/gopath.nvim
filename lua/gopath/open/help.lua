@@ -4,10 +4,12 @@
 local M = {}
 
 local function try_help(subject, target)
-  local cmd = (target == "tab" and ("tab help %s"))
-           or (target == "window" and ("belowright help %s"))
-           or ("help %s")
-  return pcall(function() return vim.cmd((cmd):format(vim.fn.escape(subject, " "))) end)
+  local cmd = (target == "tab" and "tab help %s")
+    or (target == "window" and "belowright help %s")
+    or "help %s"
+  return pcall(function()
+    return vim.cmd((cmd):format(vim.fn.escape(subject, " ")))
+  end)
 end
 
 ---@param res { kind:string, subject:string|nil, subjects:string[]|nil }
@@ -19,7 +21,9 @@ function M.open(res, opts)
   -- baue Kandidatenliste
   local cands = {}
   if type(res.subjects) == "table" then
-    for _, s in ipairs(res.subjects) do cands[#cands+1] = s end
+    for _, s in ipairs(res.subjects) do
+      cands[#cands + 1] = s
+    end
   elseif type(res.subject) == "string" then
     cands[1] = res.subject
   end
@@ -36,7 +40,7 @@ function M.open(res, opts)
     if s:sub(-2) == "()" then
       table.insert(extra, s:sub(1, -3)) -- ohne ()
     else
-      table.insert(extra, s .. "()")    -- mit ()
+      table.insert(extra, s .. "()") -- mit ()
     end
   end
   for _, subj in ipairs(extra) do
@@ -46,16 +50,22 @@ function M.open(res, opts)
 
   -- Letzter Fallback: Hilfe-Index durchsuchen (ohne UI-Spam)
   local needle = cands[1] or "help"
-  pcall(function() vim.cmd("silent! helpgrep " .. vim.fn.escape(needle, " ")) end)
+  pcall(function()
+    vim.cmd("silent! helpgrep " .. vim.fn.escape(needle, " "))
+  end)
   local qf = vim.fn.getqflist({ size = true })
   if qf and qf.size and qf.size > 0 then
     -- öffne erstes Match
-    pcall(function() vim.cmd("cfirst") end)
+    pcall(function()
+      vim.cmd("cfirst")
+    end)
     return
   end
 
   -- nichts gefunden? Dezent auf die API-Übersicht fallen AUDIT; ao lassen?
-  pcall(function() vim.cmd("help vim.api") end)
+  pcall(function()
+    vim.cmd("help vim.api")
+  end)
 end
 
 return M

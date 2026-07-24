@@ -10,7 +10,7 @@
 --- Relative `.zig` files are the common, resolvable case and are handled here.
 --- Package imports declared in `build.zig` are left to zls when available.
 
-local H    = require("gopath.resolvers.common.lang_helper")
+local H = require("gopath.resolvers.common.lang_helper")
 local PATH = require("gopath.util.path")
 
 local M = {}
@@ -35,18 +35,16 @@ function M.resolve()
 
   -- Resolve as a relative file path (with or without trailing .zig).
   local base = PATH.join(H.current_file_dir(), spec)
-  local abs  = H.first_existing({ base })
-  if not abs and not spec:match("%.zig$") then
-    abs = H.first_existing({ base .. ".zig" })
-  end
+  local abs = H.first_existing({ base })
+  if not abs and not spec:match("%.zig$") then abs = H.first_existing({ base .. ".zig" }) end
 
   if not abs then return nil end
 
   return H.make_result({
-    language   = "zig",
-    path       = abs,
-    exists     = true,
-    kind       = "module",
+    language = "zig",
+    path = abs,
+    exists = true,
+    kind = "module",
     confidence = 0.8,
   })
 end

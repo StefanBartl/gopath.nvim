@@ -10,7 +10,7 @@
 --- resolve.lua are required. User-supplied `custom_resolvers` run before the
 --- built-in ones for their filetype.
 
-local C   = require("gopath.config")
+local C = require("gopath.config")
 local LOG = require("gopath.util.log")
 
 -- Resolver modules, keyed by filetype then resolver name.
@@ -20,48 +20,48 @@ local c_include = require("gopath.resolvers.c.include_path")
 
 local RES = {
   lua = {
-    require_path       = require("gopath.resolvers.lua.require_path"),
-    binding_index      = require("gopath.resolvers.lua.binding_index"),
-    alias_index        = require("gopath.resolvers.lua.alias_index"),
-    chain              = require("gopath.resolvers.lua.chain"),
-    value_origin       = require("gopath.resolvers.lua.value_origin"),
-    symbol_locator     = require("gopath.resolvers.lua.symbol_locator"),
+    require_path = require("gopath.resolvers.lua.require_path"),
+    binding_index = require("gopath.resolvers.lua.binding_index"),
+    alias_index = require("gopath.resolvers.lua.alias_index"),
+    chain = require("gopath.resolvers.lua.chain"),
+    value_origin = require("gopath.resolvers.lua.value_origin"),
+    symbol_locator = require("gopath.resolvers.lua.symbol_locator"),
     identifier_locator = require("gopath.resolvers.lua.identifier_locator"),
   },
-  python          = { import_path = require("gopath.resolvers.python.import_path") },
-  javascript      = { import_path = js_import },
+  python = { import_path = require("gopath.resolvers.python.import_path") },
+  javascript = { import_path = js_import },
   javascriptreact = { import_path = js_import },
-  typescript      = { import_path = js_import },
+  typescript = { import_path = js_import },
   typescriptreact = { import_path = js_import },
-  rust            = { use_path    = require("gopath.resolvers.rust.use_path") },
-  go              = { import_path = require("gopath.resolvers.go.import_path") },
-  c               = { include_path = c_include },
-  cpp             = { include_path = c_include },
-  cs              = { using_path  = require("gopath.resolvers.csharp.using_path") },
-  zig             = { import_path = require("gopath.resolvers.zig.import_path") },
-  java            = { import_path = require("gopath.resolvers.java.import_path") },
+  rust = { use_path = require("gopath.resolvers.rust.use_path") },
+  go = { import_path = require("gopath.resolvers.go.import_path") },
+  c = { include_path = c_include },
+  cpp = { include_path = c_include },
+  cs = { using_path = require("gopath.resolvers.csharp.using_path") },
+  zig = { import_path = require("gopath.resolvers.zig.import_path") },
+  java = { import_path = require("gopath.resolvers.java.import_path") },
   common = {
     filetoken = require("gopath.resolvers.common.filetoken"),
-    help      = require("gopath.resolvers.common.help"),
+    help = require("gopath.resolvers.common.help"),
   },
 }
 
 -- Ordered resolver names the builtin provider tries, per filetype.
 -- (filetoken is run separately, before this list, for every filetype.)
 local BUILTIN_ORDER = {
-  lua             = { "require_path" },
-  python          = { "import_path" },
-  javascript      = { "import_path" },
+  lua = { "require_path" },
+  python = { "import_path" },
+  javascript = { "import_path" },
   javascriptreact = { "import_path" },
-  typescript      = { "import_path" },
+  typescript = { "import_path" },
   typescriptreact = { "import_path" },
-  rust            = { "use_path" },
-  go              = { "import_path" },
-  c               = { "include_path" },
-  cpp             = { "include_path" },
-  cs              = { "using_path" },
-  zig             = { "import_path" },
-  java            = { "import_path" },
+  rust = { "use_path" },
+  go = { "import_path" },
+  c = { "include_path" },
+  cpp = { "include_path" },
+  cs = { "using_path" },
+  zig = { "import_path" },
+  java = { "import_path" },
 }
 
 ---@private
@@ -136,9 +136,7 @@ local PIPELINE = {
     end
 
     local chain = nil
-    if has_name(active, "chain") and L.chain then
-      chain = L.chain.get_chain_at_cursor()
-    end
+    if has_name(active, "chain") and L.chain then chain = L.chain.get_chain_at_cursor() end
     local bind = nil
     if has_name(active, "binding_index") and L.binding_index then
       bind = L.binding_index.get_map()
@@ -190,7 +188,7 @@ local M = {}
 ---@return GopathResult|nil
 ---@diagnostic disable-next-line: unused-local
 function M.run_language_pipeline(filetype, provider, _opts)
-  local cfg      = C.get()
+  local cfg = C.get()
   local lang_cfg = cfg.languages[filetype]
 
   if not (lang_cfg and lang_cfg.enable ~= false) then return nil end
@@ -212,9 +210,9 @@ end
 ---@param filetype string
 ---@return string[]
 function M.available_resolvers(filetype)
-  local t   = RES[filetype] or {}
+  local t = RES[filetype] or {}
   local out = {}
-  local i   = 0
+  local i = 0
   for k in pairs(t) do
     i = i + 1
     out[i] = k

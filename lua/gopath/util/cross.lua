@@ -80,9 +80,7 @@ function M.to_native(path)
     local ok, r = pcall(cross.separators.normalize, path)
     if ok and type(r) == "string" then return r end
   end
-  if M.is_windows() then
-    return (path:gsub("/", "\\"))
-  end
+  if M.is_windows() then return (path:gsub("/", "\\")) end
   return (path:gsub("\\", "/"))
 end
 

@@ -3,7 +3,7 @@
 
 local PATH = require("gopath.util.path")
 local LOC = require("gopath.util.location")
-local LSP  = require("gopath.providers.lsp")
+local LSP = require("gopath.providers.lsp")
 
 local M = {}
 
@@ -14,23 +14,19 @@ function M.via_lsp(opts)
   local timeout = (opts and opts.timeout_ms) or 200
   local defs = LSP.definition_at_cursor(timeout)
 
-  if not defs or #defs == 0 then
-    return nil
-  end
+  if not defs or #defs == 0 then return nil end
 
   local d = defs[1]
 
-  if not d.path then
-    return nil
-  end
+  if not d.path then return nil end
 
   local base_result = {
-    language   = "lua",
-    kind       = "symbol",
-    path       = d.path,
-    range      = LOC.normalize_range(d.range),
-    chain      = nil,
-    source     = "lsp",
+    language = "lua",
+    kind = "symbol",
+    path = d.path,
+    range = LOC.normalize_range(d.range),
+    chain = nil,
+    source = "lsp",
     confidence = 1.0,
   }
 
@@ -40,10 +36,10 @@ function M.via_lsp(opts)
   local enhanced = enhancer.enhance_lsp_result(base_result)
 
   if enhanced then
-    return enhanced  -- Jump to module, not local variable
+    return enhanced -- Jump to module, not local variable
   end
 
-  return base_result  -- Standard LSP result
+  return base_result -- Standard LSP result
 end
 
 ---Treesitter fallback: Use chain + binding to find module, then locate symbol.
@@ -51,30 +47,24 @@ end
 ---@param bind table<string,string>
 ---@return table|nil
 function M.via_treesitter(chain, bind)
-  if not chain or not bind then
-    return nil
-  end
+  if not chain or not bind then return nil end
 
   local mod = bind[chain.base]
-  if not mod then
-    return nil
-  end
+  if not mod then return nil end
 
   local abs = PATH.search_module(mod)
 
-  if not abs then
-    return nil
-  end
+  if not abs then return nil end
 
   -- If no chain (just module reference), return module path
   if not chain.chain or #chain.chain == 0 then
     return {
-      language   = "lua",
-      kind       = "module",
-      path       = abs,
-      range      = nil,
-      chain      = nil,
-      source     = "treesitter",
+      language = "lua",
+      kind = "module",
+      path = abs,
+      range = nil,
+      chain = nil,
+      source = "treesitter",
       confidence = 0.7,
     }
   end
@@ -107,23 +97,23 @@ function M.via_treesitter(chain, bind)
 
   if not best_line then
     return {
-      language   = "lua",
-      kind       = "module",
-      path       = abs,
-      range      = nil,
-      chain      = chain.chain,
-      source     = "treesitter",
+      language = "lua",
+      kind = "module",
+      path = abs,
+      range = nil,
+      chain = chain.chain,
+      source = "treesitter",
       confidence = 0.5,
     }
   end
 
   return {
-    language   = "lua",
-    kind       = "field",
-    path       = abs,
-    range      = LOC.create_range(best_line, best_col),
-    chain      = chain.chain,
-    source     = "treesitter",
+    language = "lua",
+    kind = "field",
+    path = abs,
+    range = LOC.create_range(best_line, best_col),
+    chain = chain.chain,
+    source = "treesitter",
     confidence = 0.75,
   }
 end

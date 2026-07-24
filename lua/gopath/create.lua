@@ -16,9 +16,9 @@
 --- dependency, same soft-fallback convention as `gopath.util.cross` /
 --- `gopath.util.log`); when lib.nvim is missing it falls back to `vim.ui.select`.
 
-local LOG   = require("gopath.util.log")
+local LOG = require("gopath.util.log")
 local CROSS = require("gopath.util.cross")
-local PATH  = require("gopath.util.path")
+local PATH = require("gopath.util.path")
 
 local M = {}
 
@@ -54,9 +54,7 @@ local function touch(path)
     local dir = vim.fn.fnamemodify(native, ":h")
     local name = vim.fn.fnamemodify(native, ":t")
     local ok, _, path_or_err = create_entry(dir, name)
-    if not ok then
-      return false, path_or_err
-    end
+    if not ok then return false, path_or_err end
     -- The path searches cache directory listings; a file created now would
     -- otherwise stay invisible to the next lookup until those caches expire.
     PATH.invalidate_caches()
@@ -66,14 +64,10 @@ local function touch(path)
   local dir = vim.fn.fnamemodify(native, ":h")
   if dir ~= "" and dir ~= "." then
     local ok_mkdir = pcall(vim.fn.mkdir, dir, "p")
-    if not ok_mkdir then
-      return false, "mkdir failed: " .. dir
-    end
+    if not ok_mkdir then return false, "mkdir failed: " .. dir end
   end
   local f, err = io.open(native, "w")
-  if not f then
-    return false, err or ("could not open " .. native)
-  end
+  if not f then return false, err or ("could not open " .. native) end
   f:close()
   PATH.invalidate_caches()
   return true, nil
@@ -89,7 +83,9 @@ local function find_nearest_existing_dir(path)
   if not path or path == "" then return nil end
   local norm = (vim.fs.normalize and vim.fs.normalize(path)) or path
   local segs = {}
-  for s in norm:gmatch("[^/\\]+") do segs[#segs + 1] = s end
+  for s in norm:gmatch("[^/\\]+") do
+    segs[#segs + 1] = s
+  end
 
   for i = #segs, 1, -1 do
     local candidate = table.concat(segs, "/", 1, i)
@@ -100,9 +96,7 @@ local function find_nearest_existing_dir(path)
       local ok_norm, pn = pcall(vim.fs.normalize, p)
       if ok_norm then
         local st = uv.fs_stat(pn)
-        if st and st.type == "directory" then
-          return pn
-        end
+        if st and st.type == "directory" then return pn end
       end
     end
   end
@@ -116,13 +110,9 @@ end
 ---@return table|nil
 local function filetree_adapter()
   local ok, filetree = pcall(require, "filetree")
-  if not ok or type(filetree) ~= "table" or not filetree.is_initialized() then
-    return nil
-  end
+  if not ok or type(filetree) ~= "table" or not filetree.is_initialized() then return nil end
   local ok_adapter, adapter = pcall(filetree.adapter)
-  if not ok_adapter or type(adapter) ~= "table" then
-    return nil
-  end
+  if not ok_adapter or type(adapter) ~= "table" then return nil end
   return adapter
 end
 
@@ -135,9 +125,7 @@ local function open_in_filetree(dir)
     return
   end
   local ok_cd = pcall(vim.cmd.cd, vim.fn.fnameescape(dir))
-  if not ok_cd then
-    LOG.warn("Could not set cwd to: " .. dir)
-  end
+  if not ok_cd then LOG.warn("Could not set cwd to: " .. dir) end
   local opened = false
   if type(adapter.toggle_at) == "function" then
     opened = adapter.toggle_at("left", { dir = dir }) and true or false
@@ -180,8 +168,8 @@ end
 local function ask(question, choices, on_choice)
   if kit then
     kit.confirm({
-      question  = question,
-      choices   = choices,
+      question = question,
+      choices = choices,
       on_answer = on_choice,
     })
     return
@@ -231,9 +219,7 @@ function M.offer(res, on_created, opts)
 
   local nearest_dir = find_nearest_existing_dir(res.path)
   local choices = { CREATE }
-  if nearest_dir and filetree_adapter() then
-    choices[#choices + 1] = FILETREE
-  end
+  if nearest_dir and filetree_adapter() then choices[#choices + 1] = FILETREE end
   choices[#choices + 1] = CANCEL
 
   ask("gopath: '" .. tostring(res.path) .. "' not found", choices, function(choice)

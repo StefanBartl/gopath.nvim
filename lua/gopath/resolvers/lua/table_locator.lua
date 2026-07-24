@@ -6,11 +6,15 @@ local M = {}
 
 -- ========= helpers =========
 
-  local function esc(str) return (str:gsub("([%%%^%$%(%)%.%[%]%*%+%-%?])","%%%1")) end
+local function esc(str)
+  return (str:gsub("([%%%^%$%(%)%.%[%]%*%+%-%?])", "%%%1"))
+end
 
 local function split_chain(chain)
   local t = {}
-  for p in chain:gmatch("[^%.]+") do t[#t+1] = p end
+  for p in chain:gmatch("[^%.]+") do
+    t[#t + 1] = p
+  end
   return t
 end
 
@@ -40,7 +44,7 @@ end
 -- Accepts inline "{", or "=" then later "{" (skipping blanks/comments), or "=" followed by function call text until first "{"
 local function find_direct_table_loose(lines, dotted)
   local pat_inline = "^%s*" .. esc(dotted) .. "%s*=%s*{"
-  local pat_eq     = "^%s*" .. esc(dotted) .. "%s*=%s*(.*)$"
+  local pat_eq = "^%s*" .. esc(dotted) .. "%s*=%s*(.*)$"
 
   for i = 1, #lines do
     local s = lines[i]
@@ -150,12 +154,12 @@ end
 local function find_child_table(lines, s, e, key)
   local ke = esc(key)
   local heads = {
-    "^%s*" .. ke .. "%s*=%s*{",                 -- key = {
-    '^%s*%["' .. ke .. '"%]%s*=%s*{',          -- ["key"] = {
-    "^%s*%['" .. ke .. "'%]%s*=%s*{",          -- ['key'] = {
-    "[%[{,]%s*" .. ke .. "%s*=%s*{",           -- , key = {  (auch nach Komma/Blockstart)
-    '%[{"%s*%["' .. ke .. '"%]%s*=%s*{',       -- , ["key"] = {
-    "[%[{,]%s*%['" .. ke .. "'%]%s*=%s*{",     -- , ['key'] = {
+    "^%s*" .. ke .. "%s*=%s*{", -- key = {
+    '^%s*%["' .. ke .. '"%]%s*=%s*{', -- ["key"] = {
+    "^%s*%['" .. ke .. "'%]%s*=%s*{", -- ['key'] = {
+    "[%[{,]%s*" .. ke .. "%s*=%s*{", -- , key = {  (auch nach Komma/Blockstart)
+    '%[{"%s*%["' .. ke .. '"%]%s*=%s*{', -- , ["key"] = {
+    "[%[{,]%s*%['" .. ke .. "'%]%s*=%s*{", -- , ['key'] = {
   }
 
   local depth = 0
@@ -164,8 +168,11 @@ local function find_child_table(lines, s, e, key)
     local line = scrub_for_braces(lines[s] or "")
     for j = 1, #line do
       local ch = line:sub(j, j)
-      if ch == "{" then depth = depth + 1
-      elseif ch == "}" then depth = math.max(0, depth - 1) end
+      if ch == "{" then
+        depth = depth + 1
+      elseif ch == "}" then
+        depth = math.max(0, depth - 1)
+      end
     end
   end
 
@@ -184,8 +191,11 @@ local function find_child_table(lines, s, e, key)
 
     for j = 1, #line do
       local ch = line:sub(j, j)
-      if ch == "{" then depth = depth + 1
-      elseif ch == "}" then depth = math.max(0, depth - 1) end
+      if ch == "{" then
+        depth = depth + 1
+      elseif ch == "}" then
+        depth = math.max(0, depth - 1)
+      end
     end
   end
 
@@ -195,9 +205,9 @@ end
 local function find_key_assignment(lines, s, e, key)
   local ke = esc(key)
   local patterns = {
-    "^%s*" .. ke .. "%s*=",                 -- key =
-    "^%s*%[\"" .. ke .. "\"%]%s*=",        -- ["key"] =
-    "^%s*%['" .. ke .. "'%]%s*=",          -- ['key'] =
+    "^%s*" .. ke .. "%s*=", -- key =
+    '^%s*%["' .. ke .. '"%]%s*=', -- ["key"] =
+    "^%s*%['" .. ke .. "'%]%s*=", -- ['key'] =
   }
   for i = s, e do
     local line = lines[i]
@@ -213,7 +223,7 @@ end
 local function find_global_table(lines, key)
   local k = esc(key)
   local pat_inline = "%f[%w_]" .. k .. "%f[^%w_]%s*=%s*{"
-  local pat_eq     = "%f[%w_]" .. k .. "%f[^%w_]%s*=%s*$"
+  local pat_eq = "%f[%w_]" .. k .. "%f[^%w_]%s*=%s*$"
 
   for i = 1, #lines do
     local s = lines[i]
@@ -252,7 +262,7 @@ function M.locate(abs_path, base_chain, seek_key)
   local lines = vim.fn.readfile(abs_path)
   if type(lines) ~= "table" or #lines == 0 then return nil end
 
-  local segs = split_chain(base_chain)  -- { ROOT, cfg, highlight, ... }
+  local segs = split_chain(base_chain) -- { ROOT, cfg, highlight, ... }
   if #segs == 0 then return nil end
 
   -- final found region
@@ -269,7 +279,7 @@ function M.locate(abs_path, base_chain, seek_key)
 
   -- 2) progressive: ROOT.cfg = { ... } -> child "highlight" -> ...
   if (not found) and (#segs >= 2) then
-    local top = table.concat({ segs[1], segs[2] or "" }, "."):gsub("%.%s*$","")
+    local top = table.concat({ segs[1], segs[2] or "" }, "."):gsub("%.%s*$", "")
     if top ~= "" then
       local t_s, t_e = find_direct_table(lines, top)
       if t_s and t_e then
@@ -277,10 +287,15 @@ function M.locate(abs_path, base_chain, seek_key)
         local ok = true
         for i = 3, #segs do
           local s2, e2 = find_child_table(lines, s, e, segs[i])
-          if not s2 or not e2 then ok = false; break end
+          if not s2 or not e2 then
+            ok = false
+            break
+          end
           s, e = s2, e2
         end
-        if ok then fs, fe, found = s, e, true end
+        if ok then
+          fs, fe, found = s, e, true
+        end
       end
     end
   end
@@ -302,10 +317,15 @@ function M.locate(abs_path, base_chain, seek_key)
       local ok = true
       for i = 1, #segs do
         local s2, e2 = find_child_table(lines, s, e, segs[i])
-        if not s2 or not e2 then ok = false; break end
+        if not s2 or not e2 then
+          ok = false
+          break
+        end
         s, e = s2, e2
       end
-      if ok then fs, fe, found = s, e, true end
+      if ok then
+        fs, fe, found = s, e, true
+      end
     end
   end
 
@@ -317,10 +337,15 @@ function M.locate(abs_path, base_chain, seek_key)
       local ok = true
       for i = 3, #segs do
         local s2, e2 = find_child_table(lines, s, e, segs[i])
-        if not s2 or not e2 then ok = false; break end
+        if not s2 or not e2 then
+          ok = false
+          break
+        end
         s, e = s2, e2
       end
-      if ok then fs, fe, found = s, e, true end
+      if ok then
+        fs, fe, found = s, e, true
+      end
     end
   end
 
@@ -331,7 +356,7 @@ function M.locate(abs_path, base_chain, seek_key)
       local ke = esc(seek_key)
       local patterns = {
         "^%s*" .. dotted .. "%." .. ke .. "%s*=",
-        '^%s*' .. dotted .. '%["' .. ke .. '"%]%s*=',
+        "^%s*" .. dotted .. '%["' .. ke .. '"%]%s*=',
         "^%s*" .. dotted .. "%['" .. ke .. "'%]%s*=",
       }
       for i = 1, #lines do

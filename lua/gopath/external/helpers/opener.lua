@@ -107,15 +107,11 @@ end
 ---@param path string File path or URL
 ---@return boolean success True if opener was invoked
 function M.open_with_system(path)
-  if not path or path == "" then
-    return false
-  end
+  if not path or path == "" then return false end
 
   if open_nvim then
     local ok, err = pcall(open_nvim.open, "default", "path=" .. path)
-    if ok then
-      return true
-    end
+    if ok then return true end
     LOG.warn("open_nvim.open() failed: " .. tostring(err) .. " — falling back to built-in opener")
   end
 

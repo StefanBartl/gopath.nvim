@@ -5,10 +5,10 @@ local M = {}
 
 -- ── Helpers ──────────────────────────────────────────────────────────────────
 
-local ok_s   = vim.health.ok    or vim.health.report_ok
-local warn_s  = vim.health.warn  or vim.health.report_warn
-local err_s   = vim.health.error or vim.health.report_error
-local info_s  = vim.health.info  or vim.health.report_info
+local ok_s = vim.health.ok or vim.health.report_ok
+local warn_s = vim.health.warn or vim.health.report_warn
+local err_s = vim.health.error or vim.health.report_error
+local info_s = vim.health.info or vim.health.report_info
 local start_s = vim.health.start or vim.health.report_start
 
 local function exe(bin)
@@ -28,7 +28,14 @@ local function check_neovim()
   if v.major > 0 or v.minor >= 9 then
     ok_s(string.format("Neovim %d.%d.%d (>= 0.9 required)", v.major, v.minor, v.patch))
   else
-    err_s(string.format("Neovim %d.%d.%d detected — gopath.nvim requires 0.9+", v.major, v.minor, v.patch))
+    err_s(
+      string.format(
+        "Neovim %d.%d.%d detected — gopath.nvim requires 0.9+",
+        v.major,
+        v.minor,
+        v.patch
+      )
+    )
   end
   if v.major > 0 or v.minor >= 10 then
     ok_s("vim.fs.joinpath available (Neovim 0.10+)")
@@ -45,15 +52,19 @@ local function check_external_tools()
   elseif exe("fdfind") then
     ok_s("fdfind found — used by tailsearch + truncated.finder")
   else
-    warn_s("fd / fdfind not found — install fd-find for best performance\n"
-        .. "  tailsearch and truncated.finder will fall back to rg")
+    warn_s(
+      "fd / fdfind not found — install fd-find for best performance\n"
+        .. "  tailsearch and truncated.finder will fall back to rg"
+    )
   end
 
   if exe("rg") then
     ok_s("rg (ripgrep) found — used as fallback search tool")
   else
-    warn_s("rg not found — install ripgrep for fallback search\n"
-        .. "  Without fd AND rg, suffix search and live-search fallback are unavailable")
+    warn_s(
+      "rg not found — install ripgrep for fallback search\n"
+        .. "  Without fd AND rg, suffix search and live-search fallback are unavailable"
+    )
   end
 
   if exe("git") then
@@ -66,10 +77,13 @@ end
 local function check_lsp()
   start_s("LSP")
   local clients = vim.lsp.get_clients and vim.lsp.get_clients()
-              or (vim.lsp.get_active_clients and vim.lsp.get_active_clients()) or {}
+    or (vim.lsp.get_active_clients and vim.lsp.get_active_clients())
+    or {}
   if #clients > 0 then
     local names = {}
-    for _, c in ipairs(clients) do names[#names + 1] = c.name end
+    for _, c in ipairs(clients) do
+      names[#names + 1] = c.name
+    end
     ok_s(string.format("%d active LSP client(s): %s", #clients, table.concat(names, ", ")))
   else
     info_s("No active LSP clients in current buffer — language resolvers need LSP")
@@ -97,8 +111,10 @@ local function check_open_nvim()
   if require_ok("open_nvim") then
     ok_s("open.nvim installed — external files routed through its 'default' handler (WSL-aware)")
   else
-    info_s("open.nvim not installed — external files use gopath's built-in per-OS opener\n"
-        .. "  install StefanBartl/open.nvim for shared handlers and WSL support")
+    info_s(
+      "open.nvim not installed — external files use gopath's built-in per-OS opener\n"
+        .. "  install StefanBartl/open.nvim for shared handlers and WSL support"
+    )
   end
 end
 
@@ -109,15 +125,21 @@ local function check_lib_nvim()
   if require_ok("lib.nvim.usercmd.composer") then
     ok_s("lib.nvim detected (:Gopath command layer available)")
   else
-    warn_s("lib.nvim not found — :Gopath will fail to register\n"
-        .. "  install StefanBartl/lib.nvim as a dependency")
+    warn_s(
+      "lib.nvim not found — :Gopath will fail to register\n"
+        .. "  install StefanBartl/lib.nvim as a dependency"
+    )
   end
   if require_ok("lib.nvim.ui.kit") then
-    ok_s("lib.nvim installed — create-on-missing dialog uses ui.kit.confirm, notify styling active")
+    ok_s(
+      "lib.nvim installed — create-on-missing dialog uses ui.kit.confirm, notify styling active"
+    )
   else
-    info_s("lib.nvim not installed — create-on-missing dialog falls back to vim.ui.select,\n"
+    info_s(
+      "lib.nvim not installed — create-on-missing dialog falls back to vim.ui.select,\n"
         .. "  notify/cross-path helpers use built-in fallbacks\n"
-        .. "  install StefanBartl/lib.nvim for the themed dialog and consistent styling")
+        .. "  install StefanBartl/lib.nvim for the themed dialog and consistent styling"
+    )
   end
 end
 
@@ -125,14 +147,20 @@ local function check_filetree_nvim()
   start_s("filetree.nvim")
   local ok_ft, filetree = pcall(require, "filetree")
   if ok_ft and type(filetree) == "table" and filetree.is_initialized() then
-    ok_s("filetree.nvim installed and set up — create-on-missing dialog offers 'Open in filetree'")
+    ok_s(
+      "filetree.nvim installed and set up — create-on-missing dialog offers 'Open in filetree'"
+    )
   elseif ok_ft then
-    info_s("filetree.nvim installed but setup() not called (or not yet run) — "
-        .. "'Open in filetree' choice unavailable until then")
+    info_s(
+      "filetree.nvim installed but setup() not called (or not yet run) — "
+        .. "'Open in filetree' choice unavailable until then"
+    )
   else
-    info_s("filetree.nvim not installed — create-on-missing dialog has no 'Open in filetree' choice\n"
+    info_s(
+      "filetree.nvim not installed — create-on-missing dialog has no 'Open in filetree' choice\n"
         .. "  install StefanBartl/filetree.nvim to open the nearest existing ancestor "
-        .. "directory there instead of just creating the file")
+        .. "directory there instead of just creating the file"
+    )
   end
 end
 
@@ -207,8 +235,11 @@ local function check_config()
   local com = cfg.create_on_missing or {}
   if com.enable ~= false then
     ok_s("create_on_missing.enable = true  (offers to create missing files)")
-    info_s("  confirm = " .. tostring(com.confirm ~= false)
-        .. "  (dialog: lib.nvim ui.kit.confirm / vim.ui.select — see below)")
+    info_s(
+      "  confirm = "
+        .. tostring(com.confirm ~= false)
+        .. "  (dialog: lib.nvim ui.kit.confirm / vim.ui.select — see below)"
+    )
   else
     info_s("create_on_missing.enable = false — 'gC'/:GopathCheck still offers to create")
   end
@@ -217,9 +248,7 @@ local function check_config()
   local maps = cfg.mappings or {}
   local function km(name)
     local v = maps[name]
-    if v and v ~= false then
-      info_s(string.format("  %-16s %s", name .. " =", vim.inspect(v)))
-    end
+    if v and v ~= false then info_s(string.format("  %-16s %s", name .. " =", vim.inspect(v))) end
   end
   km("open_here")
   km("open_split")
@@ -256,14 +285,21 @@ local function check_truncated()
     return
   end
 
-  local ok_load = pcall(function() cache.load_from_disk() end)
+  local ok_load = pcall(function()
+    cache.load_from_disk()
+  end)
   if ok_load then
     local state = cache._get_state and cache._get_state() or {}
-    local n     = #(state.paths or {})
+    local n = #(state.paths or {})
     local built = state.last_built
     if n > 0 then
-      ok_s(string.format("Cache loaded: %d files indexed (last built: %s)",
-        n, built and os.date("%Y-%m-%d %H:%M", built) or "unknown"))
+      ok_s(
+        string.format(
+          "Cache loaded: %d files indexed (last built: %s)",
+          n,
+          built and os.date("%Y-%m-%d %H:%M", built) or "unknown"
+        )
+      )
     else
       warn_s("Cache is empty — run :Gopath cache build to index the filesystem")
     end

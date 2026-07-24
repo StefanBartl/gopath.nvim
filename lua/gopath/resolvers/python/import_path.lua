@@ -13,7 +13,7 @@
 --- directory. Standard-library and site-packages modules are intentionally not
 --- resolved offline; an LSP handles those when available.
 
-local H    = require("gopath.resolvers.common.lang_helper")
+local H = require("gopath.resolvers.common.lang_helper")
 local PATH = require("gopath.util.path")
 
 local M = {}
@@ -43,9 +43,7 @@ local function resolve_relative(dots, tail)
     dir = vim.fn.fnamemodify(dir, ":h")
   end
 
-  if tail and tail ~= "" then
-    return H.first_existing(dotted_to_candidates(dir, tail))
-  end
+  if tail and tail ~= "" then return H.first_existing(dotted_to_candidates(dir, tail)) end
   -- `from . import x` → the package __init__ itself
   return H.first_existing({ PATH.join(dir, "__init__.py") })
 end
@@ -72,9 +70,7 @@ local function parse_import(line)
 
   -- import foo.bar  /  import foo.bar as b
   mod = line:match("^%s*import%s+([%w_%.]+)")
-  if mod then
-    return mod, nil, nil
-  end
+  if mod then return mod, nil, nil end
 
   return nil, nil, nil
 end
@@ -102,9 +98,7 @@ end
 function M.resolve()
   local line = H.current_line()
   local dotted, rel_dots, imported = parse_import(line)
-  if not dotted and not rel_dots then
-    return nil
-  end
+  if not dotted and not rel_dots then return nil end
 
   local abs
   if rel_dots then
@@ -113,20 +107,16 @@ function M.resolve()
     -- Try project root first, then current-file dir as a fallback.
     local root = H.find_root(PY_ROOT_MARKERS) or H.current_file_dir()
     abs = resolve_under(root, dotted, imported)
-    if not abs then
-      abs = resolve_under(H.current_file_dir(), dotted, imported)
-    end
+    if not abs then abs = resolve_under(H.current_file_dir(), dotted, imported) end
   end
 
-  if not abs then
-    return nil
-  end
+  if not abs then return nil end
 
   return H.make_result({
-    language   = "python",
-    path       = abs,
-    exists     = true,
-    kind       = "module",
+    language = "python",
+    path = abs,
+    exists = true,
+    kind = "module",
     confidence = 0.8,
   })
 end

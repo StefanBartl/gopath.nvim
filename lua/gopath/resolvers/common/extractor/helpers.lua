@@ -31,9 +31,7 @@ end
 local function with_raw_key(list)
   local out = {}
   for _, c in ipairs(list or {}) do
-    if c and c.raw and c.raw ~= "" then
-      out[#out + 1] = c
-    end
+    if c and c.raw and c.raw ~= "" then out[#out + 1] = c end
   end
   return out
 end

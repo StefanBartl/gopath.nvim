@@ -14,13 +14,13 @@
 --- package.json "exports"/"main" resolution is intentionally shallow — an LSP
 --- handles the precise cases when present.
 
-local H    = require("gopath.resolvers.common.lang_helper")
+local H = require("gopath.resolvers.common.lang_helper")
 local PATH = require("gopath.util.path")
 
 local M = {}
 
 -- Extension probe order: TS first (covers TS projects), then JS, then JSON.
-local EXTS        = { ".ts", ".tsx", ".d.ts", ".js", ".jsx", ".mjs", ".cjs", ".json" }
+local EXTS = { ".ts", ".tsx", ".d.ts", ".js", ".jsx", ".mjs", ".cjs", ".json" }
 local INDEX_NAMES = { "index" }
 
 ---Extract the import specifier string from the current line.
@@ -37,7 +37,7 @@ local function parse_specifier(line)
 
   -- require('<spec>')  /  import('<spec>')  (dynamic)
   spec = line:match("require%s*%(%s*['\"]([^'\"]+)['\"]")
-      or line:match("import%s*%(%s*['\"]([^'\"]+)['\"]")
+    or line:match("import%s*%(%s*['\"]([^'\"]+)['\"]")
   if spec then return spec end
 
   return nil
@@ -107,10 +107,10 @@ function M.resolve()
   if not abs then return nil end
 
   return H.make_result({
-    language   = vim.bo.filetype or "javascript",
-    path       = abs,
-    exists     = true,
-    kind       = "module",
+    language = vim.bo.filetype or "javascript",
+    path = abs,
+    exists = true,
+    kind = "module",
     confidence = 0.8,
   })
 end

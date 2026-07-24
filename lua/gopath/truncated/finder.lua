@@ -22,7 +22,7 @@ end
 ---@param tail string
 ---@return boolean
 local function path_ends_with(abs, tail)
-  abs  = (abs  or ""):gsub("\\", "/")
+  abs = (abs or ""):gsub("\\", "/")
   tail = (tail or ""):gsub("\\", "/")
   if #tail > #abs then return false end
   if abs:sub(-#tail) ~= tail then return false end
@@ -40,8 +40,7 @@ local function search_root(tail, root, tool)
   local basename = tail:match("([^/]+)$") or tail
   local cmd
   if tool == "fd" or tool == "fdfind" then
-    cmd = { tool, "--type", "f", "--hidden", "--follow", "--no-ignore-vcs",
-            basename, root }
+    cmd = { tool, "--type", "f", "--hidden", "--follow", "--no-ignore-vcs", basename, root }
   else
     cmd = { "rg", "--files", "--hidden", "-g", basename, root }
   end
@@ -49,17 +48,13 @@ local function search_root(tail, root, tool)
   local ok, proc = pcall(vim.system, cmd, { text = true })
   if not ok or not proc then return {} end
   local res = proc:wait()
-  if not res or res.code ~= 0 or not res.stdout or res.stdout == "" then
-    return {}
-  end
+  if not res or res.code ~= 0 or not res.stdout or res.stdout == "" then return {} end
 
   local out = {}
   for line in res.stdout:gmatch("[^\r\n]+") do
     if line ~= "" then
       local norm = vim.fs.normalize(line)
-      if path_ends_with(norm, tail) then
-        out[#out + 1] = norm
-      end
+      if path_ends_with(norm, tail) then out[#out + 1] = norm end
     end
   end
   return out
@@ -95,8 +90,8 @@ function M.find(tail, opts)
     return {}
   end
 
-  local limit   = opts.limit or 100
-  local seen    = {}
+  local limit = opts.limit or 100
+  local seen = {}
   local results = {}
 
   for _, root in ipairs(roots) do
@@ -119,18 +114,35 @@ end
 ---@return table<string, boolean> excluded, integer max_depth
 local function walk_settings()
   local excluded = {
-    [".git"] = true, [".github"] = true, [".svn"] = true, [".hg"] = true,
-    ["node_modules"] = true, ["target"] = true, ["build"] = true, ["dist"] = true,
-    [".cache"] = true, [".venv"] = true, ["venv"] = true, ["__pycache__"] = true,
-    [".nuxt"] = true, [".next"] = true, [".turbo"] = true,
-    ["tmp"] = true, ["temp"] = true, ["vendor"] = true,
+    [".git"] = true,
+    [".github"] = true,
+    [".svn"] = true,
+    [".hg"] = true,
+    ["node_modules"] = true,
+    ["target"] = true,
+    ["build"] = true,
+    ["dist"] = true,
+    [".cache"] = true,
+    [".venv"] = true,
+    ["venv"] = true,
+    ["__pycache__"] = true,
+    [".nuxt"] = true,
+    [".next"] = true,
+    [".turbo"] = true,
+    ["tmp"] = true,
+    ["temp"] = true,
+    ["vendor"] = true,
   }
   local max_depth = 8
-  local ok, cfg = pcall(function() return require("gopath.config").get() end)
+  local ok, cfg = pcall(function()
+    return require("gopath.config").get()
+  end)
   if ok and cfg and cfg.truncated then
     if type(cfg.truncated.excluded_dirs) == "table" then
       excluded = {}
-      for _, d in ipairs(cfg.truncated.excluded_dirs) do excluded[d] = true end
+      for _, d in ipairs(cfg.truncated.excluded_dirs) do
+        excluded[d] = true
+      end
     end
     if type(cfg.truncated.max_depth) == "number" then
       -- allow a couple of extra levels for tail matches that sit deeper than
@@ -148,22 +160,25 @@ end
 ---@param opts table|nil  { roots?: string[], limit?: integer, max_concurrency?: integer }
 ---@param on_done fun(matches: string[])  called once with all matches (may be async)
 function M.find_async(tail, opts, on_done)
-  if not tail or tail == "" then on_done({}); return end
+  if not tail or tail == "" then
+    on_done({})
+    return
+  end
   opts = opts or {}
 
   local roots = opts.roots
   if not roots or #roots == 0 then roots = default_roots() end
 
-  local limit       = opts.limit or 100
+  local limit = opts.limit or 100
   local concurrency = opts.max_concurrency or 16
   local excluded, max_depth = walk_settings()
 
-  local queue   = {}   -- pending { dir, depth }
-  local seen    = {}   -- de-dupe matches
+  local queue = {} -- pending { dir, depth }
+  local seen = {} -- de-dupe matches
   local results = {}
-  local active  = 0
-  local qhead   = 1
-  local done    = false
+  local active = 0
+  local qhead = 1
+  local done = false
 
   for i = 1, #roots do
     if type(roots[i]) == "string" and roots[i] ~= "" then
@@ -176,10 +191,12 @@ function M.find_async(tail, opts, on_done)
     done = true
     -- Always hand control back on the main loop: callers touch vim.* APIs
     -- (vim.bo, vim.cmd, …) that are unsafe in a libuv fast-event context.
-    vim.schedule(function() on_done(results) end)
+    vim.schedule(function()
+      on_done(results)
+    end)
   end
 
-  local pump  -- forward declaration
+  local pump -- forward declaration
 
   local function scan_one(item)
     ---@diagnostic disable-next-line lib.uv
@@ -226,9 +243,7 @@ function M.find_async(tail, opts, on_done)
       active = active + 1
       scan_one(item)
     end
-    if active == 0 and qhead > #queue then
-      finish()
-    end
+    if active == 0 and qhead > #queue then finish() end
   end
 
   if #queue == 0 then

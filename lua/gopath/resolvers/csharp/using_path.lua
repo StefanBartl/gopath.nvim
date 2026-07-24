@@ -13,7 +13,7 @@
 --- falls back to any file named after the final namespace segment. OmniSharp
 --- provides exact navigation when an LSP is attached.
 
-local H    = require("gopath.resolvers.common.lang_helper")
+local H = require("gopath.resolvers.common.lang_helper")
 local PATH = require("gopath.util.path")
 
 local M = {}
@@ -36,12 +36,10 @@ end
 ---@return GopathResult|nil
 function M.resolve()
   local dotted = parse_using(H.current_line())
-  if not dotted or not dotted:match("%.") then
-    return nil
-  end
+  if not dotted or not dotted:match("%.") then return nil end
 
   local root = H.find_root(CS_ROOT_MARKERS) or H.current_file_dir()
-  local rel  = dotted:gsub("%.", "/")
+  local rel = dotted:gsub("%.", "/")
 
   -- 1. Mirror the namespace as a directory path: My/App/Utils.cs
   local abs = H.first_existing({ PATH.join(root, rel .. ".cs") })
@@ -51,7 +49,9 @@ function M.resolve()
     local last = dotted:match("([%w_]+)$")
     if last then
       local ok, found = pcall(vim.fs.find, last .. ".cs", {
-        type = "file", limit = 1, path = root,
+        type = "file",
+        limit = 1,
+        path = root,
       })
       if ok and type(found) == "table" and found[1] then
         abs = vim.fn.fnamemodify(found[1], ":p")
@@ -62,11 +62,11 @@ function M.resolve()
   if not abs then return nil end
 
   return H.make_result({
-    language   = "cs",
-    path       = abs,
-    exists     = true,
-    kind       = "module",
-    confidence = 0.7,  -- heuristic mapping → slightly lower confidence
+    language = "cs",
+    path = abs,
+    exists = true,
+    kind = "module",
+    confidence = 0.7, -- heuristic mapping → slightly lower confidence
   })
 end
 

@@ -11,7 +11,7 @@
 --- Makefile, compile_commands.json, .git). System headers (`<stdio.h>`) are
 --- looked up in a small set of conventional locations as best-effort.
 
-local H    = require("gopath.resolvers.common.lang_helper")
+local H = require("gopath.resolvers.common.lang_helper")
 local PATH = require("gopath.util.path")
 
 local M = {}
@@ -41,9 +41,7 @@ function M.resolve()
   local candidates = {}
 
   -- Quoted form: current file's directory has highest priority.
-  if not is_angled then
-    candidates[#candidates + 1] = PATH.join(H.current_file_dir(), header)
-  end
+  if not is_angled then candidates[#candidates + 1] = PATH.join(H.current_file_dir(), header) end
 
   -- Project include roots.
   local root = H.find_root(C_ROOT_MARKERS)
@@ -62,10 +60,10 @@ function M.resolve()
   if not abs then return nil end
 
   return H.make_result({
-    language   = vim.bo.filetype or "c",
-    path       = abs,
-    exists     = true,
-    kind       = "module",
+    language = vim.bo.filetype or "c",
+    path = abs,
+    exists = true,
+    kind = "module",
     confidence = 0.8,
   })
 end

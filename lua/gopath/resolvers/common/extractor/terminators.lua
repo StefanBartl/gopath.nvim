@@ -3,16 +3,16 @@
 
 ---@type table<string,boolean>
 return {
-  [" "]  = true,
+  [" "] = true,
   ["\t"] = true,
-  ["("]  = true,
-  [")"]  = true,
-  ["<"]  = true,
-  [">"]  = true,
-  ['"']  = true,
-  ["'"]  = true,
-  [","]  = true,
-  [";"]  = true,
-  ["|"]  = true,
-  ["`"]  = true,
+  ["("] = true,
+  [")"] = true,
+  ["<"] = true,
+  [">"] = true,
+  ['"'] = true,
+  ["'"] = true,
+  [","] = true,
+  [";"] = true,
+  ["|"] = true,
+  ["`"] = true,
 }

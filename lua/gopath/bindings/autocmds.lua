@@ -27,20 +27,16 @@ function M.setup(config)
   })
 
   local tcfg = config.truncated
-  if not (tcfg and tcfg.enable and tcfg.auto_rebuild_on_save) then
-    return
-  end
+  if not (tcfg and tcfg.enable and tcfg.auto_rebuild_on_save) then return end
 
   autocmd.create("BufWritePost", function()
     -- Debounced: at most one rebuild per 5 minutes.
     vim.defer_fn(function()
       local cache = require("gopath.truncated.cache")
-      if cache.needs_refresh(300) then
-        cache.build_async(function() end)
-      end
+      if cache.needs_refresh(300) then cache.build_async(function() end) end
     end, 1000)
   end, {
-    group   = autocmd.group("GopathCacheAutoRebuild", true),
+    group = autocmd.group("GopathCacheAutoRebuild", true),
     pattern = tcfg.watch_patterns or { "*.lua", "*.vim" },
   })
 end

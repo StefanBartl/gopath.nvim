@@ -11,9 +11,7 @@ local M = {}
 ---@param lhs string|string[]|false|nil
 ---@return string[]|nil
 local function normalize_lhs(lhs)
-  if lhs == false or lhs == nil or lhs == "" then
-    return nil
-  end
+  if lhs == false or lhs == nil or lhs == "" then return nil end
 
   if type(lhs) == "string" then
     ---@type string[]
@@ -36,9 +34,7 @@ end
 ---@return nil
 local function map_many(mode, lhs, rhs, desc)
   local lhs_list = normalize_lhs(lhs)
-  if not lhs_list then
-    return
-  end
+  if not lhs_list then return end
 
   for _, key in ipairs(lhs_list) do
     map(mode, key, rhs, {}, "gopath: " .. desc)
@@ -49,9 +45,7 @@ end
 ---@param config GopathOptions
 ---@return nil
 function M.setup(config)
-  if config.mappings == false then
-    return
-  end
+  if config.mappings == false then return end
 
   local maps = config.mappings or {}
   local commands = require("gopath.commands")
@@ -104,7 +98,11 @@ function M.setup(config)
         -- Visual mode: probe selection
         map("v", key, function()
           -- Exit visual mode first so marks '< '> are set
-          vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "x", false)
+          vim.api.nvim_feedkeys(
+            vim.api.nvim_replace_termcodes("<Esc>", true, false, true),
+            "x",
+            false
+          )
           vim.schedule(function()
             commands.probe_selection({ open_cmd = "vsplit", ask = true })
           end)

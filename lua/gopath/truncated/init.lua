@@ -37,12 +37,10 @@ local OPEN_CMD = {
 ---@param path string Path to check
 ---@return boolean is_truncated
 function M.is_truncated(path)
-  if type(path) ~= "string" or path == "" then
-    return false
-  end
+  if type(path) ~= "string" or path == "" then return false end
 
   return path:match("^%.%.%.") ~= nil -- starts with ... (three or more)
-      or path:match("^…") ~= nil -- unicode ellipsis
+    or path:match("^…") ~= nil -- unicode ellipsis
 end
 
 ---Extract the meaningful tail from a truncated path.
@@ -67,9 +65,7 @@ local function open_path(path, open_cmd, line, col)
   local cmd = OPEN_CMD[open_cmd] or "edit"
 
   local ok = pcall(vim.cmd, cmd .. " " .. vim.fn.fnameescape(path))
-  if not ok then
-    return false
-  end
+  if not ok then return false end
 
   if line and line > 0 then
     -- nvim_win_set_cursor uses 0-based columns
@@ -88,9 +84,7 @@ end
 ---  - open_cmd: string (default "edit")
 ---@return boolean handled True if a file was opened (or a selection shown)
 function M.try_resolve(truncated_path, opts)
-  if not M.is_truncated(truncated_path) then
-    return false
-  end
+  if not M.is_truncated(truncated_path) then return false end
 
   opts = opts or {}
   local use_cache = opts.use_cache ~= false
@@ -99,18 +93,14 @@ function M.try_resolve(truncated_path, opts)
   -- Separate the path from an optional :line[:col] suffix BEFORE searching,
   -- otherwise the location digits poison every filename comparison.
   local raw_tail = extract_tail(truncated_path)
-  if raw_tail == "" then
-    return false
-  end
+  if raw_tail == "" then return false end
 
   local parsed = LOC.parse_location(raw_tail)
   local tail = parsed.path
   local line = parsed.line
   local col = parsed.col
 
-  if not tail or tail == "" then
-    return false
-  end
+  if not tail or tail == "" then return false end
 
   -- === Cache search (fast path) ===
   if use_cache then
@@ -118,9 +108,7 @@ function M.try_resolve(truncated_path, opts)
     if ok then
       local results = cache.search(tail)
       if results and #results > 0 then
-        if #results == 1 then
-          return open_path(results[1], open_cmd, line, col)
-        end
+        if #results == 1 then return open_path(results[1], open_cmd, line, col) end
         return M._show_selection(results, tail, "cache", open_cmd, line, col)
       end
     end
@@ -128,9 +116,7 @@ function M.try_resolve(truncated_path, opts)
 
   -- === Live filesystem search (fallback) ===
   local ok, finder = pcall(require, "gopath.truncated.finder")
-  if not ok then
-    return false
-  end
+  if not ok then return false end
 
   local live = finder.find(tail)
   if not live or #live == 0 then
@@ -138,9 +124,7 @@ function M.try_resolve(truncated_path, opts)
     return false
   end
 
-  if #live == 1 then
-    return open_path(live[1], open_cmd, line, col)
-  end
+  if #live == 1 then return open_path(live[1], open_cmd, line, col) end
 
   return M._show_selection(live, tail, "live search", open_cmd, line, col)
 end

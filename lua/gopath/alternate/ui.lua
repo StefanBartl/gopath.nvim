@@ -19,9 +19,7 @@ function M.present_selection(matches, original_path, opts)
   local line = opts.line
   local col = opts.col
 
-  if not matches or #matches == 0 then
-    return false
-  end
+  if not matches or #matches == 0 then return false end
 
   -- === Format Items for Display ===
   -- Show: "filename (85%)"
@@ -38,13 +36,16 @@ function M.present_selection(matches, original_path, opts)
   -- This respects user's UI backend configuration
   -- (e.g., if they have telescope-ui-select or dressing.nvim installed)
   vim.ui.select(items, {
-    prompt = string.format("File not found: %s - Select alternate:", vim.fn.fnamemodify(original_path, ":t")),
+    prompt = string.format(
+      "File not found: %s - Select alternate:",
+      vim.fn.fnamemodify(original_path, ":t")
+    ),
     format_item = function(item)
       return "  " .. item
     end,
   }, function(_, index)
     if not index then
-      return  -- User cancelled
+      return -- User cancelled
     end
 
     local match = matches[index]

@@ -17,9 +17,7 @@ function M.extract_at_cursor()
   local start_col = col
   while start_col > 1 do
     local char = line:sub(start_col - 1, start_col - 1)
-    if not char:match(path_chars) then
-      break
-    end
+    if not char:match(path_chars) then break end
     start_col = start_col - 1
   end
 
@@ -27,21 +25,17 @@ function M.extract_at_cursor()
   local end_col = col
   while end_col <= #line do
     local char = line:sub(end_col, end_col)
-    if not char:match(path_chars) then
-      break
-    end
+    if not char:match(path_chars) then break end
     end_col = end_col + 1
   end
   end_col = end_col - 1
 
-  if start_col > end_col then
-    return nil
-  end
+  if start_col > end_col then return nil end
 
   local token = line:sub(start_col, end_col)
 
   -- Clean token
-  token = token:gsub("^%s+", ""):gsub("%s+$", "")  -- Trim whitespace
+  token = token:gsub("^%s+", ""):gsub("%s+$", "") -- Trim whitespace
   -- Strip leading "(" pulled in from a markdown link "](path)" or a wrapping
   -- function call. "(" is part of path_chars (to support "path(10)"), so a
   -- leading one has to be removed explicitly.
@@ -49,15 +43,11 @@ function M.extract_at_cursor()
   -- Strip a single leading dot from chain context (".foo" -> "foo"),
   -- but preserve an ellipsis prefix ("...foo") used for truncated paths AND
   -- relative-path prefixes ("./foo", ".\foo") which must keep their dot.
-  if not token:match("^%.%.") and not token:match("^%.[/\\]") then
-    token = token:gsub("^%.", "")
-  end
-  token = token:gsub("%)$", "")  -- Strip trailing paren (function calls)
-  token = token:gsub("%($", "")  -- Strip trailing opening paren
+  if not token:match("^%.%.") and not token:match("^%.[/\\]") then token = token:gsub("^%.", "") end
+  token = token:gsub("%)$", "") -- Strip trailing paren (function calls)
+  token = token:gsub("%($", "") -- Strip trailing opening paren
 
-  if token == "" then
-    return nil
-  end
+  if token == "" then return nil end
 
   return token
 end
@@ -66,9 +56,7 @@ end
 ---@return string|nil
 function M.expand_cfile()
   local cfile = vim.fn.expand("<cfile>")
-  if type(cfile) == "string" and cfile ~= "" then
-    return cfile
-  end
+  if type(cfile) == "string" and cfile ~= "" then return cfile end
   return nil
 end
 
@@ -76,9 +64,7 @@ end
 ---@return string|nil
 function M.get_token()
   local custom = M.extract_at_cursor()
-  if custom and custom ~= "" then
-    return custom
-  end
+  if custom and custom ~= "" then return custom end
   return M.expand_cfile()
 end
 

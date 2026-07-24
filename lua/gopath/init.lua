@@ -21,24 +21,24 @@ local function _setup_cache(config)
   if not (tcfg and tcfg.enable) then return end
 
   local cache = require("gopath.truncated.cache")
-  local LOG   = require("gopath.util.log")
+  local LOG = require("gopath.util.log")
 
   -- Configure scan roots / depth / exclusions. Without this the cache would
   -- index nothing (scan_roots stays empty) and every resolve would fall back
   -- to the slow live search.
   cache.setup({
-    roots         = tcfg.cache_roots,
-    max_depth     = tcfg.max_depth,
+    roots = tcfg.cache_roots,
+    max_depth = tcfg.max_depth,
     excluded_dirs = tcfg.excluded_dirs,
   })
 
   -- Load persisted cache immediately so the first resolve can use it.
-  pcall(function() cache.load_from_disk() end)
+  pcall(function()
+    cache.load_from_disk()
+  end)
 
   -- Periodic background refresh.
-  if tcfg.use_cache then
-    cache.start_periodic_refresh(tcfg.cache_refresh_interval or 600)
-  end
+  if tcfg.use_cache then cache.start_periodic_refresh(tcfg.cache_refresh_interval or 600) end
 
   -- Initial async build when the cache is missing or stale.
   if cache.needs_refresh(tcfg.max_cache_age or 3600) then
