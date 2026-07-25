@@ -70,7 +70,11 @@ local function minimal_fallback_open(path)
   elseif os_type == "linux" then
     cmd = { "xdg-open", path }
   elseif os_type == "windows" then
-    cmd = { "cmd.exe", "/c", "start", "", path:gsub("/", "\\") }
+    -- explorer.exe hands the target straight to the registered file handler
+    -- with no cmd.exe re-tokenizing in between; `cmd.exe /c start` silently
+    -- truncates a path containing an unescaped `&` (cmd.exe treats a bare
+    -- `&` outside quotes as a command separator).
+    cmd = { "explorer.exe", path:gsub("/", "\\") }
   else
     LOG.error("Unsupported operating system for external opener")
     return false
