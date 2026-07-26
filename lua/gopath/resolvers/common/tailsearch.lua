@@ -378,18 +378,42 @@ function M.probe(raw, opts, on_done)
       on_done(probe_result(M.pick_best(matches), base_conf))
       return
     end
-    vim.ui.select(matches, {
-      prompt = "gopath: multiple matches — pick one",
-      format_item = function(item)
-        local r0 = roots[1]
-        if type(r0) == "string" and #r0 > 1 and item:sub(1, #r0) == r0 then
-          return "./" .. item:sub(#r0 + 2)
-        end
-        return item
+    local function format_item(item)
+      local r0 = roots[1]
+      if type(r0) == "string" and #r0 > 1 and item:sub(1, #r0) == r0 then
+        return "./" .. item:sub(#r0 + 2)
+      end
+      return item
+    end
+    local display = {}
+    for i, item in ipairs(matches) do
+      display[i] = format_item(item)
+    end
+    -- kit.select's on_select never fires on cancel (Esc/q just closes), unlike
+    -- vim.ui.select which always invoked its callback with nil. M.probe's
+    -- contract promises on_done fires exactly once "when finished" either
+    -- way, so guard cancel via on_close, deferred one tick so a real
+    -- selection's on_select (which runs synchronously right after close) has
+    -- already flipped `answered` by the time this runs.
+    local answered = false
+    local surf = require("lib.nvim.ui.kit").select({
+      items = display,
+      title = "gopath: multiple matches — pick one",
+      on_select = function(_, idx)
+        answered = true
+        local choice = matches[idx]
+        on_done(choice and probe_result(choice, 0.85) or nil)
       end,
-    }, function(choice)
-      on_done(choice and probe_result(choice, 0.85) or nil)
-    end)
+    })
+    if surf then
+      surf:on_close(function()
+        vim.schedule(function()
+          if not answered then
+            on_done(nil)
+          end
+        end)
+      end)
+    end
   end
 
   -- 1) Cache fast path (instant).
