@@ -32,39 +32,43 @@ function M.present_selection(matches, original_path, opts)
   -- === Track Selection ===
   local selected = false
 
-  -- === Use Native vim.ui.select ===
-  -- This respects user's UI backend configuration
-  -- (e.g., if they have telescope-ui-select or dressing.nvim installed)
-  vim.ui.select(items, {
-    prompt = string.format(
+  -- === Use kit.select (respect_override) ===
+  -- Defers to the user's configured vim.ui.select backend if one is
+  -- installed (telescope-ui-select, dressing.nvim, ...), otherwise uses
+  -- kit's own themed chooser instead of the plain built-in vim.ui.select.
+  require("lib.nvim.ui.kit").select({
+    items = items,
+    respect_override = true,
+    title = string.format(
       "File not found: %s - Select alternate:",
       vim.fn.fnamemodify(original_path, ":t")
     ),
     format_item = function(item)
       return "  " .. item
     end,
-  }, function(_, index)
-    if not index then
-      return -- User cancelled
-    end
+    on_select = function(_, index)
+      if not index then
+        return -- User cancelled
+      end
 
-    local match = matches[index]
-    if match and match.path then
-      -- === Open Selected File ===
-      -- Use the command specified by caller (respects split/vsplit/etc.)
-      local ok = pcall(vim.cmd, open_cmd .. " " .. vim.fn.fnameescape(match.path))
-      if ok then
-        selected = true
+      local match = matches[index]
+      if match and match.path then
+        -- === Open Selected File ===
+        -- Use the command specified by caller (respects split/vsplit/etc.)
+        local ok = pcall(vim.cmd, open_cmd .. " " .. vim.fn.fnameescape(match.path))
+        if ok then
+          selected = true
 
-        -- Jump to location if the caller provided one (truncated paths carry :line:col)
-        if line and line > 0 then
-          local c = math.max(0, (col or 1) - 1)
-          pcall(vim.api.nvim_win_set_cursor, 0, { line, c })
-          pcall(vim.cmd, "normal! zz")
+          -- Jump to location if the caller provided one (truncated paths carry :line:col)
+          if line and line > 0 then
+            local c = math.max(0, (col or 1) - 1)
+            pcall(vim.api.nvim_win_set_cursor, 0, { line, c })
+            pcall(vim.cmd, "normal! zz")
+          end
         end
       end
-    end
-  end)
+    end,
+  })
 
   return selected
 end
