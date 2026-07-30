@@ -163,11 +163,21 @@ end
 
 -- ── Visual selection helpers ─────────────────────────────────────────────────
 
----Read visual selection (single line) or nil if not in visual mode.
+---Read the text of the `'<`/`'>` visual selection (single line), or nil when
+---the marks hold nothing usable.
+---
+---Deliberately does NOT gate on `nvim_get_mode()`. It used to, and that made
+---the whole function dead code: by the time either caller runs, Visual mode is
+---already over — a `:'<,'>Gopath probe` executes in command mode, and the
+---visual keymap feeds `<Esc>` before its scheduled callback. `mode` was
+---therefore never one of v/V/CTRL-V, the function always returned nil, and the
+---visual probe silently degraded to `<cfile>`/`<cword>` in every case.
+---
+---Whether the marks are meaningful is the caller's knowledge, not something
+---derivable here (they persist from any earlier selection), so callers only
+---invoke this when they know a selection was actually given.
 ---@return string|nil
 local function get_visual_selection()
-  local mode = vim.api.nvim_get_mode().mode
-  if mode ~= "v" and mode ~= "V" and mode ~= "\022" then return nil end
   ---@diagnostic disable-next-line: deprecated
   local srow, scol = unpack(vim.api.nvim_buf_get_mark(0, "<"))
   ---@diagnostic disable-next-line: deprecated
@@ -176,6 +186,7 @@ local function get_visual_selection()
   local line = vim.api.nvim_buf_get_lines(0, srow - 1, srow, false)[1] or ""
   if srow ~= erow then return line:match("%S") and line or nil end
   local i = math.min(scol + 1, #line + 1)
+  -- ecol is MAXCOL for a linewise selection; clamping keeps sub() in range.
   local j = math.min(ecol + 1, #line + 1)
   if j < i then
     i, j = j, i
@@ -197,12 +208,16 @@ end
 
 ---Probe: resolve the path under cursor / in visual selection using suffix-based
 ---filesystem search.  Falls back to vim.ui.select when multiple matches found.
----@param opts { open_cmd?: string, ask?: boolean, roots?: string[], max_components?: integer }|nil
+---
+---`opts.selection` is how a caller states that the `'<`/`'>` marks describe a
+---selection made for THIS invocation — the marks alone can't say so, since they
+---outlive whatever set them. Without it, the cursor token is used.
+---@param opts { open_cmd?: string, ask?: boolean, roots?: string[], max_components?: integer, selection?: boolean }|nil
 function M.probe_selection(opts)
   opts = opts or {}
   local open_cmd = opts.open_cmd or "edit"
 
-  local raw = get_visual_selection() or get_normal_token()
+  local raw = (opts.selection and get_visual_selection()) or get_normal_token()
   if not raw then
     LOG.warn("No path-like token under cursor / in selection")
     return

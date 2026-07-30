@@ -104,7 +104,10 @@ function M.setup(config)
             false
           )
           vim.schedule(function()
-            commands.probe_selection({ open_cmd = "vsplit", ask = true })
+            -- selection=true because this mapping only fires from Visual mode.
+            -- The callee cannot infer that itself: the <Esc> above (and the
+            -- schedule) mean Visual mode is already over by the time it runs.
+            commands.probe_selection({ open_cmd = "vsplit", ask = true, selection = true })
           end)
         end, {}, "gopath: probe selected path (vsplit)")
       end
