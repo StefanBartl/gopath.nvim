@@ -124,9 +124,17 @@ local function register_gopath_cmd(config, commands)
     {
       path = { "probe" },
       args = { { name = "mode", type = "STRING", optional = true, enum = PROBE_MODES } },
+      -- `range` is what makes `:'<,'>Gopath probe` reach the selection at all:
+      -- without it the command is registered range-less, so ctx.range.range is
+      -- always 0 and the probe can never tell a selection from a bare call.
+      range = true,
       desc = "Probe path under cursor/selection",
       run = function(ctx)
-        commands.probe_selection({ open_cmd = ctx.args.mode or "vsplit", ask = true })
+        commands.probe_selection({
+          open_cmd = ctx.args.mode or "vsplit",
+          ask = true,
+          selection = ctx.range.range > 0,
+        })
       end,
     },
   }
@@ -207,10 +215,15 @@ local function register_individual(config, commands)
   -- Probe command (absorbed from pathprobe)
   usercmd.create("GopathProbe", function(o)
     local mode = o.bang and "split" or (o.args ~= "" and o.args or "vsplit")
-    commands.probe_selection({ open_cmd = mode, ask = true })
+    commands.probe_selection({
+      open_cmd = mode,
+      ask = true,
+      selection = (o.range or 0) > 0,
+    })
   end, {
     nargs = "?",
     bang = true,
+    range = true,
     complete = function()
       return PROBE_MODES
     end,
