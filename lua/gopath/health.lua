@@ -345,6 +345,8 @@ function M.check()
   check_config()
   check_truncated()
   check_languages()
+
+  require("lib.nvim.usercmd.composer").checkhealth("Gopath")
 end
 
 return M
