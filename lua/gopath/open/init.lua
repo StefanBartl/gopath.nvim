@@ -32,6 +32,7 @@ local PLACEMENT = {
 
 ---@private
 ---@param range GopathRange|nil
+---@return nil
 local function jump_to_range(range)
   if not range then return end
   local normalized = LOC.normalize_range(range)
@@ -45,6 +46,7 @@ end
 ---Open a resolved location in the specified window mode.
 ---@param res  GopathResult
 ---@param mode GopathOpenMode|nil  defaults to "edit"
+---@return nil
 function M.open(res, mode)
   if not (res and res.path) then return end
 

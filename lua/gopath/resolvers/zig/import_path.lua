@@ -19,6 +19,7 @@ local M = {}
 local BUILTINS = { std = true, builtin = true, root = true, ["c"] = true }
 
 ---Extract the @import("…") argument from the current line.
+---@internal
 ---@param line string
 ---@return string|nil spec
 local function parse_import(line)

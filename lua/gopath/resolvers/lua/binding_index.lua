@@ -9,10 +9,16 @@ local M = {}
 
 local cache = setmetatable({}, { __mode = "k" }) -- bufnr -> _BindingCache
 
+---Current changedtick of `buf`, used to invalidate the binding cache.
+---@internal
+---@param buf integer
+---@return integer
 local function cur_tick(buf)
   return vim.api.nvim_buf_get_changedtick(buf)
 end
 
+---Scan every line of `buf` and rebuild the identifier -> module map.
+---@internal
 ---@param buf integer
 ---@return table<string,string>
 local function rebuild(buf)

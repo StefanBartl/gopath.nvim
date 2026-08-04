@@ -5,6 +5,10 @@ local M = {}
 local helpers = require("gopath.resolvers.common.extractor.helpers")
 local COMMON_EXTS = require("gopath.resolvers.common.extractor.common_extensions")
 
+---Strip a single layer of matching wrapper characters (quotes/brackets) from `raw`.
+---@internal
+---@param raw string
+---@return string
 local function strip_wrappers(raw)
   if not raw or raw == "" then return raw end
   local first, last = raw:sub(1, 1), raw:sub(-1, -1)

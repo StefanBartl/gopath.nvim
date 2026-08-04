@@ -46,6 +46,14 @@ function M.resolve()
   local ts_cfg = cfg.tailsearch or {}
   local max_comp = ts_cfg.max_components or 6
 
+  ---Build a GopathResult for a found file candidate.
+  ---@internal
+  ---@param path string
+  ---@param lineno integer|nil
+  ---@param col integer|nil
+  ---@param source string
+  ---@param confidence number
+  ---@return GopathResult
   local function make_result(path, lineno, col, source, confidence)
     return {
       language = vim.bo.filetype or "text",

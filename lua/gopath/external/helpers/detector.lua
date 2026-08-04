@@ -52,6 +52,7 @@ local EXTERNAL_EXTENSIONS = {
 }
 
 ---Check if a path is a URL.
+---@internal
 ---@param path string
 ---@return boolean is_url
 local function is_url(path)
@@ -65,6 +66,7 @@ local function is_url(path)
 end
 
 ---Check if a file extension indicates an external file.
+---@internal
 ---@param path string
 ---@return boolean is_external
 local function has_external_extension(path)

@@ -26,6 +26,7 @@ do
 end
 
 ---Filter out entries with no usable `raw` key (empty/missing candidates).
+---@internal
 ---@param list table[]
 ---@return table[]
 local function with_raw_key(list)

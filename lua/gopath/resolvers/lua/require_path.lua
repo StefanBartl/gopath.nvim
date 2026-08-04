@@ -14,11 +14,18 @@ local LOC = require("gopath.util.location")
 
 local M = {}
 
+---True when `col` falls within the `[span_s, span_e]` byte range.
+---@internal
+---@param span_s integer|nil
+---@param span_e integer|nil
+---@param col integer
+---@return boolean|nil
 local function cursor_in(span_s, span_e, col)
   return span_s and span_e and col >= span_s and col <= span_e
 end
 
 ---Find a require call on current or adjacent lines that intersects the cursor.
+---@internal
 ---@return string|nil module_name "a.b/c"
 ---@return integer|nil line Optional line number from comment
 ---@return integer|nil col Optional column number from comment
@@ -54,6 +61,7 @@ end
 
 ---Resolve a dotted Lua module string into a file path.
 ---Shared by `require("a.b.c")` and bare/annotation dotted names ("a.b.c").
+---@internal
 ---@param mod string Dotted module name (e.g. "custom.markdown.hl_options")
 ---@return string|nil abs Absolute file path, or nil if not found
 local function module_to_path(mod)
@@ -63,6 +71,7 @@ end
 ---Extract a dotted module name under the cursor, independent of `require(...)`.
 ---This gives gf-parity for `@module 'a.b.c'`, `@see a.b.c` and bare dotted
 ---module names that appear in error messages ("module 'x.y' not found").
+---@internal
 ---@return string|nil mod Dotted module name, or nil
 local function find_dotted_module_at_cursor()
   local ok, token = pcall(function()

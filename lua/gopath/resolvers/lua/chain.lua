@@ -9,6 +9,11 @@ local M = {}
 ---@field base string
 ---@field chain string[]
 
+---Split a dotted/colon token ("M.cfg:foo") into a base identifier and the
+---remaining chain segments. Returns nil when there are fewer than 2 segments.
+---@internal
+---@param tok string
+---@return LuaChain|nil
 local function split_chain(tok)
   local parts = {}
   for p in tok:gmatch("[^%.:]+") do
@@ -20,6 +25,10 @@ local function split_chain(tok)
   return { base = base, chain = parts }
 end
 
+---Regex-based fallback: extract the dotted/colon chain touching the cursor
+---from the raw line text, without treesitter.
+---@internal
+---@return LuaChain|nil
 local function regex_chain_at_cursor()
   local line = vim.api.nvim_get_current_line()
   local col = vim.api.nvim_win_get_cursor(0)[2] + 1
@@ -30,6 +39,10 @@ local function regex_chain_at_cursor()
   return split_chain(tok)
 end
 
+---Treesitter-based chain extraction: climb up through field/index/method
+---nodes from the node under the cursor to build the dotted chain.
+---@internal
+---@return LuaChain|nil
 local function ts_chain_at_cursor()
   local node = TS.node_at_cursor() ---@type TSNode|nil
   if not node then return nil end
@@ -38,7 +51,10 @@ local function ts_chain_at_cursor()
   local leaf = node ---@type TSNode
   local pieces = {}
 
+  ---Return the source text spanned by `n`, or nil for a nil node.
+  ---@internal
   ---@param n TSNode|nil
+  ---@return string|nil
   local function text_of(n)
     if not n then return nil end
     local sr, sc, _, ec = n:range()

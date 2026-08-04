@@ -14,23 +14,40 @@ local uv = vim.uv or vim.loop
 
 -- ── Internal helpers ─────────────────────────────────────────────────────────
 
+---Normalize a path via `vim.fs.normalize`, falling back to the raw input on error.
+---@internal
+---@param p any
+---@return string
 local function normalize(p)
   if type(p) ~= "string" then return "" end
   local ok, r = pcall(vim.fs.normalize, p)
   return (ok and r) or p
 end
 
+---Return true when `p` exists and is a directory.
+---@internal
+---@param p any
+---@return boolean
 local function is_dir(p)
   if type(p) ~= "string" or p == "" then return false end
   local st = uv.fs_stat(p)
   return st ~= nil and st.type == "directory"
 end
 
+---Join two path segments, preferring `vim.fs.joinpath` when available.
+---@internal
+---@param a string
+---@param b string
+---@return string
 local function join(a, b)
   if vim.fs.joinpath then return vim.fs.joinpath(a, b) end
   return a:gsub("/+$", "") .. "/" .. b:gsub("^/+", "")
 end
 
+---Resolve the git repository root for `dir` by invoking `git rev-parse --show-toplevel`.
+---@internal
+---@param dir string
+---@return string|nil
 local function git_root(dir)
   if not is_dir(dir) then return nil end
   local ok, proc = pcall(
@@ -45,6 +62,11 @@ local function git_root(dir)
   return is_dir(root) and root or nil
 end
 
+---Return true when `abs` ends with `tail` on a path-separator boundary.
+---@internal
+---@param abs string
+---@param tail string
+---@return boolean
 local function path_ends_with(abs, tail)
   if type(abs) ~= "string" or type(tail) ~= "string" then return false end
   abs = abs:gsub("\\", "/")
@@ -175,6 +197,7 @@ function M.cache_lookup(tail, max_components)
 end
 
 ---Build a GopathResult for a resolved path.
+---@internal
 ---@param path string
 ---@param conf number
 ---@param rng  GopathRange|nil
@@ -362,11 +385,18 @@ function M.probe(raw, opts, on_done)
   local _ = max_comp -- suffix expansion handled by cache + tail-suffix match
   local bufnr = vim.api.nvim_get_current_buf()
 
+  ---Build a probe GopathResult for `path` at the given confidence, reusing
+  ---the range/bufnr captured at the start of this probe call.
+  ---@internal
+  ---@param path string|nil
+  ---@param conf number
+  ---@return table
   local function probe_result(path, conf)
     return make_result(path, conf, rng, bufnr)
   end
 
   ---Disambiguate `matches` and report the chosen result.
+  ---@internal
   ---@param matches string[]
   ---@param base_conf number
   local function finish(matches, base_conf)

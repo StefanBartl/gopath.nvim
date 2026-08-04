@@ -5,12 +5,18 @@ local M = {}
 
 local cache = setmetatable({}, { __mode = "k" }) -- bufnr -> _AliasCache
 
+---Current changedtick of `bufnr`, used to invalidate the alias cache.
+---@internal
+---@param bufnr integer
+---@return integer
 local function cur_tick(bufnr)
   return vim.api.nvim_buf_get_changedtick(bufnr)
 end
 
+---Scan every line of `bufnr` and rebuild the identifier -> alias-info map.
+---@internal
 ---@param bufnr integer
----@return table<string,_AliasEntry>
+---@return table<string,LuaAliasEntry>
 local function rebuild(bufnr)
   local n = vim.api.nvim_buf_line_count(bufnr)
   local map = {}
@@ -56,7 +62,7 @@ local function rebuild(bufnr)
 end
 
 --- Get alias map for current buffer with changedtick cache.
----@return table<string,_AliasEntry>
+---@return table<string,LuaAliasEntry>
 function M.get_map()
   local buf = 0
   local e = cache[buf]

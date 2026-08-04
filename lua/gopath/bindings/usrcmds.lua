@@ -31,6 +31,7 @@ local OPEN_MODES = { "edit", "split", "vsplit", "tab" }
 local PROBE_MODES = { "edit", "split", "vsplit" }
 
 ---Normalize open/probe mode strings to the keys used by commands.lua.
+---@internal
 ---@param raw string
 ---@return string
 local function norm_mode(raw)
@@ -44,6 +45,9 @@ end
 -- ── Cache subcommand bodies (extracted from the old inline handler so the
 -- composer routes below can call them directly) ─────────────────────────────
 
+---Rebuild the filesystem cache asynchronously, logging the outcome.
+---@internal
+---@return nil
 local function cache_build()
   local cache = require("gopath.truncated.cache")
   LOG.info("Building filesystem cache…")
@@ -57,6 +61,9 @@ local function cache_build()
   end)
 end
 
+---Log a summary of the filesystem cache's current state (size, age, staleness).
+---@internal
+---@return nil
 local function cache_info()
   local cache = require("gopath.truncated.cache")
   cache.load_from_disk()
@@ -75,7 +82,10 @@ local function cache_info()
   }, "\n"))
 end
 
+---Add a directory to the filesystem cache roots and persist it.
+---@internal
 ---@param dir string
+---@return nil
 local function cache_add_root(dir)
   local cache = require("gopath.truncated.cache")
   cache.add_root(expand_path(dir), true)
@@ -83,7 +93,10 @@ end
 
 -- ── Unified :Gopath dispatcher ───────────────────────────────────────────────
 
+---Register the unified `:Gopath` command with all its subcommand routes.
+---@internal
 ---@param config GopathOptions
+---@param commands table
 local function register_gopath_cmd(config, commands)
   local truncated_enabled = config.truncated and config.truncated.enable
 
@@ -168,6 +181,8 @@ end
 
 -- ── Individual convenience commands ─────────────────────────────────────────
 
+---Register the individual backward-compat convenience commands (:GopathOpen etc.).
+---@internal
 ---@param config GopathOptions
 ---@param commands table
 local function register_individual(config, commands)

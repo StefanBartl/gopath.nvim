@@ -24,6 +24,7 @@ local EXTS = { ".ts", ".tsx", ".d.ts", ".js", ".jsx", ".mjs", ".cjs", ".json" }
 local INDEX_NAMES = { "index" }
 
 ---Extract the import specifier string from the current line.
+---@internal
 ---@param line string
 ---@return string|nil specifier
 local function parse_specifier(line)
@@ -44,6 +45,7 @@ local function parse_specifier(line)
 end
 
 ---Resolve a relative specifier (./… or ../…) against `base_dir`.
+---@internal
 ---@param base_dir string
 ---@param spec string
 ---@return string|nil abs
@@ -59,6 +61,7 @@ local function resolve_relative(base_dir, spec)
 end
 
 ---Resolve a bare specifier ('lodash', '@scope/pkg') via the nearest node_modules.
+---@internal
 ---@param spec string
 ---@return string|nil abs
 local function resolve_bare(spec)

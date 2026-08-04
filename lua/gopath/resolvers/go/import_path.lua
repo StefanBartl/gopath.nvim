@@ -21,6 +21,7 @@ local PATH = require("gopath.util.path")
 local M = {}
 
 ---Read the `module` path declared in `<root>/go.mod`.
+---@internal
 ---@param root string
 ---@return string|nil module_path
 local function read_module_path(root)
@@ -36,6 +37,7 @@ local function read_module_path(root)
 end
 
 ---Pick a representative .go file inside `dir` (prefer doc.go, skip _test.go).
+---@internal
 ---@param dir string
 ---@return string|nil abs
 local function representative_go_file(dir)
@@ -55,6 +57,7 @@ local function representative_go_file(dir)
 end
 
 ---Extract the import path string under or near the cursor.
+---@internal
 ---@param line string
 ---@return string|nil import_path
 local function parse_import(line)
@@ -63,6 +66,7 @@ local function parse_import(line)
 end
 
 ---Resolve `import_path` to a directory, given module info.
+---@internal
 ---@param import_path string
 ---@param root string|nil  module root dir
 ---@param module_path string|nil  declared module path

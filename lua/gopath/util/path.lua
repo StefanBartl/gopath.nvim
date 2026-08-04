@@ -59,6 +59,7 @@ local _pidx_str = nil ---@type string|nil
 local _pidx_map = nil ---@type table<string, string[]>|nil
 
 ---Return the current runtimepath as a list, rebuilding only when it changed.
+---@internal
 ---@return string[]
 local function get_rtp_list()
   local s = vim.o.runtimepath
@@ -94,6 +95,7 @@ function M.exists(p)
 end
 
 ---Return the set of entry names directly inside `dir`, or nil when unreadable.
+---@internal
 ---@param dir string
 ---@return table<string, true>|nil
 local function scan_names(dir)
@@ -111,6 +113,7 @@ end
 ---First path segment of a candidate ("a/b/c.lua" -> "a", "bar.lua" -> "bar.lua").
 ---This is the name that must exist directly inside a search root for the
 ---candidate to have any chance of resolving there.
+---@internal
 ---@param candidate string
 ---@return string|nil
 local function first_segment(candidate)
@@ -122,6 +125,7 @@ end
 ---One readdir per search root replaces a stat per candidate per root. The
 ---payoff is the miss case: a candidate whose first segment appears in no root
 ---is rejected by hash lookup alone, without touching the filesystem.
+---@internal
 ---@return GopathRtpIndexEntry[]
 local function get_rtp_index()
   local s = vim.o.runtimepath
@@ -238,6 +242,7 @@ end
 ---Supports lazy.nvim (`lazy.core.config`) and Neovim's built-in `vim.pack`.
 ---Both are probed defensively: an absent or restructured manager yields an
 ---empty list rather than an error, so this stays a pure best-effort fallback.
+---@internal
 ---@return string[]
 local function get_plugin_dirs()
   local s = vim.o.runtimepath
@@ -283,6 +288,7 @@ end
 ---Indexing up front costs one readdir per plugin, but turns the common case —
 ---a dotted token that is not a module at all — into a single failed hash
 ---lookup instead of a stat against every installed plugin.
+---@internal
 ---@return table<string, string[]>
 local function get_plugin_lua_index()
   local s = vim.o.runtimepath
@@ -348,6 +354,7 @@ end
 --- precise, so a loaded module always wins over a merely installed one.
 ---@param module string  Dotted module name, e.g. "a.b.c"
 ---@return string|nil  absolute path
+---@see M.search_in_rtp, M.search_with_package_path, M.search_in_plugin_dirs
 function M.search_module(module)
   if type(module) ~= "string" or module == "" then return nil end
   local rel = module:gsub("%.", "/")

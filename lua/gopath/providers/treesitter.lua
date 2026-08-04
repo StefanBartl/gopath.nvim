@@ -3,6 +3,9 @@
 
 local M = {}
 
+---Check whether the `vim.treesitter` module can be `require`d.
+---@internal
+---@return boolean
 local function has_ts()
   return pcall(require, "vim.treesitter")
 end
