@@ -9,6 +9,7 @@ local TS = require("gopath.providers.treesitter")
 local M = {}
 
 ---Check if cursor is on a bare identifier (not part of a chain)
+---@internal
 ---@return string|nil identifier Identifier text or nil
 local function get_bare_identifier()
   local node = TS.node_at_cursor()

@@ -47,6 +47,7 @@ do
 end
 
 ---Detect operating system.
+---@internal
 ---@return "macos"|"linux"|"windows"|"unknown"
 local function detect_os()
   if vim.fn.has("mac") == 1 or vim.fn.has("macunix") == 1 then
@@ -60,6 +61,7 @@ local function detect_os()
 end
 
 ---Minimal per-OS opener, used only when both open.nvim and lib.nvim are absent.
+---@internal
 ---@param path string File path or URL
 ---@return boolean success True if opener was invoked
 local function minimal_fallback_open(path)
@@ -91,6 +93,7 @@ end
 
 ---Open `path` with the OS default handler: lib.nvim's system_opener when
 ---available, else a minimal built-in per-OS fallback.
+---@internal
 ---@param path string File path or URL
 ---@return boolean success True if opener was invoked
 local function fallback_open_with_system(path)

@@ -22,6 +22,7 @@ local M = {}
 --- NOTE: Parentheses are intentionally excluded from path_chars so that
 --- Markdown link syntax  [text]($VAR/path)  does not include the surrounding
 --- parentheses in the token.
+---@internal
 ---@return string|nil
 local function raw_token_at_cursor()
   local line = vim.api.nvim_get_current_line()
@@ -58,6 +59,7 @@ end
 
 --- Try to match a $VAR or ${VAR} prefix in raw token.
 --- Both forward-slash and backslash separators are accepted.
+---@internal
 ---@param raw string
 ---@return string|nil var_name
 ---@return string|nil remainder  -- path after the variable reference and separator
@@ -84,6 +86,7 @@ end
 --- Resolve an environment variable name to its string value.
 --- vim.env is checked first (reflects runtime vim.env assignments);
 --- os.getenv is used as fallback for variables inherited from the shell.
+---@internal
 ---@param name string
 ---@return string|nil
 local function resolve_var(name)
@@ -102,6 +105,7 @@ end
 --- Join a resolved variable value with the path remainder.
 --- Normalizes all separators to forward slashes, then strips duplicate
 --- slashes introduced by trailing separators in the variable value.
+---@internal
 ---@param base string  resolved variable value, e.g. "E:\repos\" or "/home/user/repos"
 ---@param rest string  remainder after the variable, e.g. "WKDBooks/foo.md"
 ---@return string      absolute path with forward slashes, no trailing slash

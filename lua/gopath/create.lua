@@ -44,6 +44,7 @@ end
 -- ── File creation ────────────────────────────────────────────────────────────
 
 ---Create empty file at `path`, creating parent directories as needed.
+---@internal
 ---@param path string
 ---@return boolean ok
 ---@return string|nil err
@@ -77,6 +78,7 @@ end
 
 ---Find the nearest existing ancestor directory of `path` (walking from the
 ---full path up to its root segment). Pure query — does not open anything.
+---@internal
 ---@param path string
 ---@return string|nil dir  absolute, normalized
 local function find_nearest_existing_dir(path)
@@ -107,6 +109,7 @@ end
 
 ---Return the active filetree.nvim adapter when the plugin is installed and
 ---has completed setup(), else nil. Never throws.
+---@internal
 ---@return table|nil
 local function filetree_adapter()
   local ok, filetree = pcall(require, "filetree")
@@ -117,7 +120,9 @@ local function filetree_adapter()
 end
 
 ---Set cwd to `dir` and hand it to filetree.nvim's tree (rooted + focused there).
+---@internal
 ---@param dir string
+---@return nil
 local function open_in_filetree(dir)
   local adapter = filetree_adapter()
   if not adapter then
@@ -162,9 +167,11 @@ end
 
 ---Ask the user to pick one of `choices` (button dialog via lib.nvim, or
 ---vim.ui.select when lib.nvim is unavailable).
+---@internal
 ---@param question string
 ---@param choices string[]
 ---@param on_choice fun(choice: string|nil)  nil = cancelled
+---@return nil
 local function ask(question, choices, on_choice)
   if kit then
     kit.confirm({

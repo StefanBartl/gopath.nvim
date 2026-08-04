@@ -8,6 +8,8 @@ local LOG = require("gopath.util.log")
 local M = {}
 local uv = vim.uv or vim.loop
 
+---Detect which external search tool is available on `$PATH`.
+---@internal
 ---@return string|nil  "fd" | "fdfind" | "rg" | nil
 local function detect_tool()
   for _, bin in ipairs({ "fd", "fdfind" }) do
@@ -18,6 +20,7 @@ local function detect_tool()
 end
 
 ---Whether `abs` ends with `tail` on a segment boundary.
+---@internal
 ---@param abs string
 ---@param tail string
 ---@return boolean
@@ -32,6 +35,7 @@ end
 
 ---Search one root directory for files whose basename matches the tail's filename.
 ---All results are filtered by path_ends_with.
+---@internal
 ---@param tail string  e.g. "neo-tree/ui/renderer.lua"
 ---@param root string  directory to search
 ---@param tool string  "fd" | "fdfind" | "rg"
@@ -61,6 +65,7 @@ local function search_root(tail, root, tool)
 end
 
 ---Default roots when none are supplied: cwd + nvim config/data/cache.
+---@internal
 ---@return string[]
 local function default_roots()
   local cwd = (uv.cwd and uv.cwd()) or vim.fn.getcwd()
@@ -111,6 +116,7 @@ end
 
 ---Pull excluded-dir / max-depth settings from the truncated config (with
 ---sensible fallbacks) so the async walk matches the cache's scan behaviour.
+---@internal
 ---@return table<string, boolean> excluded, integer max_depth
 local function walk_settings()
   local excluded = {
@@ -186,6 +192,8 @@ function M.find_async(tail, opts, on_done)
     end
   end
 
+  ---Signal completion exactly once, handing control back to the main loop.
+  ---@internal
   local function finish()
     if done then return end
     done = true
@@ -198,6 +206,9 @@ function M.find_async(tail, opts, on_done)
 
   local pump -- forward declaration
 
+  ---Scan one directory; push child dirs back onto the queue, collect matches.
+  ---@internal
+  ---@param item { dir:string, depth:integer }
   local function scan_one(item)
     ---@diagnostic disable-next-line lib.uv
     uv.fs_scandir(item.dir, function(err, handle)
@@ -235,6 +246,8 @@ function M.find_async(tail, opts, on_done)
     end)
   end
 
+  ---Fill available concurrency slots from the queue; finish when fully drained.
+  ---@internal
   pump = function()
     if done then return end
     while active < concurrency and qhead <= #queue do

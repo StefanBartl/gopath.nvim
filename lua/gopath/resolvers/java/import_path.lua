@@ -28,6 +28,7 @@ local SOURCE_ROOTS = {
 }
 
 ---Parse an `import` line into a dotted type/package and a wildcard flag.
+---@internal
 ---@param line string
 ---@return string|nil dotted, boolean is_wildcard
 local function parse_import(line)
@@ -50,6 +51,7 @@ local function parse_import(line)
 end
 
 ---First .java file inside a package directory (for wildcard imports).
+---@internal
 ---@param dir string
 ---@return string|nil abs
 local function first_java_in(dir)

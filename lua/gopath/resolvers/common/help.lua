@@ -3,6 +3,10 @@
 
 local M = {}
 
+---Extract and normalize the identifier-like token under the cursor
+---(handles bracket notation and strips trailing call parens).
+---@internal
+---@return string
 local function token_under_cursor()
   local line = vim.api.nvim_get_current_line()
   local col1 = vim.api.nvim_win_get_cursor(0)[2] + 1 -- 1-based
@@ -20,6 +24,11 @@ local function token_under_cursor()
   return tok
 end
 
+---Map a normalized token to a list of candidate `:help` subjects, in
+---preference order, or nil if `tok` matches no known vim/api/fn pattern.
+---@internal
+---@param tok string
+---@return string[]|nil
 local function build_subjects(tok)
   -- Simple namespaces
   if tok == "vim" then return { "vim" } end

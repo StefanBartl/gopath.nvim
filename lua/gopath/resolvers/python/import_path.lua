@@ -21,6 +21,7 @@ local M = {}
 local PY_ROOT_MARKERS = { "pyproject.toml", "setup.py", "setup.cfg", "requirements.txt", ".git" }
 
 ---Convert a dotted module name to candidate file paths under `root`.
+---@internal
 ---@param root string  Absolute search root
 ---@param dotted string  e.g. "foo.bar.baz"
 ---@return string[] candidates
@@ -33,6 +34,7 @@ local function dotted_to_candidates(root, dotted)
 end
 
 ---Resolve a relative import like `.foo`, `..bar.baz` against the current package.
+---@internal
 ---@param dots string  Leading dots ("." or ".." …)
 ---@param tail string|nil  Dotted module after the dots (may be nil/empty)
 ---@return string|nil abs
@@ -49,6 +51,7 @@ local function resolve_relative(dots, tail)
 end
 
 ---Parse the current line for a Python import.
+---@internal
 ---@param line string
 ---@return string|nil dotted    Dotted module name (e.g. "foo.bar")
 ---@return string|nil rel_dots  Leading dots for relative imports, else nil
@@ -76,6 +79,7 @@ local function parse_import(line)
 end
 
 ---Resolve `dotted` (and an optional imported submodule name) under `root`.
+---@internal
 ---@param root string
 ---@param dotted string
 ---@param imported string|nil

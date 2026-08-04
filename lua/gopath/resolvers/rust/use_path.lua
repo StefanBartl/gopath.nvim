@@ -17,6 +17,7 @@ local PATH = require("gopath.util.path")
 local M = {}
 
 ---Locate the crate's `src` directory via the nearest Cargo.toml.
+---@internal
 ---@return string|nil src_dir
 local function crate_src_dir()
   local root = H.find_root({ "Cargo.toml" })
@@ -30,6 +31,7 @@ end
 
 ---Turn a `::`-separated module path into candidate files under `base`.
 ---Drops a trailing item that is likely a type/function (Uppercase or {…}).
+---@internal
 ---@param base string
 ---@param segments string[]
 ---@return string[] candidates
@@ -37,6 +39,10 @@ local function segments_to_candidates(base, segments)
   -- Build the directory chain from segments, trying file and mod.rs at each
   -- plausible truncation (the last segment may be an item, not a module).
   local candidates = {}
+  ---Append `.rs` and `mod.rs` candidates for the first `count` segments.
+  ---@internal
+  ---@param count integer
+  ---@return nil
   local function add_for(count)
     if count < 1 then return end
     local parts = {}
@@ -53,6 +59,7 @@ local function segments_to_candidates(base, segments)
 end
 
 ---Parse a `use`/`mod` line into (origin, segments).
+---@internal
 ---@param line string
 ---@return string|nil origin  "crate"|"super"|"self"|"mod"
 ---@return string[]|nil segments

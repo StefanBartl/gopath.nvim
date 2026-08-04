@@ -8,6 +8,7 @@ local M = {}
 
 --- Normalize lhs into a list of strings.
 --- Returns nil if mapping is disabled.
+---@internal
 ---@param lhs string|string[]|false|nil
 ---@return string[]|nil
 local function normalize_lhs(lhs)
@@ -27,6 +28,7 @@ local function normalize_lhs(lhs)
 end
 
 --- Set one or multiple keymaps safely.
+---@internal
 ---@param mode string|string[]
 ---@param lhs string|string[]|false|nil
 ---@param rhs function|string

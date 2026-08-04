@@ -8,6 +8,10 @@ local PATH = require("gopath.util.path")
 
 local M = {}
 
+---Split a dotted string ("a.b.c") into its segments.
+---@internal
+---@param s string
+---@return string[]
 local function split_by_dot(s)
   local t = {}
   for p in s:gmatch("[^%.]+") do
@@ -16,9 +20,17 @@ local function split_by_dot(s)
   return t
 end
 
--- Resolve base identifier to either:
---  a) { kind="module", module="x.y", extra_chain="cfg.highlight" }
---  b) { kind="current", base="M",   extra_chain="cfg.highlight" }
+---Resolve base identifier to either:
+---  a) { kind="module", module="x.y", extra_chain="cfg.highlight" }
+---  b) { kind="current", base="M",   extra_chain="cfg.highlight" }
+---Follows the alias chain (require/chain/id entries) up to 32 hops to guard
+---against a cyclic alias graph.
+---@internal
+---@param base_id string
+---@param initial_chain string[]|nil
+---@param bind_map table<string,string>
+---@param alias_map table<string,LuaAliasEntry>
+---@return { kind: '"module"'|'"current"', module: string|nil, base: string|nil, extra_chain: string }|nil
 local function resolve_base(base_id, initial_chain, bind_map, alias_map)
   local chain_suffix = initial_chain and table.concat(initial_chain, ".") or ""
   local current = base_id
@@ -65,13 +77,24 @@ local function resolve_base(base_id, initial_chain, bind_map, alias_map)
   return nil
 end
 
--- oben in value_origin.lua einfügen (oberhalb von M.resolve):
+---Try to locate `extra_chain`/`last_key` inside `abs`, trying every plausible
+---root identifier inferred from the file (see `infer_roots_from_lines`).
+---@internal
+---@param abs string  Absolute file path to search in
+---@param extra_chain string  Dotted chain below the root, e.g. "cfg.highlight"
+---@param last_key string|nil  Final chain segment to locate as a key, if any
+---@return table|nil  Result of `table_locator.locate`, or nil
 local function try_locate_with_roots(abs, extra_chain, last_key)
   local tl = require("gopath.resolvers.lua.table_locator")
   if type(abs) ~= "string" or abs == "" then return nil end
 
   -- einfache Root-Inferenz lokal (kein Export aus table_locator nötig)
   local lines = vim.fn.readfile(abs)
+  ---Infer candidate root identifiers ("M", locally-declared tables, the
+  ---identifier returned at the end of the file) from the file's lines.
+  ---@internal
+  ---@param lines_ string[]
+  ---@return string[]
   local function infer_roots_from_lines(lines_)
     local roots = { "M" }
     for i = 1, #lines_ do

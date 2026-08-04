@@ -29,6 +29,7 @@ local M = {}
 ---   • Has a location suffix  → "file:42" or "file(10)"
 ---   • Starts with ...        → truncated path from error output
 ---
+---@internal
 ---@param str string
 ---@return boolean
 local function looks_like_path(str)
@@ -78,6 +79,7 @@ local function looks_like_path(str)
 end
 
 ---Strip noise prefixes and parse an optional :line[:col] suffix.
+---@internal
 ---@param raw string
 ---@return { path:string, line:integer|nil, col:integer|nil }|nil
 local function parse_token(raw)

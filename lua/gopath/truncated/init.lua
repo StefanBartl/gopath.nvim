@@ -45,6 +45,7 @@ end
 
 ---Extract the meaningful tail from a truncated path.
 ---Strips the ellipsis prefix, normalizes separators and leading slashes.
+---@internal
 ---@param path string Truncated path with ellipsis prefix
 ---@return string tail Important part after the ellipsis
 local function extract_tail(path)
@@ -56,6 +57,7 @@ local function extract_tail(path)
 end
 
 ---Open a resolved file with an optional line/col jump.
+---@internal
 ---@param path string Absolute file path
 ---@param open_cmd string Ex command (edit/split/vsplit/tabedit)
 ---@param line integer|nil 1-based line

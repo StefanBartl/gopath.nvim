@@ -3,6 +3,11 @@
 
 local M = {}
 
+---Attempt `:help subject`, placing it via `target` ("tab"/"window"/current).
+---@internal
+---@param subject string
+---@param target "edit"|"window"|"tab"|nil
+---@return boolean ok
 local function try_help(subject, target)
   local cmd = (target == "tab" and "tab help %s")
     or (target == "window" and "belowright help %s")
@@ -12,8 +17,11 @@ local function try_help(subject, target)
   end)
 end
 
+---Open a `:help` result, trying each candidate subject, then a paren-toggled
+---variant of each, then falling back to `:helpgrep` and finally `:help vim.api`.
 ---@param res { kind:string, subject:string|nil, subjects:string[]|nil }
 ---@param opts { target?: "edit"|"window"|"tab" }|nil
+---@return nil
 function M.open(res, opts)
   if not (res and res.kind == "help") then return end
   local target = (opts and opts.target) or "edit"

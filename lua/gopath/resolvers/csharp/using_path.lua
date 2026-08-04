@@ -21,6 +21,7 @@ local M = {}
 local CS_ROOT_MARKERS = { "*.csproj", "*.sln", "Directory.Build.props", ".git" }
 
 ---Parse a `using` line into a dotted namespace.
+---@internal
 ---@param line string
 ---@return string|nil dotted
 local function parse_using(line)

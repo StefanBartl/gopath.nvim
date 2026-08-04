@@ -23,6 +23,7 @@ local INCLUDE_SUBDIRS = { ".", "include", "src", "inc", "headers" }
 local SYSTEM_DIRS = { "/usr/include", "/usr/local/include" }
 
 ---Parse an #include directive into (header, is_angled).
+---@internal
 ---@param line string
 ---@return string|nil header, boolean is_angled
 local function parse_include(line)

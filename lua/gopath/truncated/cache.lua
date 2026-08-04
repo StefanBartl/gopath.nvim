@@ -114,6 +114,7 @@ function M.setup(opts)
 end
 
 ---Check if directory should be excluded from scan
+---@internal
 ---@param name string Directory name (basename only)
 ---@return boolean should_exclude True if directory should be skipped
 local function is_excluded(name)
@@ -129,6 +130,7 @@ end
 --- tree size. This avoids EMFILE / threadpool starvation on very large trees
 --- while still keeping the whole scan off the main loop.
 ---
+---@internal
 ---@param roots string[] Root directories to scan
 ---@param on_done fun(paths: string[]) Called once with every discovered file path
 local function scan_roots_bounded(roots, on_done)
@@ -144,6 +146,7 @@ local function scan_roots_bounded(roots, on_done)
   local pump -- forward declaration
 
   ---Scan one directory; push child dirs back onto the queue, collect files.
+  ---@internal
   ---@param item { dir:string, depth:integer }
   local function scan_one(item)
     ---@diagnostic disable-next-line lib.uv
@@ -173,6 +176,7 @@ local function scan_roots_bounded(roots, on_done)
   end
 
   ---Fill available concurrency slots from the queue; finish when fully drained.
+  ---@internal
   pump = function()
     while active < config.max_concurrency and qhead <= #queue do
       local item = queue[qhead]

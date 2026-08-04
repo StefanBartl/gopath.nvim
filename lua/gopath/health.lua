@@ -11,10 +11,18 @@ local err_s = vim.health.error or vim.health.report_error
 local info_s = vim.health.info or vim.health.report_info
 local start_s = vim.health.start or vim.health.report_start
 
+---Check whether an external binary is on `$PATH`.
+---@internal
+---@param bin string
+---@return boolean
 local function exe(bin)
   return vim.fn.executable(bin) == 1
 end
 
+---Check whether a module can be `require`d without erroring.
+---@internal
+---@param mod string
+---@return boolean
 local function require_ok(mod)
   local ok, _ = pcall(require, mod)
   return ok
@@ -22,6 +30,8 @@ end
 
 -- ── Sections ─────────────────────────────────────────────────────────────────
 
+---Report the running Neovim version and `vim.fs.joinpath` availability.
+---@internal
 local function check_neovim()
   start_s("Neovim version")
   local v = vim.version()
@@ -44,6 +54,8 @@ local function check_neovim()
   end
 end
 
+---Report presence of `fd`/`fdfind`, `rg` and `git` on `$PATH`.
+---@internal
 local function check_external_tools()
   start_s("External CLI tools")
 
@@ -74,6 +86,8 @@ local function check_external_tools()
   end
 end
 
+---Report active LSP clients for the current buffer.
+---@internal
 local function check_lsp()
   start_s("LSP")
   local clients = vim.lsp.get_clients and vim.lsp.get_clients()
@@ -90,6 +104,8 @@ local function check_lsp()
   end
 end
 
+---Report which-key.nvim availability and whether its label is enabled.
+---@internal
 local function check_which_key()
   start_s("which-key")
   local ok_cfg, cfg_mod = pcall(require, "gopath.config")
@@ -106,6 +122,8 @@ local function check_which_key()
   end
 end
 
+---Report open.nvim availability for external-file opening.
+---@internal
 local function check_open_nvim()
   start_s("open.nvim")
   if require_ok("open_nvim") then
@@ -118,6 +136,8 @@ local function check_open_nvim()
   end
 end
 
+---Report lib.nvim availability (required for the `:Gopath` command layer).
+---@internal
 local function check_lib_nvim()
   start_s("lib.nvim")
   -- Required: the :Gopath command layer (lib.nvim.usercmd.composer)
@@ -143,6 +163,8 @@ local function check_lib_nvim()
   end
 end
 
+---Report filetree.nvim availability and setup state.
+---@internal
 local function check_filetree_nvim()
   start_s("filetree.nvim")
   local ok_ft, filetree = pcall(require, "filetree")
@@ -164,6 +186,8 @@ local function check_filetree_nvim()
   end
 end
 
+---Report nvim-treesitter availability and parser coverage for the current filetype.
+---@internal
 local function check_treesitter()
   start_s("Tree-sitter")
   if require_ok("nvim-treesitter") then
@@ -185,6 +209,8 @@ local function check_treesitter()
   end
 end
 
+---Report the resolved `GopathOptions` (mode, order, feature toggles, keymaps).
+---@internal
 local function check_config()
   start_s("Configuration")
   local ok, cfg_mod = pcall(require, "gopath.config")
@@ -246,6 +272,9 @@ local function check_config()
 
   start_s("Keymaps")
   local maps = cfg.mappings or {}
+  ---Print one keymap's binding if it is set and not disabled.
+  ---@internal
+  ---@param name string
   local function km(name)
     local v = maps[name]
     if v and v ~= false then info_s(string.format("  %-16s %s", name .. " =", vim.inspect(v))) end
@@ -260,6 +289,8 @@ local function check_config()
   km("check")
 end
 
+---Report the truncated-path cache backend state (loaded, size, last build).
+---@internal
 local function check_truncated()
   start_s("Truncated path cache")
   local ok_cfg, cfg_mod = pcall(require, "gopath.config")
@@ -310,6 +341,8 @@ local function check_truncated()
   end
 end
 
+---Report per-filetype language resolver configuration.
+---@internal
 local function check_languages()
   start_s("Language resolvers")
   local ok_cfg, cfg_mod = pcall(require, "gopath.config")
@@ -333,6 +366,7 @@ end
 
 -- ── Entry point ───────────────────────────────────────────────────────────────
 
+---Run all `:checkhealth gopath` sections and register the report with lib.nvim.
 function M.check()
   check_neovim()
   check_external_tools()

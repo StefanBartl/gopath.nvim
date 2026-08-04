@@ -16,6 +16,8 @@ local PREFIX = "[gopath]"
 
 local _cfg = nil
 
+---Whether `config.dev_mode` is currently enabled.
+---@internal
 ---@return boolean
 local function dev_mode()
   local ok, cfg = pcall(function()

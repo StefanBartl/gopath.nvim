@@ -6,10 +6,18 @@ local M = {}
 
 -- ========= helpers =========
 
+---Escape a string for use as a literal Lua pattern.
+---@internal
+---@param str string
+---@return string
 local function esc(str)
   return (str:gsub("([%%%^%$%(%)%.%[%]%*%+%-%?])", "%%%1"))
 end
 
+---Split a dotted chain ("M.cfg.highlight") into its segments.
+---@internal
+---@param chain string
+---@return string[]
 local function split_chain(chain)
   local t = {}
   for p in chain:gmatch("[^%.]+") do
@@ -18,8 +26,12 @@ local function split_chain(chain)
   return t
 end
 
--- Find "balanced" table region starting at a line whose FIRST "{" starts the table.
--- Returns end line (1-based). Tolerates nested braces.
+---Find the "balanced" table region starting at a line whose first `{` opens the table.
+---Tolerates nested braces.
+---@internal
+---@param lines string[]
+---@param start_line integer
+---@return integer|nil end_line 1-based
 local function find_balanced_region(lines, start_line)
   local depth, i = 0, start_line
   while i <= #lines do
@@ -40,8 +52,13 @@ local function find_balanced_region(lines, start_line)
   return nil
 end
 
--- Find table opening after an equals sign for a given "dotted" LHS (on same or next lines, also inside function calls).
--- Accepts inline "{", or "=" then later "{" (skipping blanks/comments), or "=" followed by function call text until first "{"
+---Find a table opening after `=` for a given dotted LHS, on the same or a
+---following line, tolerating an intervening function call before the `{`.
+---@internal
+---@param lines string[]
+---@param dotted string
+---@return integer|nil start_line
+---@return integer|nil end_line
 local function find_direct_table_loose(lines, dotted)
   local pat_inline = "^%s*" .. esc(dotted) .. "%s*=%s*{"
   local pat_eq = "^%s*" .. esc(dotted) .. "%s*=%s*(.*)$"
@@ -80,14 +97,25 @@ local function find_direct_table_loose(lines, dotted)
   return nil, nil
 end
 
--- "ROOT.chain = { ... }" → region
+---Find "ROOT.chain = { ... }" and return its region.
+---@internal
+---@param lines string[]
+---@param dotted string
+---@return integer|nil start_line
+---@return integer|nil end_line
 local function find_direct_table(lines, dotted)
   local s1, e1 = find_direct_table_loose(lines, dotted)
   if s1 then return s1, e1 end
   return nil, nil
 end
 
--- Any-root direct assignment: <ROOT>.<chain_wo_root> = { ... }
+---Find any-root direct assignment: `<ROOT>.<chain_wo_root> = { ... }`.
+---@internal
+---@param lines string[]
+---@param chain_wo_root string
+---@return string|nil root
+---@return integer|nil start_line
+---@return integer|nil end_line
 local function find_anyroot_direct_table(lines, chain_wo_root)
   local pi = "^%s*([%w_]+)%s*%." .. esc(chain_wo_root) .. "%s*=%s*{"
   local pe = "^%s*([%w_]+)%s*%." .. esc(chain_wo_root) .. "%s*=%s*(.*)$"
@@ -127,7 +155,11 @@ local function find_anyroot_direct_table(lines, chain_wo_root)
   return nil, nil, nil
 end
 
--- return { ... } region (outermost)
+---Find the outermost `return { ... }` region.
+---@internal
+---@param lines string[]
+---@return integer|nil start_line
+---@return integer|nil end_line
 local function find_return_table_region(lines)
   for i = 1, #lines do
     local s = lines[i]
@@ -139,7 +171,10 @@ local function find_return_table_region(lines)
   return nil, nil
 end
 
--- Strip line comments and string contents to avoid counting braces inside them.
+---Strip line comments and string contents so their braces are not counted.
+---@internal
+---@param s string
+---@return string
 local function scrub_for_braces(s)
   -- drop line comments
   s = s:gsub("%-%-.*$", "")
@@ -149,8 +184,16 @@ local function scrub_for_braces(s)
   return s
 end
 
--- Inside region s..e, find "key = {" nested table at depth 1 and return its region.
--- Supports bare and bracketed keys. Depth-aware (so wir nicht in tieferen Subtables hängenbleiben).
+---Inside region `s..e`, find a `key = { ... }` nested table at depth 1 and
+---return its region. Supports bare and bracketed keys; depth-aware so a
+---deeper nested table with the same key name is not matched by mistake.
+---@internal
+---@param lines string[]
+---@param s integer region start line
+---@param e integer region end line
+---@param key string
+---@return integer|nil start_line
+---@return integer|nil end_line
 local function find_child_table(lines, s, e, key)
   local ke = esc(key)
   local heads = {
@@ -201,7 +244,14 @@ local function find_child_table(lines, s, e, key)
 
   return nil, nil
 end
--- Inside region s..e, find "key =" (any value). Returns position of the key.
+---Inside region `s..e`, find `key =` (any value) and return the key's position.
+---@internal
+---@param lines string[]
+---@param s integer region start line
+---@param e integer region end line
+---@param key string
+---@return integer|nil line
+---@return integer|nil col
 local function find_key_assignment(lines, s, e, key)
   local ke = esc(key)
   local patterns = {
@@ -219,7 +269,13 @@ local function find_key_assignment(lines, s, e, key)
   return nil, nil
 end
 
--- Global search: find first "key = { ... }" anywhere (useful for nested-in-call tables).
+---Find the first `key = { ... }` anywhere in the file (useful for tables
+---nested inside a function call).
+---@internal
+---@param lines string[]
+---@param key string
+---@return integer|nil start_line
+---@return integer|nil end_line
 local function find_global_table(lines, key)
   local k = esc(key)
   local pat_inline = "%f[%w_]" .. k .. "%f[^%w_]%s*=%s*{"
@@ -252,11 +308,11 @@ end
 
 -- ========= main locate =========
 
---- Locate a table region and optionally a key initializer inside it.
---- @param abs_path string  Absolute file path to search in
---- @param base_chain string "M.cfg.highlight" (root.var1.var2)
---- @param seek_key string|nil  e.g. "enable_insert_submode_colors"
---- @return { path:string, key_line:integer|nil, key_col:integer|nil, tbl_start:integer|nil, tbl_end:integer|nil }|nil
+---Locate a table region and optionally a key initializer inside it.
+---@param abs_path string  Absolute file path to search in
+---@param base_chain string "M.cfg.highlight" (root.var1.var2)
+---@param seek_key string|nil  e.g. "enable_insert_submode_colors"
+---@return { path:string, key_line:integer|nil, key_col:integer|nil, tbl_start:integer|nil, tbl_end:integer|nil }|nil
 function M.locate(abs_path, base_chain, seek_key)
   if type(abs_path) ~= "string" or abs_path == "" then return nil end
   local lines = vim.fn.readfile(abs_path)

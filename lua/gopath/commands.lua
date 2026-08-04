@@ -55,6 +55,7 @@ end
 ---a "Dateisuche läuft…" message is shown and the buffer opens once a match is
 ---found.
 ---@param kind string  "edit"|"window"|"vsplit"|"tab"
+---@see M.probe_selection
 function M.resolve_and_open(kind)
   kind = kind or "edit"
   local res, err = RESOLVE.resolve_at_cursor({})
@@ -176,6 +177,7 @@ end
 ---Whether the marks are meaningful is the caller's knowledge, not something
 ---derivable here (they persist from any earlier selection), so callers only
 ---invoke this when they know a selection was actually given.
+---@internal
 ---@return string|nil
 local function get_visual_selection()
   ---@diagnostic disable-next-line: deprecated
@@ -196,6 +198,7 @@ local function get_visual_selection()
 end
 
 ---Get a path-ish token in normal mode (<cfile>, then <cword>).
+---@internal
 ---@return string|nil
 local function get_normal_token()
   local tok = vim.fn.expand("<cfile>")
