@@ -52,7 +52,10 @@ lazy.nvim: >lua
   {
     "StefanBartl/gopath.nvim",
     event = "VeryLazy",
-    dependencies = { "nvim-treesitter/nvim-treesitter" },
+    dependencies = {
+      "StefanBartl/lib.nvim",             -- required
+      "nvim-treesitter/nvim-treesitter",  -- optional but recommended
+    },
     opts = { mode = "hybrid" },
   }
 <

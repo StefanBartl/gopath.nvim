@@ -24,6 +24,13 @@ A modular file-navigation plugin for Neovim. gopath.nvim resolves symbols, `requ
 
 ---
 
+## Table of Content
+
+- [Quickstart](#quickstart)
+- [Documentation](#documentation)
+
+---
+
 ## Quickstart
 
 ```lua
