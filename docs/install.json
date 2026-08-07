@@ -1,0 +1,36 @@
+{
+  "tools": [
+    {
+      "bin": "fd",
+      "required": false,
+      "why": "Fastest live filesystem search for resolving a truncated path tail when the in-memory cache misses (falls back to fdfind, then rg, if not found).",
+      "pkg": {
+        "apt": "fd-find",
+        "dnf": "fd-find",
+        "pacman": "fd",
+        "zypper": "fd",
+        "apk": "fd",
+        "brew": "fd",
+        "winget": "sharkdp.fd",
+        "scoop": "fd",
+        "choco": "fd"
+      }
+    },
+    {
+      "bin": "rg",
+      "required": false,
+      "why": "Fallback live filesystem search for a truncated path tail when neither fd nor fdfind is on PATH.",
+      "pkg": {
+        "apt": "ripgrep",
+        "dnf": "ripgrep",
+        "pacman": "ripgrep",
+        "zypper": "ripgrep",
+        "apk": "ripgrep",
+        "brew": "ripgrep",
+        "winget": "BurntSushi.ripgrep.MSVC",
+        "scoop": "ripgrep",
+        "choco": "ripgrep"
+      }
+    }
+  ]
+}
