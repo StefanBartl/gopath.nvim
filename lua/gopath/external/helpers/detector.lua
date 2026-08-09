@@ -68,8 +68,9 @@ end
 ---Check if a file extension indicates an external file.
 ---@internal
 ---@param path string
+---@param extra_extensions string[]|nil  user-configured additions (external.extensions)
 ---@return boolean is_external
-local function has_external_extension(path)
+local function has_external_extension(path, extra_extensions)
   if not path or path == "" then return false end
 
   local ext = vim.fn.fnamemodify(path, ":e"):lower()
@@ -78,14 +79,22 @@ local function has_external_extension(path)
     if ext == external_ext then return true end
   end
 
+  if extra_extensions then
+    for _, external_ext in ipairs(extra_extensions) do
+      if ext == external_ext:lower() then return true end
+    end
+  end
+
   return false
 end
 
 ---Check if a file or URL should be opened externally.
 ---@param path string File path or URL
+---@param extra_extensions string[]|nil  extends the built-in extension list
+---  (`config.external.extensions`); does not replace it.
 ---@return boolean is_external
-function M.is_external_file(path)
-  return is_url(path) or has_external_extension(path)
+function M.is_external_file(path, extra_extensions)
+  return is_url(path) or has_external_extension(path, extra_extensions)
 end
 
 return M

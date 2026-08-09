@@ -40,7 +40,7 @@ require("gopath").setup({
   -- External file opener (images, PDFs, etc.)
   external = {
     enable     = true,
-    extensions = nil,  -- nil = use built-in list
+    extensions = nil,  -- string[] of extra extensions, EXTENDS the built-in list
   },
 
   -- $VAR / ${VAR} prefix expansion
