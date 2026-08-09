@@ -1,0 +1,415 @@
+-- scripts/ci/functional_tests.lua
+-- Headless CI functional tests for the Lua resolvers' Treesitter-first
+-- table/symbol locating (table_locator.lua, symbol_locator.lua), and a couple
+-- of end-to-end buffer+cursor cases mirroring docs/TESTS/05_direct_symbol_jump.lua.
+--
+-- Unlike scripts/ci/headless_tests.lua (which only load-checks fixtures),
+-- these are real behavioral assertions: fixture files/buffers are written,
+-- a cursor is placed where relevant, and the resolvers' return values are
+-- checked against expected paths/lines/columns.
+--
+-- Requires lib.nvim on the runtimepath (a hard gopath.nvim dependency; see
+-- docs/install.json) since `value_origin` transitively requires `lib.lua.tables`.
+--
+-- Run via:
+--   nvim --headless --noplugin -u NONE \
+--     -c "set rtp+=<path-to-lib.nvim>" \
+--     -c "lua dofile('scripts/ci/functional_tests.lua')"
+
+local root = vim.fn.getcwd()
+vim.opt.runtimepath:prepend(root)
+
+require("gopath").setup({})
+
+local failures = {}
+
+---@param name string
+---@param fn fun()
+local function check(name, fn)
+  local ok, err = pcall(fn)
+  if ok then
+    print(("[ OK ] %s"):format(name))
+  else
+    print(("[FAIL] %s: %s"):format(name, err))
+    failures[#failures + 1] = name
+  end
+end
+
+---@param actual any
+---@param expected any
+---@param msg string|nil
+local function assert_eq(actual, expected, msg)
+  if actual ~= expected then
+    error(
+      ("%s: expected %s, got %s"):format(
+        msg or "assert_eq",
+        vim.inspect(expected),
+        vim.inspect(actual)
+      ),
+      2
+    )
+  end
+end
+
+---@param v any
+---@param msg string|nil
+local function assert_truthy(v, msg)
+  if not v then error(msg or "expected a truthy value", 2) end
+end
+
+---@param v any
+---@param msg string|nil
+local function assert_nil(v, msg)
+  if v ~= nil then error((msg or "expected nil") .. ", got " .. vim.inspect(v), 2) end
+end
+
+-- ========= fixtures =========
+
+local scratch_dir = vim.fn.tempname() .. "_gopath_fntest"
+vim.fn.mkdir(scratch_dir, "p")
+-- Fixture modules live directly under scratch_dir so `search_in_rtp`'s
+-- root-level candidate check (`<rtp>/<name>.lua`) resolves them.
+vim.opt.runtimepath:append(scratch_dir)
+
+---Write `lines` to `<scratch_dir>/<relname>` and return the absolute path.
+---Invalidates `gopath.util.path`'s runtimepath index, since it's keyed on
+---the rtp *string* and won't otherwise notice a file appearing under an
+---already-indexed root (see path.lua's `invalidate_caches` docs).
+---@param relname string
+---@param lines string[]
+---@return string
+local function write_fixture(relname, lines)
+  local path = scratch_dir .. "/" .. relname
+  vim.fn.writefile(lines, path)
+  require("gopath.util.path").invalidate_caches()
+  return path
+end
+
+-- ========= Group A: table_locator.locate =========
+
+local table_locator = require("gopath.resolvers.lua.table_locator")
+
+check("table_locator: nested table chain (M.cfg.highlight.enable_x)", function()
+  local path = write_fixture("a1_nested_chain.lua", {
+    "local M = {}",
+    "M.cfg = {",
+    "  highlight = {",
+    "    enable_x = true,",
+    "  },",
+    "}",
+    "return M",
+  })
+  local hit = table_locator.locate(path, "M.cfg.highlight", "enable_x")
+  assert_truthy(hit, "expected a hit")
+  assert_eq(hit.key_line, 4, "key_line")
+  assert_eq(hit.tbl_start, 3, "tbl_start")
+  assert_eq(hit.tbl_end, 5, "tbl_end")
+end)
+
+check("table_locator: return { ... } module style", function()
+  local path = write_fixture("a2_return_table.lua", {
+    "return {",
+    "  cfg = {",
+    "    highlight = {",
+    "      enable_x = true,",
+    "    },",
+    "  },",
+    "}",
+  })
+  local hit = table_locator.locate(path, "cfg.highlight", "enable_x")
+  assert_truthy(hit, "expected a hit")
+  assert_eq(hit.key_line, 4, "key_line")
+end)
+
+check("table_locator: table nested inside a function call (setmetatable)", function()
+  local path = write_fixture("a3_setmetatable.lua", {
+    "local obj = setmetatable({",
+    "  cfg = {",
+    "    highlight = {",
+    "      enable_x = true,",
+    "    },",
+    "  },",
+    "}, {})",
+  })
+  local hit = table_locator.locate(path, "obj.cfg.highlight", "enable_x")
+  assert_truthy(hit, "expected a hit")
+  assert_eq(hit.key_line, 4, "key_line")
+end)
+
+check("table_locator: bracketed string keys", function()
+  local path = write_fixture("a4_bracket_keys.lua", {
+    "local M = {}",
+    'M["cfg"] = {',
+    '  ["highlight"] = {',
+    "    enable_x = true,",
+    "  },",
+    "}",
+    "return M",
+  })
+  local hit = table_locator.locate(path, "M.cfg.highlight", "enable_x")
+  assert_truthy(hit, "expected a hit")
+  assert_eq(hit.key_line, 4, "key_line")
+end)
+
+check("table_locator: sibling keys at the same depth are not confused", function()
+  local path = write_fixture("a5_sibling_depth.lua", {
+    "local M = {}",
+    "M.cfg = {",
+    "  a = { x = 1 },",
+    "  b = { y = 2 },",
+    "}",
+    "return M",
+  })
+  local hit_b = table_locator.locate(path, "M.cfg.b", "y")
+  assert_truthy(hit_b, "expected a hit for b.y")
+  assert_eq(hit_b.key_line, 4, "key_line for b.y")
+
+  local hit_a = table_locator.locate(path, "M.cfg.a", "x")
+  assert_truthy(hit_a, "expected a hit for a.x")
+  assert_eq(hit_a.key_line, 3, "key_line for a.x")
+end)
+
+check("table_locator: missing key falls back to the table start", function()
+  local path = write_fixture("a6_missing_key.lua", {
+    "local M = {}",
+    "M.cfg = {",
+    "  highlight = { enable_x = true },",
+    "}",
+    "return M",
+  })
+  local hit = table_locator.locate(path, "M.cfg", "does_not_exist")
+  assert_truthy(hit, "expected a hit (table-start fallback)")
+  assert_eq(hit.tbl_start, 2, "tbl_start")
+  assert_eq(hit.key_line, 2, "key_line falls back to tbl_start")
+end)
+
+check("table_locator: unmatched chain returns nil", function()
+  local path = write_fixture("a7_total_miss.lua", {
+    "local M = {}",
+    "M.cfg = { highlight = { enable_x = true } }",
+    "return M",
+  })
+  local hit = table_locator.locate(path, "X.Y.Z", "foo")
+  assert_nil(hit, "expected nil for a chain that doesn't exist anywhere")
+end)
+
+check("table_locator: single-field assignment with no table literal", function()
+  local path = write_fixture("a8_single_field.lua", {
+    "M.cfg.highlight.enable_x = true",
+  })
+  local hit = table_locator.locate(path, "M.cfg.highlight", "enable_x")
+  assert_truthy(hit, "expected a hit")
+  assert_eq(hit.key_line, 1, "key_line")
+  assert_nil(hit.tbl_start, "tbl_start should be nil (no table literal to report)")
+end)
+
+-- ========= Group B: symbol_locator.via_treesitter =========
+
+local symbol_locator = require("gopath.resolvers.lua.symbol_locator")
+
+write_fixture("target_symbols.lua", {
+  "local M = {}",
+  "",
+  "function M.setup(opts)",
+  "end",
+  "",
+  "local function helper()",
+  "end",
+  "",
+  "M.other = function()",
+  "end",
+  "",
+  'M["bracketed"] = function() end',
+  "",
+  "return M",
+})
+
+check("symbol_locator: function M.setup(...)", function()
+  local r = symbol_locator.via_treesitter(
+    { base = "cfgmod", chain = { "setup" } },
+    { cfgmod = "target_symbols" }
+  )
+  assert_truthy(r, "expected a result")
+  assert_eq(r.kind, "field", "kind")
+  assert_eq(r.source, "treesitter", "source")
+  assert_eq(r.range.line, 3, "range.line")
+end)
+
+check("symbol_locator: local function helper()", function()
+  local r = symbol_locator.via_treesitter(
+    { base = "cfgmod", chain = { "helper" } },
+    { cfgmod = "target_symbols" }
+  )
+  assert_truthy(r, "expected a result")
+  assert_eq(r.range.line, 6, "range.line")
+end)
+
+check("symbol_locator: M.other = function() ... end", function()
+  local r = symbol_locator.via_treesitter(
+    { base = "cfgmod", chain = { "other" } },
+    { cfgmod = "target_symbols" }
+  )
+  assert_truthy(r, "expected a result")
+  assert_eq(r.range.line, 9, "range.line")
+end)
+
+check("symbol_locator: bracketed assignment M['bracketed'] = function() end", function()
+  local r = symbol_locator.via_treesitter(
+    { base = "cfgmod", chain = { "bracketed" } },
+    { cfgmod = "target_symbols" }
+  )
+  assert_truthy(r, "expected a result")
+  assert_eq(r.range.line, 12, "range.line")
+end)
+
+check("symbol_locator: empty chain resolves to the module itself", function()
+  local r = symbol_locator.via_treesitter(
+    { base = "cfgmod", chain = {} },
+    { cfgmod = "target_symbols" }
+  )
+  assert_truthy(r, "expected a result")
+  assert_eq(r.kind, "module", "kind")
+  assert_nil(r.range, "range should be nil")
+end)
+
+check("symbol_locator: unknown symbol falls back to a module reference", function()
+  local r = symbol_locator.via_treesitter(
+    { base = "cfgmod", chain = { "nonexistent" } },
+    { cfgmod = "target_symbols" }
+  )
+  assert_truthy(r, "expected a result")
+  assert_eq(r.kind, "module", "kind")
+  assert_eq(r.confidence, 0.5, "confidence")
+end)
+
+-- ========= Group C: end-to-end buffer+cursor (mirrors docs/TESTS/05) =========
+
+check("value_origin: cursor on a nested chain resolves through a real buffer+cursor", function()
+  local path = write_fixture("c1_value_origin.lua", {
+    "local M = {}",
+    "M.cfg = {",
+    "  highlight = {",
+    "    enable_x = true,",
+    "  },",
+    "}",
+    "",
+    "local function use()",
+    "  return M.cfg.highlight.enable_x",
+    "end",
+    "",
+    "return M",
+  })
+
+  vim.cmd.edit(path)
+  vim.bo.filetype = "lua"
+
+  local line = vim.api.nvim_buf_get_lines(0, 8, 9, false)[1] -- 1-based line 9
+  local col = assert(line:find("enable_x"), "fixture line changed") - 1
+  vim.api.nvim_win_set_cursor(0, { 9, col })
+
+  local value_origin = require("gopath.resolvers.lua.value_origin")
+  local r = value_origin.resolve()
+  assert_truthy(r, "expected a resolve() result")
+  assert_eq(r.range.line, 4, "range.line (initializer line, not the usage line)")
+  assert_eq(vim.fn.fnamemodify(r.path, ":p"), vim.fn.fnamemodify(path, ":p"), "path")
+end)
+
+check(
+  "chain + symbol_locator: cursor on a chained call resolves through a real buffer+cursor",
+  function()
+    write_fixture("target_c2.lua", {
+      "local M = {}",
+      "",
+      "function M.setup(opts)",
+      "end",
+      "",
+      "return M",
+    })
+
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+      'local cfgmod = require("target_c2")',
+      "cfgmod.setup()",
+    })
+    vim.api.nvim_set_current_buf(buf)
+    vim.bo[buf].filetype = "lua"
+
+    local line = vim.api.nvim_buf_get_lines(buf, 1, 2, false)[1] -- 1-based line 2
+    local col = assert(line:find("setup"), "fixture line changed") - 1
+    vim.api.nvim_win_set_cursor(0, { 2, col })
+
+    local chain_mod = require("gopath.resolvers.lua.chain")
+    local binding_index = require("gopath.resolvers.lua.binding_index")
+
+    local chain = chain_mod.get_chain_at_cursor()
+    assert_truthy(chain, "expected a chain at cursor")
+    assert_eq(chain.base, "cfgmod", "chain.base")
+
+    local bind = binding_index.get_map()
+    local r = symbol_locator.via_treesitter(chain, bind)
+    assert_truthy(r, "expected a symbol_locator result")
+    assert_eq(r.range.line, 3, "range.line")
+  end
+)
+
+-- ========= Group D: legacy (line-pattern) fallback path =========
+-- Forces the treesitter tiers to report "unavailable" (as if no "lua" parser
+-- were installed) and re-runs a couple of Group A/B fixtures, to confirm the
+-- fallback safety net itself still resolves correctly, independent of the
+-- treesitter-first path exercised above.
+
+check("legacy fallback: table_locator resolves without a parser", function()
+  local AST = require("gopath.resolvers.lua.ts_lua_ast")
+  local original_parse = AST.parse
+  AST.parse = function()
+    return nil, nil
+  end
+
+  local ok, err = pcall(function()
+    local path = write_fixture("d1_legacy_table.lua", {
+      "local M = {}",
+      "M.cfg = {",
+      "  highlight = {",
+      "    enable_x = true,",
+      "  },",
+      "}",
+      "return M",
+    })
+    local hit = table_locator.locate(path, "M.cfg.highlight", "enable_x")
+    assert_truthy(hit, "expected a hit via the legacy path")
+    assert_eq(hit.key_line, 4, "key_line")
+  end)
+
+  AST.parse = original_parse
+  if not ok then error(err, 0) end
+end)
+
+check("legacy fallback: symbol_locator resolves without a parser", function()
+  local AST = require("gopath.resolvers.lua.ts_lua_ast")
+  local original_parse = AST.parse
+  AST.parse = function()
+    return nil, nil
+  end
+
+  local ok, err = pcall(function()
+    local r = symbol_locator.via_treesitter(
+      { base = "cfgmod", chain = { "setup" } },
+      { cfgmod = "target_symbols" }
+    )
+    assert_truthy(r, "expected a result via the legacy path")
+    assert_eq(r.range.line, 3, "range.line")
+  end)
+
+  AST.parse = original_parse
+  if not ok then error(err, 0) end
+end)
+
+-- ========= summary =========
+
+if #failures > 0 then
+  print(("\n%d check(s) failed: %s"):format(#failures, table.concat(failures, ", ")))
+  vim.cmd("cquit 1")
+else
+  print("\nAll functional checks passed.")
+  vim.cmd("qa!")
+end
