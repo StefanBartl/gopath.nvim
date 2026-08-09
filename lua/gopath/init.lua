@@ -62,6 +62,14 @@ function M.setup(opts)
 
   require("gopath.bindings").setup(config)
   _setup_cache(config)
+
+  -- One-time (persisted across restarts) popup on the first setup() after
+  -- installing this plugin: which CLI tools it wants and why
+  -- (docs/install.json). `:Lib deps show gopath.nvim` thereafter. pcall'd:
+  -- an older lib.nvim without lib.nvim.deps mustn't break setup() over an
+  -- informational popup.
+  local ok_deps, deps = pcall(require, "lib.nvim.deps")
+  if ok_deps then deps.show_once("gopath.nvim") end
 end
 
 ---Resolve the entity under the cursor without opening anything.
