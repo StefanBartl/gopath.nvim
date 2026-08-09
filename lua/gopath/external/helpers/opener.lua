@@ -92,7 +92,10 @@ local function minimal_fallback_open(path)
 end
 
 ---Open `path` with the OS default handler: lib.nvim's system_opener when
----available, else a minimal built-in per-OS fallback.
+---available, falling through to the minimal built-in per-OS opener if it
+---fails to dispatch (e.g. no xdg-open on a bare Linux install) rather than
+---giving up — the minimal opener covers fewer cases (no vim.ui.open, no WSL
+---wslview) but is worth trying before reporting failure to the user.
 ---@internal
 ---@param path string File path or URL
 ---@return boolean success True if opener was invoked
@@ -103,8 +106,7 @@ local function fallback_open_with_system(path)
       LOG.info(string.format("Opening externally: %s", vim.fn.fnamemodify(path, ":t")))
       return true
     end
-    LOG.error("Unsupported operating system for external opener")
-    return false
+    LOG.warn("lib.nvim system_opener failed to dispatch — trying minimal fallback opener")
   end
 
   return minimal_fallback_open(path)
