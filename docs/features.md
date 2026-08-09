@@ -52,7 +52,10 @@ When the exact file does not exist, suggests similar files using Levenshtein dis
 If no file and no fuzzy alternate is found, gopath offers to create the file (button dialog via lib.nvim's `ui.kit.confirm`, falling back to `vim.ui.select` when lib.nvim is absent) and jumps straight into it. If the unresolved path has an existing ancestor directory and [filetree.nvim](https://github.com/StefanBartl/filetree.nvim) is installed and set up, the dialog also offers to open that directory there instead. Disable with `create_on_missing.enable = false` — the `gC` keymap / `:GopathCheck` command still offer to create even then, since that's an explicit user action. See [docs/configuration.md](./configuration.md) and [docs/RESOLUTION.md](./RESOLUTION.md) for details.
 
 ## External file opening
-Images, PDFs, media files open automatically in the system default application.
+Images, PDFs, media files open automatically in the system default
+application. `external.extensions` extends the built-in extension list
+(does not replace it); `external.enable = false` disables the whole
+feature. See [docs/configuration.md](./configuration.md).
 
 ---
 

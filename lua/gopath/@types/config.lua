@@ -28,7 +28,7 @@
 
 ---@class GopathExternalOptions
 ---@field enable boolean Default: true
----@field extensions string[]|nil Default: nil (uses built-in list)
+---@field extensions string[]|nil Default: nil. Extends (does not replace) the built-in extension list.
 
 ---@class GopathLanguageOptions
 ---@field enable boolean Default: true

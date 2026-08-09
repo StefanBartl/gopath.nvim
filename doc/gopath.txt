@@ -300,6 +300,10 @@ external = {
   extensions = nil,
 }
     External opener for images, PDFs, media.
+    extensions: string[] of additional extensions (without the dot, e.g.
+    "heic") that EXTEND the built-in list — it is not replaced.
+    enable = false disables the external opener entirely; matching files
+    are then opened as normal buffers instead.
 
                                                     *gopath-config-truncated*
 truncated = {
