@@ -156,7 +156,15 @@ gopath.nvim tries each phase in order and returns the first success.
   Phase 4 - Language-specific resolvers
       Lua: require_path, alias_index, binding_index, chain, identifier_locator,
            symbol_locator, table_locator, value_origin; backed by LSP and/or
-           Treesitter according to `mode` and `order`.
+           Treesitter according to `mode` and `order`.  Despite the "treesitter
+           provider" name, symbol_locator.via_treesitter and table_locator
+           still locate the target line/table region with line-oriented Lua
+           patterns (not treesitter queries) — chosen originally for
+           tolerance of newlines-after-`=`, bracketed keys, and tables
+           nested inside function calls.  A full migration to treesitter
+           queries is tracked as future work; known bugs in the pattern
+           matching are fixed as found (see CHANGELOG-equivalent commit
+           history for table_locator.find_child_table).
 
       With the default order = { "lsp", "treesitter", "builtin" }, a chained
       reference (config.setup()) tries symbol_locator.via_lsp first, landing

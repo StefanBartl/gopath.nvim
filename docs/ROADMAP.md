@@ -75,8 +75,18 @@ Damit sind alle aus dem Audit vom 2026-07-04 offenen Punkte abgearbeitet.
 
 ## Geplante Features
 
-Keine dringenden offenen Features zum jetzigen Zeitpunkt; neue Ideen werden
-hier ergänzt, sobald sie konkret anstehen.
+- **Treesitter statt Zeilen-Pattern in `symbol_locator`/`table_locator`** —
+  beide lokalisieren ihr Ziel trotz des "treesitter provider"-Namens über
+  zeilenorientierte Lua-Patterns, nicht über echte Treesitter-Queries
+  (bewusst so gebaut, für Toleranz gegenüber Zeilenumbrüchen nach `=`,
+  bracket-Keys und Tabellen innerhalb von Funktionsaufrufen). Eine volle
+  Migration ist ~1 Woche Aufwand, weil alle 8 Fallback-Strategien in
+  `table_locator.locate` erhalten bleiben müssen. Konkrete Bugs in der
+  bestehenden Pattern-Logik werden bei Gelegenheit behoben (siehe
+  `find_child_table`-Fix, der eine doppelte Klammer-Zählung korrigiert hat).
+
+Sonst keine dringenden offenen Features zum jetzigen Zeitpunkt; neue Ideen
+werden hier ergänzt, sobald sie konkret anstehen.
 
 ## Nicht geplant
 
