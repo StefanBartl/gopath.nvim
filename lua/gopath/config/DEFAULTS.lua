@@ -104,4 +104,10 @@ return {
   -- which-key.nvim is a soft dependency: label registration for the
   -- probe keymap is skipped silently when which-key is not installed.
   which_key = true,
+
+  -- One-time "which CLI tools does this plugin want, and why" popup on
+  -- first setup() after install (via lib.nvim.deps). false disables it for
+  -- this plugin specifically, right here in the spec passed to setup() —
+  -- no vim.g needed. See README.
+  deps_popup = true,
 }

@@ -92,6 +92,7 @@
 ---@field mappings? GopathKeymaps|false Keymaps (false = disable all)
 ---@field commands? GopathCommands|false User commands (false = disable all)
 ---@field which_key? boolean Default: true. Label the probe keymap via which-key.nvim, if installed.
+---@field deps_popup? boolean Default: true. Show the lib.nvim.deps "declared tools" popup once, ever, on first setup() after install (needs lib.nvim.deps — a no-op without it).
 ---@field truncated GopathTruncated
 ---@field linepath? GopathLinepath Whole-line path extraction
 ---@field tailsearch? GopathTailsearch Cache + filesystem suffix search
