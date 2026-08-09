@@ -61,6 +61,9 @@ See [docs/installation.md](./docs/installation.md) for the packer snippet and op
 [`deps` module](https://github.com/StefanBartl/lib.nvim/blob/main/lua/lib/nvim/deps/README.md).
 A popup explains what's missing the first time `setup()` runs after
 installing gopath.nvim; `:Lib deps show gopath.nvim` repeats it any time.
+Opt out with `vim.g.lib_nvim_deps_disable_first_run = true` (every plugin)
+or `vim.g.lib_nvim_deps_disabled_plugins = { "gopath.nvim" }` (just this
+one), set anywhere in your config.
 
 ---
 
