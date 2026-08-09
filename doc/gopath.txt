@@ -217,7 +217,11 @@ gopath.nvim tries each phase in order and returns the first success.
 
   After pipeline - Alternate + Nearest folder
       If the resolved file does not exist:
-        1. Fuzzy alternate: Levenshtein similarity in the same directory
+        1. Fuzzy alternate: Levenshtein similarity (with a prefix bonus for
+           truncated/abbreviated names) in the same directory.  Each
+           candidate shown lists its size and modification recency.  The
+           selection UI defers to your configured vim.ui.select backend
+           (telescope-ui-select, dressing.nvim, ...) when one is installed.
         2. Nearest folder: opens the deepest existing ancestor directory
 
 ==============================================================================

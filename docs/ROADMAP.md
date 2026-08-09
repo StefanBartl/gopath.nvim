@@ -75,6 +75,14 @@ Damit sind alle aus dem Audit vom 2026-07-04 offenen Punkte abgearbeitet.
 
 ## Geplante Features
 
+- **Frecency-Lernen für Alternate-Vorschläge** — oft gewählte Alternates
+  sollen hochsortiert werden. `pickers.nvim` hat mit `smart/frecency.lua`
+  bereits eine Implementierung; die gehört über `lib.nvim` geteilt statt in
+  gopath neu gebaut. Cross-repo-Arbeit (lib.nvim + pickers.nvim + gopath),
+  daher nicht in einer Einzelsession umgesetzt. UI-Backend-Konfigurierbarkeit
+  und eine Preview (Größe/mtime) sind dagegen bereits vorhanden — siehe
+  [features.md](../docs/features.md#fuzzy-alternate-resolution).
+
 - **Treesitter statt Zeilen-Pattern in `symbol_locator`/`table_locator`** —
   beide lokalisieren ihr Ziel trotz des "treesitter provider"-Namens über
   zeilenorientierte Lua-Patterns, nicht über echte Treesitter-Queries

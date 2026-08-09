@@ -46,7 +46,15 @@ health.lua
 `<leader>pp` in **visual mode**: select a path token and resolve it via suffix search.
 
 ## Fuzzy alternate resolution
-When the exact file does not exist, suggests similar files using Levenshtein distance.
+When the exact file does not exist, suggests similar files using Levenshtein
+distance with a prefix bonus (a truncated/abbreviated name sharing a long
+common prefix with the target, e.g. `confi` vs `config.lua`, scores at
+least as high as its prefix-length ratio). Each candidate in the selection
+list shows its size and modification recency (`filename (85%) — 2.3 KB,
+modified 5m ago`). The picker itself defers to your configured
+`vim.ui.select` backend (telescope-ui-select, dressing.nvim, …) when one is
+installed, via lib.nvim's `ui.kit.select` with `respect_override = true` —
+there is no separate `alternate.ui_backend` config key to set.
 
 ## Create on missing
 If no file and no fuzzy alternate is found, gopath offers to create the file (button dialog via lib.nvim's `ui.kit.confirm`, falling back to `vim.ui.select` when lib.nvim is absent) and jumps straight into it. If the unresolved path has an existing ancestor directory and [filetree.nvim](https://github.com/StefanBartl/filetree.nvim) is installed and set up, the dialog also offers to open that directory there instead. Disable with `create_on_missing.enable = false` — the `gC` keymap / `:GopathCheck` command still offer to create even then, since that's an explicit user action. See [docs/configuration.md](./configuration.md) and [docs/RESOLUTION.md](./RESOLUTION.md) for details.
