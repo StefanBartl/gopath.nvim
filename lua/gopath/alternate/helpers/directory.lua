@@ -42,6 +42,39 @@ function M.extract_filename(filepath)
   return vim.fn.fnamemodify(filepath, ":t")
 end
 
+---Human-readable byte size, e.g. 512 -> "512 B", 2048 -> "2.0 KB".
+---@internal
+---@param bytes integer
+---@return string
+local function human_size(bytes)
+  if bytes < 1024 then return bytes .. " B" end
+  if bytes < 1024 * 1024 then return string.format("%.1f KB", bytes / 1024) end
+  return string.format("%.1f MB", bytes / (1024 * 1024))
+end
+
+---Human-readable "modified" recency, e.g. "just now", "5m ago", "3d ago".
+---@internal
+---@param mtime_sec integer
+---@return string
+local function human_age(mtime_sec)
+  local delta = math.max(0, os.time() - mtime_sec)
+  if delta < 60 then return "just now" end
+  if delta < 3600 then return math.floor(delta / 60) .. "m ago" end
+  if delta < 86400 then return math.floor(delta / 3600) .. "h ago" end
+  return math.floor(delta / 86400) .. "d ago"
+end
+
+---Best-effort size/mtime summary for `path`, for display in a selection UI.
+---Returns nil when the file cannot be stat'ed (e.g. vanished between scan
+---and selection) rather than erroring — this is cosmetic, not load-bearing.
+---@param path string
+---@return string|nil summary  e.g. "2.3 KB, modified 5m ago"
+function M.file_meta(path)
+  local stat = uv.fs_stat(path)
+  if not stat then return nil end
+  return string.format("%s, modified %s", human_size(stat.size), human_age(stat.mtime.sec))
+end
+
 ---Scan directory and return all regular files.
 ---@param dir_path string
 ---@return string[]|nil files List of absolute file paths, or nil on error

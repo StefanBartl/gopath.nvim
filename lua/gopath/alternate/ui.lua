@@ -22,10 +22,13 @@ function M.present_selection(matches, original_path, opts)
   if not matches or #matches == 0 then return false end
 
   -- === Format Items for Display ===
-  -- Show: "filename (85%)"
+  -- Show: "filename (85%) — 2.3 KB, modified 5m ago"
+  local dir_helper = require("gopath.alternate.helpers.directory")
   local items = {}
   for _, match in ipairs(matches) do
     local display = string.format("%s (%.0f%%)", match.filename, match.similarity)
+    local meta = dir_helper.file_meta(match.path)
+    if meta then display = display .. " — " .. meta end
     table.insert(items, display)
   end
 

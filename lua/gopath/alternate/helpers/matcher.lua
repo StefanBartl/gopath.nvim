@@ -6,14 +6,26 @@ local M = {}
 ---Calculate similarity percentage between two strings (0-100), case-
 ---insensitive. Delegates to lib.lua.strings.distance.similarity (which
 ---returns a [0,1] scale, case-sensitive) for the underlying Levenshtein
----distance + normalization.
+---distance + normalization, then applies a prefix bonus: a truncated or
+---abbreviated name sharing a long common prefix with the target (e.g.
+---"confi" vs "config.lua") is a stronger match signal than raw edit
+---distance alone gives it, since a handful of trailing insertions score
+---the same as unrelated trailing noise would.
 ---@param s1 string
 ---@param s2 string
 ---@return number similarity Percentage (0-100)
 function M.calculate_similarity(s1, s2)
   if s1 == s2 then return 100 end
 
-  return require("lib.lua.strings.distance").similarity(s1:lower(), s2:lower()) * 100
+  local a, b = s1:lower(), s2:lower()
+  local base = require("lib.lua.strings.distance").similarity(a, b) * 100
+
+  local shorter, longer = (#a <= #b) and a or b, (#a <= #b) and b or a
+  if #shorter > 0 and longer:sub(1, #shorter) == shorter then
+    base = math.max(base, (#shorter / #longer) * 100)
+  end
+
+  return base
 end
 
 ---Find files in directory that match the target filename with similarity >= threshold.
