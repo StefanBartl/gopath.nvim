@@ -380,6 +380,16 @@ function M.check()
   check_truncated()
   check_languages()
 
+  -- gopath.nvim's own docs/install.json via lib.nvim.deps — the same
+  -- fd/rg check_external_tools() already probes, but with their declared
+  -- `why` and a pointer to `:Lib deps show`. Does nothing if
+  -- lib.nvim.deps is unavailable (older lib.nvim).
+  local ok_deps, deps_health = pcall(require, "lib.nvim.deps.health")
+  if ok_deps then
+    start_s("Declared tools (lib.nvim.deps)")
+    deps_health.report_for("gopath.nvim")
+  end
+
   require("lib.nvim.usercmd.composer").checkhealth("Gopath")
 end
 

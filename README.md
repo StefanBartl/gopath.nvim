@@ -56,6 +56,12 @@ Then press `gP` with your cursor on a `require("a.b")`, a file path, a `:help` t
 
 See [docs/installation.md](./docs/installation.md) for the packer snippet and optional dependencies.
 
+`fd`/`fdfind`/`rg` speed up resolving a truncated path tail — declared in
+[`docs/install.json`](docs/install.json), parsed by lib.nvim's
+[`deps` module](https://github.com/StefanBartl/lib.nvim/blob/main/lua/lib/nvim/deps/README.md).
+A popup explains what's missing the first time `setup()` runs after
+installing gopath.nvim; `:Lib deps show gopath.nvim` repeats it any time.
+
 ---
 
 ## Documentation
