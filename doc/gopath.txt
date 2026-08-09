@@ -158,6 +158,15 @@ gopath.nvim tries each phase in order and returns the first success.
            symbol_locator, table_locator, value_origin; backed by LSP and/or
            Treesitter according to `mode` and `order`.
 
+      With the default order = { "lsp", "treesitter", "builtin" }, a chained
+      reference (config.setup()) tries symbol_locator.via_lsp first, landing
+      on the exact definition line/column; the treesitter chain walk (via
+      identifier_locator / symbol_locator.via_treesitter / value_origin) only
+      runs when LSP has no client or times out (lsp_timeout_ms).  A bare
+      identifier with no .field chain (local resolver = require("a.b");
+      cursor on `resolver` alone) is resolved by identifier_locator, which
+      runs before the chain-based resolvers in the treesitter pass.
+
       Lua module names resolve through a three-step chain:
         1. runtimepath
         2. package.path
@@ -318,6 +327,8 @@ commands = {
 
 Lua (full support):
   - require("a.b.c") -> lua/a/b/c.lua
+  - Bare identifier: local resolver = require("a.b"); cursor on `resolver`
+    alone -> a/b.lua (identifier_locator)
   - Variable chains: local x = require("mod"); x.func() -> mod.lua @ func
   - Table key lookup: config.get() -> definition of get in config module
 

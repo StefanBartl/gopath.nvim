@@ -60,8 +60,16 @@ Images, PDFs, media files open automatically in the system default application.
 
 ### Lua (full support)
 - `require("a.b.c")` → resolves to `lua/a/b/c.lua`
+- Bare identifier: `local resolver = require("gopath.resolve")` → cursor on
+  `resolver` alone (no `.field`) → opens `resolve.lua` (`identifier_locator`,
+  treesitter-provider pass, runs before the chain resolver)
 - `local x = require("mod"); x.func()` → cursor on `x` → opens mod.lua
 - Table chain: `config.get()` → opens definition of `get` in `config` module
+- LSP-first: when `order = { "lsp", "treesitter", "builtin" }` (the default),
+  a chain like `config.setup()` first tries `symbol_locator.via_lsp`, which
+  jumps straight to the exact definition line/column; treesitter's own chain
+  walk only runs as a fallback when LSP has no client or times out
+  (`lsp_timeout_ms`)
 - `local_to_module` enhancement: LSP results pointing to `require()` lines
 - Value origin: follows config table values to their source module
 
