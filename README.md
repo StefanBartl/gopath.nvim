@@ -48,6 +48,10 @@ A modular file-navigation plugin for Neovim. gopath.nvim resolves symbols, `requ
 }
 ```
 
+> `event = "VeryLazy"` (or another lazy-load trigger: `cmd`, `keys`, `ft`,
+> or `lazy = false`) is **required**. Without one, lazy.nvim never sources
+> the plugin — no error, no keymaps, `gP` just does nothing.
+
 Then press `gP` with your cursor on a `require("a.b")`, a file path, a `:help` tag, or a stack-trace line to jump straight to it. If the resolved path doesn't exist, gopath offers to create it (`gC` / `:GopathCheck` always offer this explicitly). Run `:checkhealth gopath` to verify your setup.
 
 See [docs/installation.md](./docs/installation.md) for the packer snippet and optional dependencies.

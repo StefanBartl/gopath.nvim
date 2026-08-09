@@ -28,7 +28,16 @@ Checks:
 
 ## Troubleshooting
 
-### `gP` does nothing
+### `gP` does nothing (and `:checkhealth gopath` / `:Gopath` don't even exist)
+This means gopath.nvim was never loaded at all — with lazy.nvim, an `opts =
+{...}` table with no `event`/`cmd`/`keys`/`ft` trigger and no `lazy = false`
+is never sourced. There is no error: the plugin manager simply never calls
+`require("gopath").setup(...)`, so no keymaps, no commands, nothing.
+**A lazy-load trigger (`event = "VeryLazy"` is the simplest one) or `lazy =
+false` in the plugin spec is required**, not optional — see
+[docs/installation.md](./installation.md).
+
+### `gP` does nothing (but `:Gopath debug` / `:checkhealth gopath` work)
 1. `:Gopath debug` — shows what the resolver found (or why it failed)
 2. `:checkhealth gopath` — verify external tools and config
 3. Ensure Neovim ≥ 0.9

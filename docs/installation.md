@@ -29,6 +29,16 @@ dependencies, and recommended CLI tools. For a minimal quickstart, see the
 }
 ```
 
+> **A lazy-load trigger is required, not optional.** `event = "VeryLazy"`
+> above is the simplest one, but `cmd`, `keys`, `ft`, or `lazy = false` all
+> work equally well. With an `opts = {...}` table and no trigger at all,
+> lazy.nvim never sources the plugin — `setup()` is simply never called, no
+> keymaps or commands are registered, and **no error is shown**: `gP` does
+> nothing and even `:checkhealth gopath` is "not found" because the plugin
+> was never loaded in the first place. If you use a `config = function()
+> require("gopath").setup({...}) end` form instead of `opts`, the same rule
+> applies — a trigger is still required for lazy.nvim to ever call it.
+
 > **`lib.nvim`** is now **required**: the `:Gopath` command layer is built on
 > `lib.nvim.usercmd.composer`, which registers unconditionally. It also
 > provides cross-platform separator handling (forward-slash canonicalization
