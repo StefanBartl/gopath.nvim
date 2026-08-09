@@ -1,10 +1,21 @@
 ---@module 'gopath.resolvers.lua.table_locator'
 ---@brief Locate a table (and optionally a key initializer) by a dotted base chain in a Lua file.
 ---@desc Robust against newlines after "=", bracketed keys, return-blocks and tables nested in function calls.
+---@description
+--- `M.locate` tries a Treesitter-based strategy first (`ts_locate`, real
+--- queries over table_constructor/field/assignment_statement nodes — see
+--- `ts_lua_ast`), which is precise and immune to the depth-confusion bugs
+--- textual brace-counting is prone to. When no "lua" parser is available, or
+--- none of its tiers match, it falls back to `legacy_locate`: the original
+--- line-pattern implementation, kept verbatim as a safety net so every
+--- previously-working case keeps working even where the treesitter path
+--- doesn't (yet) cover it.
+
+local AST = require("gopath.resolvers.lua.ts_lua_ast")
 
 local M = {}
 
--- ========= helpers =========
+-- ========= legacy (line-pattern) helpers =========
 
 ---Escape a string for use as a literal Lua pattern.
 ---@internal
@@ -300,21 +311,18 @@ local function find_global_table(lines, key)
   return nil, nil
 end
 
--- ========= main locate =========
+-- ========= legacy (line-pattern) locate =========
 
----Locate a table region and optionally a key initializer inside it.
----@param abs_path string  Absolute file path to search in
----@param base_chain string "M.cfg.highlight" (root.var1.var2)
----@param seek_key string|nil  e.g. "enable_insert_submode_colors"
+---Legacy line-pattern implementation of `M.locate`, kept as the fallback
+---path for files/cases the treesitter strategy (`ts_locate`) can't handle
+---(no parser available, or none of its tiers matched).
+---@internal
+---@param lines string[]
+---@param segs string[]  { ROOT, cfg, highlight, ... }
+---@param seek_key string|nil
+---@param abs_path string
 ---@return { path:string, key_line:integer|nil, key_col:integer|nil, tbl_start:integer|nil, tbl_end:integer|nil }|nil
-function M.locate(abs_path, base_chain, seek_key)
-  if type(abs_path) ~= "string" or abs_path == "" then return nil end
-  local lines = vim.fn.readfile(abs_path)
-  if type(lines) ~= "table" or #lines == 0 then return nil end
-
-  local segs = split_chain(base_chain) -- { ROOT, cfg, highlight, ... }
-  if #segs == 0 then return nil end
-
+local function legacy_locate(lines, segs, seek_key, abs_path)
   -- final found region
   local found = false
   local fs, fe -- integers (table start/end)
@@ -432,6 +440,261 @@ function M.locate(abs_path, base_chain, seek_key)
 
   -- 8) No key given or key not found: land at table start.
   return { path = abs_path, key_line = fs, key_col = 1, tbl_start = fs, tbl_end = fe }
+end
+
+-- ========= treesitter (primary) helpers =========
+
+---Direct `field` child of `tbl_node` (depth-1 only — never descends into a
+---nested table_constructor) whose literal key equals `key`.
+---@internal
+---@param tbl_node TSNode  type() == "table_constructor"
+---@param key string
+---@param src string
+---@return TSNode|nil field
+local function ts_direct_field(tbl_node, key, src)
+  for i = 0, tbl_node:named_child_count() - 1 do
+    local child = tbl_node:named_child(i)
+    if child:type() == "field" and AST.field_key_text(child, src) == key then return child end
+  end
+  return nil
+end
+
+---Like `ts_direct_field`, but only returns the field's value when it is
+---itself a table_constructor (used to descend a chain one level).
+---@internal
+---@param tbl_node TSNode
+---@param key string
+---@param src string
+---@return TSNode|nil child_table
+local function ts_direct_child_table(tbl_node, key, src)
+  local field = ts_direct_field(tbl_node, key, src)
+  if not field then return nil end
+  local value = field:field("value")[1]
+  if value and value:type() == "table_constructor" then return value end
+  return nil
+end
+
+---Descend `node` through `segs` one direct-child table per segment.
+---@internal
+---@param node TSNode
+---@param segs string[]
+---@param src string
+---@return TSNode|nil
+local function ts_descend(node, segs, src)
+  for i = 1, #segs do
+    node = ts_direct_child_table(node, segs[i], src)
+    if not node then return nil end
+  end
+  return node
+end
+
+---First `field` node anywhere in `scope`'s subtree (any depth) whose literal
+---key equals `key`. Mirrors legacy `find_key_assignment`'s non-depth-aware
+---scan, used only for the final "find the requested key inside an already
+----resolved table" step — never for chain descent, which must stay depth-exact.
+---@internal
+---@param scope TSNode
+---@param key string
+---@param src string
+---@param want_table boolean  when true, only match fields whose value is a table_constructor, and return that value node instead of the field
+---@return TSNode|nil
+local function ts_find_field_anywhere(scope, key, src, want_table)
+  local q = AST.get_query("field_any", "(field) @f")
+  if not q then return nil end
+  for _, node in q:iter_captures(scope, src) do
+    if AST.field_key_text(node, src) == key then
+      if not want_table then return node end
+      local value = node:field("value")[1]
+      if value and value:type() == "table_constructor" then return value end
+    end
+  end
+  return nil
+end
+
+---All `assignment_statement`s whose LHS resolves to a literal dotted chain
+---and whose RHS is a table_constructor, in document order.
+---@internal
+---@param root TSNode
+---@param src string
+---@return { chain:string[], tbl:TSNode }[]
+local function ts_collect_table_assignments(root, src)
+  local q = AST.get_query(
+    "assign_tbl",
+    [[
+      (assignment_statement
+        (variable_list
+          name: (_) @lhs)
+        (expression_list
+          value: (table_constructor) @tbl))
+    ]]
+  )
+  if not q then return {} end
+
+  local out, pending_lhs = {}, nil
+  for id, node in q:iter_captures(root, src) do
+    local cap = q.captures[id]
+    if cap == "lhs" then
+      pending_lhs = node
+    elseif cap == "tbl" and pending_lhs then
+      local chain = AST.chain_of(pending_lhs, src)
+      if chain then out[#out + 1] = { chain = chain, tbl = node } end
+      pending_lhs = nil
+    end
+  end
+  return out
+end
+
+---Outermost `table_constructor` of a `return { ... }` statement, if any.
+---@internal
+---@param root TSNode
+---@param src string
+---@return TSNode|nil
+local function ts_find_return_table(root, src)
+  local q =
+    AST.get_query("return_tbl", "(return_statement (expression_list (table_constructor) @tbl))")
+  if not q then return nil end
+  local iter = q:iter_captures(root, src)
+  local _, node = iter()
+  return node
+end
+
+---Any `assignment_statement` whose LHS resolves to exactly `chain` (any RHS).
+---Used for the "no table at all" single-field fallback.
+---@internal
+---@param root TSNode
+---@param chain string[]
+---@param src string
+---@return TSNode|nil lhs
+local function ts_find_assignment_lhs(root, chain, src)
+  local q = AST.get_query(
+    "assign_lhs",
+    [[
+      (assignment_statement
+        (variable_list
+          name: (_) @lhs))
+    ]]
+  )
+  if not q then return nil end
+  for _, node in q:iter_captures(root, src) do
+    local c = AST.chain_of(node, src)
+    if c and AST.chains_equal(c, chain) then return node end
+  end
+  return nil
+end
+
+---Build a locate-result once a table region has been resolved via treesitter.
+---@internal
+---@param abs_path string
+---@param tbl_node TSNode
+---@param seek_key string|nil
+---@param src string
+---@return table
+local function ts_table_hit(abs_path, tbl_node, seek_key, src)
+  local fs, fe = AST.node_lines(tbl_node)
+  if seek_key then
+    local field = ts_find_field_anywhere(tbl_node, seek_key, src, false)
+    if field then
+      local name = field:field("name")[1] or field
+      local kl, kc = AST.node_start(name)
+      return { path = abs_path, key_line = kl, key_col = kc, tbl_start = fs, tbl_end = fe }
+    end
+  end
+  return { path = abs_path, key_line = fs, key_col = 1, tbl_start = fs, tbl_end = fe }
+end
+
+---Treesitter-based strategy, mirroring `legacy_locate`'s tiers 1-6 with real
+---syntax-tree queries instead of line patterns. Returns nil (falling through
+---to `legacy_locate`) when no "lua" parser is available or none of its tiers
+---match.
+---@internal
+---@param lines string[]
+---@param segs string[]
+---@param seek_key string|nil
+---@param abs_path string
+---@return { path:string, key_line:integer|nil, key_col:integer|nil, tbl_start:integer|nil, tbl_end:integer|nil }|nil
+local function ts_locate(lines, segs, seek_key, abs_path)
+  local root, src = AST.parse(lines)
+  if not root then return nil end
+
+  local assigns = ts_collect_table_assignments(root, src)
+  local tbl = nil
+
+  -- 1) direct: ROOT.cfg.highlight = { ... }
+  for _, a in ipairs(assigns) do
+    if AST.chains_equal(a.chain, segs) then
+      tbl = a.tbl
+      break
+    end
+  end
+
+  -- 2) progressive: ROOT.cfg = { ... } -> child "highlight" -> ...
+  if not tbl and #segs >= 2 then
+    local top = { segs[1], segs[2] }
+    for _, a in ipairs(assigns) do
+      if AST.chains_equal(a.chain, top) then
+        tbl = ts_descend(a.tbl, AST.slice(segs, 3), src)
+        break
+      end
+    end
+  end
+
+  -- 3) any-root: <ROOT>.(cfg.highlight) = { ... }
+  if not tbl and #segs >= 2 then
+    local tail = AST.slice(segs, 2)
+    for _, a in ipairs(assigns) do
+      if #a.chain == #segs and AST.chain_tail_equal(a.chain, 2, tail) then
+        tbl = a.tbl
+        break
+      end
+    end
+  end
+
+  -- 4) return { cfg = { highlight = ... } } : descend inside outer return table
+  if not tbl then
+    local rt = ts_find_return_table(root, src)
+    if rt then tbl = ts_descend(rt, segs, src) end
+  end
+
+  -- 5) global fallback: any field named segs[2] anywhere, then descend
+  if not tbl and #segs >= 2 then
+    local g = ts_find_field_anywhere(root, segs[2], src, true)
+    if g then tbl = ts_descend(g, AST.slice(segs, 3), src) end
+  end
+
+  if tbl then return ts_table_hit(abs_path, tbl, seek_key, src) end
+
+  -- 6) nothing found: single-line field assignment fallback: ROOT.cfg.highlight.key = ...
+  if seek_key then
+    local full = AST.slice(segs, 1)
+    full[#full + 1] = seek_key
+    local lhs = ts_find_assignment_lhs(root, full, src)
+    if lhs then
+      local last = lhs:field("field")[1] or lhs
+      local kl, kc = AST.node_start(last)
+      return { path = abs_path, key_line = kl, key_col = kc, tbl_start = nil, tbl_end = nil }
+    end
+  end
+
+  return nil
+end
+
+-- ========= main locate =========
+
+---Locate a table region and optionally a key initializer inside it.
+---@param abs_path string  Absolute file path to search in
+---@param base_chain string "M.cfg.highlight" (root.var1.var2)
+---@param seek_key string|nil  e.g. "enable_insert_submode_colors"
+---@return { path:string, key_line:integer|nil, key_col:integer|nil, tbl_start:integer|nil, tbl_end:integer|nil }|nil
+function M.locate(abs_path, base_chain, seek_key)
+  if type(abs_path) ~= "string" or abs_path == "" then return nil end
+  local lines = vim.fn.readfile(abs_path)
+  if type(lines) ~= "table" or #lines == 0 then return nil end
+
+  local segs = split_chain(base_chain) -- { ROOT, cfg, highlight, ... }
+  if #segs == 0 then return nil end
+
+  return ts_locate(lines, segs, seek_key, abs_path)
+    or legacy_locate(lines, segs, seek_key, abs_path)
 end
 
 return M

@@ -24,6 +24,24 @@ function M.node_at_cursor()
   return root and root:named_descendant_for_range(row, col, row, col) or nil
 end
 
+---Parse arbitrary source text (not tied to any open buffer) with the given
+---language's Tree-sitter parser. Used to run real Treesitter queries against
+---files read via `vim.fn.readfile` (e.g. a required module the cursor isn't
+---currently in), where `node_at_cursor`'s buffer-0 assumption doesn't apply.
+---@param text string
+---@param lang string
+---@return TSNode|nil root  or nil if `lang`'s parser isn't available
+function M.parse_string(text, lang)
+  if not has_ts() then return nil end
+  local ok, parser = pcall(vim.treesitter.get_string_parser, text, lang)
+  if not ok or not parser then return nil end
+  local ok2, trees = pcall(function()
+    return parser:parse()
+  end)
+  if not ok2 or not trees or not trees[1] then return nil end
+  return trees[1]:root()
+end
+
 --- Return capture names at position (best-effort; works on 0.10+ and falls back for 0.9).
 ---@param row integer  -- 0-based
 ---@param col integer  -- 0-based
