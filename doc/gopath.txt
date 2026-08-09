@@ -59,6 +59,11 @@ lazy.nvim: >lua
     opts = { mode = "hybrid" },
   }
 <
+A lazy-load trigger (event/cmd/keys/ft, or lazy = false) is REQUIRED, not
+optional.  With an opts = {...} table and no trigger, lazy.nvim never
+sources the plugin: setup() is never called, no keymaps or commands are
+registered, and no error is shown — gP simply does nothing and even
+:checkhealth gopath is "not found".  See |gopath-troubleshooting|.
 
 ==============================================================================
 4. KEYMAPS                                                  *gopath-keymaps*
@@ -381,7 +386,13 @@ Verifies:
 ==============================================================================
 11. TROUBLESHOOTING                                 *gopath-troubleshooting*
 
-gP does nothing: ~
+gP does nothing, and :Gopath / :checkhealth gopath don't exist either: ~
+  gopath.nvim was never loaded.  With lazy.nvim, an opts = {...} table with
+  no event/cmd/keys/ft trigger (and no lazy = false) is never sourced --
+  there is no error, setup() is simply never called.  Add a trigger; see
+  |gopath-installation|.
+
+gP does nothing, but :Gopath debug / :checkhealth gopath work: ~
   :Gopath debug  -- shows resolver output
   :checkhealth gopath  -- check tools and config
   Requires Neovim >= 0.9
