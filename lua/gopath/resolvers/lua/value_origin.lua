@@ -8,6 +8,50 @@ local PATH = require("gopath.util.path")
 
 local M = {}
 
+---@class _RootsCache
+---@field mtime integer
+---@field roots string[]
+
+-- abs file path -> _RootsCache. Invalidated on mtime change (these files are
+-- read via vim.fn.readfile, not necessarily open buffers, so there is no
+-- changedtick to key off — unlike binding_index.lua's per-buffer cache).
+local roots_cache = {}
+
+---Infer candidate root identifiers ("M", locally-declared tables, the
+---identifier returned at the end of the file) from the file's lines.
+---@internal
+---@param lines_ string[]
+---@return string[]
+local function infer_roots_from_lines(lines_)
+  local roots = { "M" }
+  for i = 1, #lines_ do
+    local s = lines_[i] or ""
+    local id = s:match("^%s*local%s+([%w_]+)%s*=%s*{")
+      or s:match("^%s*local%s+([%w_]+)%s*=%s*setmetatable%s*%(")
+    if id then roots[#roots + 1] = id end
+    local rid = s:match("^%s*return%s+([%w_]+)%s*$")
+    if rid then roots[#roots + 1] = rid end
+  end
+  return require("lib.lua.tables").dedup_list(roots)
+end
+
+---Get the inferred roots for `abs`, from cache when the file's mtime is
+---unchanged since the last inference, avoiding a re-read + re-scan of every
+---line on repeated lookups against the same (unedited) file.
+---@internal
+---@param abs string
+---@return string[]
+local function get_roots_cached(abs)
+  local mtime = vim.fn.getftime(abs)
+  local entry = roots_cache[abs]
+  if entry and entry.mtime == mtime then return entry.roots end
+
+  local lines = vim.fn.readfile(abs)
+  local roots = infer_roots_from_lines(lines)
+  roots_cache[abs] = { mtime = mtime, roots = roots }
+  return roots
+end
+
 ---Split a dotted string ("a.b.c") into its segments.
 ---@internal
 ---@param s string
@@ -88,27 +132,7 @@ local function try_locate_with_roots(abs, extra_chain, last_key)
   local tl = require("gopath.resolvers.lua.table_locator")
   if type(abs) ~= "string" or abs == "" then return nil end
 
-  -- einfache Root-Inferenz lokal (kein Export aus table_locator nötig)
-  local lines = vim.fn.readfile(abs)
-  ---Infer candidate root identifiers ("M", locally-declared tables, the
-  ---identifier returned at the end of the file) from the file's lines.
-  ---@internal
-  ---@param lines_ string[]
-  ---@return string[]
-  local function infer_roots_from_lines(lines_)
-    local roots = { "M" }
-    for i = 1, #lines_ do
-      local s = lines_[i] or ""
-      local id = s:match("^%s*local%s+([%w_]+)%s*=%s*{")
-        or s:match("^%s*local%s+([%w_]+)%s*=%s*setmetatable%s*%(")
-      if id then roots[#roots + 1] = id end
-      local rid = s:match("^%s*return%s+([%w_]+)%s*$")
-      if rid then roots[#roots + 1] = rid end
-    end
-    return require("lib.lua.tables").dedup_list(roots)
-  end
-
-  local roots = infer_roots_from_lines(lines)
+  local roots = get_roots_cached(abs)
   local suffix = (extra_chain and extra_chain ~= "") and ("." .. extra_chain) or ""
   for _, root in ipairs(roots) do
     local base_chain = root .. suffix
@@ -126,12 +150,22 @@ function M.resolve()
   local chain = CHN.get_chain_at_cursor()
   if not chain then return nil end
 
+  local last_key = (#chain.chain > 0) and chain.chain[#chain.chain] or nil
+
+  -- Resolve the *table* the leaf lives in from everything but the final
+  -- segment; last_key locates the leaf separately inside that table. Passing
+  -- the full chain here would make base_chain point one level too deep and
+  -- double up the key in table_locator's dotted-fallback pattern, so a chain
+  -- like cfg.highlight.enable_x could never be located.
+  local chain_wo_last = {}
+  for i = 1, #chain.chain - 1 do
+    chain_wo_last[i] = chain.chain[i]
+  end
+
   local bind_map = BIX.get_map()
   local alias_map = ALX.get_map()
-  local base_res = resolve_base(chain.base, chain.chain, bind_map, alias_map)
+  local base_res = resolve_base(chain.base, chain_wo_last, bind_map, alias_map)
   if not base_res then return nil end
-
-  local last_key = (#chain.chain > 0) and chain.chain[#chain.chain] or nil
 
   if base_res.kind == "module" then
     local abs = PATH.search_module(base_res.module)
