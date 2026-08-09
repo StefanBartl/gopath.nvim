@@ -205,19 +205,13 @@ local function find_child_table(lines, s, e, key)
     "[%[{,]%s*%['" .. ke .. "'%]%s*=%s*{", -- , ['key'] = {
   }
 
+  -- depth is the brace nesting *before* line i's own braces are counted, so
+  -- it reads 1 exactly on lines that are direct children of the region
+  -- opened at `s` (whose own opening brace only takes effect after it is
+  -- processed in the loop below). A separate pre-scan of line `s` here would
+  -- double-count that line's opening brace and make depth reach 2 one line
+  -- too early, so every child match after the first sibling would be missed.
   local depth = 0
-  -- initial depth scan (wie oben)
-  do
-    local line = scrub_for_braces(lines[s] or "")
-    for j = 1, #line do
-      local ch = line:sub(j, j)
-      if ch == "{" then
-        depth = depth + 1
-      elseif ch == "}" then
-        depth = math.max(0, depth - 1)
-      end
-    end
-  end
 
   for i = s, e do
     local raw = lines[i] or ""

@@ -195,6 +195,14 @@ gopath.nvim tries each phase in order and returns the first success.
       picked up when the runtimepath changes, when gopath itself creates the
       file, on |BufWritePost| (see docs/BINDINGS.md), or after a 30s TTL.
 
+      value_origin (table-chain root inference) similarly caches, per target
+      file, the list of candidate root identifiers ("M", locally-declared
+      tables, the return-identifier) it tries when locating a chain like
+      cfg.highlight inside that file.  The cache is keyed by the file's
+      mtime, so repeated lookups against the same unedited file skip the
+      read + line-scan; it is rebuilt automatically once the file's mtime
+      changes.
+
   Phase 5 - Fallback
       Returns the Phase 3 filetoken result (even if non-existent) so the
       alternate / nearest-folder fallbacks can handle it; then raw <cfile>.

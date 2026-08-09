@@ -71,7 +71,11 @@ Images, PDFs, media files open automatically in the system default application.
   walk only runs as a fallback when LSP has no client or times out
   (`lsp_timeout_ms`)
 - `local_to_module` enhancement: LSP results pointing to `require()` lines
-- Value origin: follows config table values to their source module
+- Value origin: follows config table values to their source module, e.g.
+  `local cfg = require("plugin.config"); cfg.highlight.enable_x` → cursor on
+  `enable_x` → `config.lua` at the `enable_x = ...` line, however deeply the
+  key is nested (`M.foo = {...}`, `M = { foo = {...} }`, `return { foo =
+  {...} }`, …); the file's root-identifier candidates are cached per mtime
 
 ### All filetypes (universal)
 - File paths (relative, absolute, with `:line:col`, `(line)`, `+line`)
