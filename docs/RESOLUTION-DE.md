@@ -57,7 +57,7 @@ Resolver der Reihe nach und gibt den ersten Erfolg zurück:
 |-------|----------|----------|
 | 1 | `:help`-Subjekt | Token sieht aus wie ein Vim-Help-Tag |
 | 2 | `$VAR`-Env-Pfad | Token beginnt mit `$` oder `${` |
-| 3 | **filetoken** | `<cfile>` unter Cursor; sucht `&path`, rtp, dann den **Cache** |
+| 3 | **filetoken** | `<cfile>` unter Cursor; sucht `&path` (unter Beachtung von `suffixesadd`), rtp, dann den **Cache** |
 | 3.5 | **linepath** | scannt die ganze aktuelle Zeile (Stacktraces, Endung-getrieben, absolut) |
 | 4 | Sprach-Pipeline | LSP → Treesitter → builtin (je Filetype, z. B. Lua `require`) |
 | 5 | filetoken-Fallback | das aus Phase 3 gehaltene, unsichere/nicht-existente Ergebnis |

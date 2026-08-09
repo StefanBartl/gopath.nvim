@@ -145,8 +145,12 @@ gopath.nvim tries each phase in order and returns the first success.
 
   Phase 3 - filetoken  (generic <cfile> resolver)
       Expands <cfile>, strips error-message prefixes, parses :line:col,
-      searches rtp and vim &path.  Falls back to tailsearch before building
-      a speculative absolute path.
+      searches rtp and vim &path (honouring 'suffixesadd', same as gf).
+      Falls back to tailsearch before building a speculative absolute path.
+      'includeexpr' is intentionally NOT consulted: gopath's own multi-phase
+      pipeline (LSP/Treesitter/language resolvers/linepath/tailsearch)
+      already covers what includeexpr is typically set up to do per-
+      filetype, more completely and without per-filetype configuration.
 
   Phase 3.5 - linepath  (whole-line extraction)          *gopath-linepath*
       Scans vim.api.nvim_get_current_line() using three heuristics:

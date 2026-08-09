@@ -57,7 +57,7 @@ in order and returns the first success:
 |-------|----------|---------|
 | 1 | `:help` subject | token looks like a Vim help tag |
 | 2 | `$VAR` env path | token starts with `$` or `${` |
-| 3 | **filetoken** | `<cfile>` under cursor; searches `&path`, rtp, then the **cache** |
+| 3 | **filetoken** | `<cfile>` under cursor; searches `&path` (honouring `suffixesadd`), rtp, then the **cache** |
 | 3.5 | **linepath** | scans the whole current line (stacktraces, extension-driven, absolute) |
 | 4 | Language pipeline | LSP → Treesitter → builtin (per filetype, e.g. Lua `require`) |
 | 5 | filetoken fallback | the low-confidence/non-existent result held from phase 3 |

@@ -24,6 +24,12 @@ dives into individual subsystems.
 - **Help tags**: `vim.api.*`, `vim.fn.*`, `vim.loop` → `:help` target
 - **Env vars**: `$VAR/path/file.md`, `${VAR}\rest\of\path.txt`
 - **Line/column**: `file.lua:42:8`, `file.lua(42)`, `file.lua +42`
+- **`&path` / `suffixesadd`**: the generic `<cfile>` resolver (filetoken)
+  honours both, same as `gf` — a bare `foo` resolves to `foo.lua` if
+  `suffixesadd` says so. `includeexpr` is deliberately not consulted;
+  gopath's own pipeline (LSP/Treesitter/language resolvers) already covers
+  what it's typically configured for, per filetype, without that
+  per-filetype setup.
 
 ## Whole-line extraction  *(new in 0.3 — absorbed from pathfinder)*
 Scans the **entire current line** for path-like strings using three heuristics:
