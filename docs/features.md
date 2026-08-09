@@ -65,6 +65,13 @@ application. `external.extensions` extends the built-in extension list
 (does not replace it); `external.enable = false` disables the whole
 feature. See [docs/configuration.md](./configuration.md).
 
+Opener fallback chain: [open.nvim](https://github.com/StefanBartl/open.nvim)'s
+`default` handler (if installed) → lib.nvim's cross-platform system opener →
+a minimal built-in per-OS opener (`open`/`xdg-open`/`explorer.exe`). Each
+stage falls through to the next on dispatch failure (e.g. `open.nvim`
+erroring, or no `xdg-open` on a bare Linux install) instead of giving up
+after the first one that's merely *available*.
+
 ---
 
 ## Language Support
