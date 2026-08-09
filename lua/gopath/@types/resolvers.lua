@@ -44,6 +44,17 @@
 ---@field map  table<string,_AliasEntry>
 
 ---@class TSNode  Minimal Tree-sitter node stub for LuaLS
----@field type   fun(self:TSNode):string
----@field parent fun(self:TSNode):TSNode|nil
----@field range  fun(self:TSNode):integer,integer,integer,integer
+---@field type              fun(self:TSNode):string
+---@field parent            fun(self:TSNode):TSNode|nil
+---@field range             fun(self:TSNode):integer,integer,integer,integer
+---@field start             fun(self:TSNode):integer,integer,integer
+---@field end_              fun(self:TSNode):integer,integer,integer
+---@field field             fun(self:TSNode, name:string):TSNode[]
+---@field child              fun(self:TSNode, index:integer):TSNode|nil
+---@field named_child        fun(self:TSNode, index:integer):TSNode|nil
+---@field child_count        fun(self:TSNode):integer
+---@field named_child_count  fun(self:TSNode):integer
+
+---@class TSQuery  Minimal Tree-sitter compiled-query stub for LuaLS
+---@field captures      string[]
+---@field iter_captures fun(self:TSQuery, node:TSNode, source:string|integer):fun():integer,TSNode,any
