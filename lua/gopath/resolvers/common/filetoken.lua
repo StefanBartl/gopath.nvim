@@ -115,6 +115,25 @@ function M.resolve()
 
   local token = parsed.path
 
+  -- URLs (http://, https://, ftp://, www., ...) are already a complete
+  -- target. None of the searches below make sense for them, and the
+  -- cwd-join fallback further down would corrupt them into a bogus local
+  -- path like "docs/ROADMAP/personal/http://www.google.com". Hand them
+  -- back verbatim so gopath.external can open them in the browser.
+  local ok_ext, external = pcall(require, "gopath.external")
+  if ok_ext and external.should_open_externally(token) then
+    return {
+      language = vim.bo.filetype or "text",
+      kind = "file",
+      path = token,
+      range = LOC.create_range(parsed.line, parsed.col),
+      chain = nil,
+      source = "builtin-url",
+      confidence = 0.9,
+      exists = true,
+    }
+  end
+
   -- Search 1: vim &path
   local abs = U.search_with_vim_path(token)
 

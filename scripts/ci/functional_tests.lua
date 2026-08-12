@@ -404,6 +404,31 @@ check("legacy fallback: symbol_locator resolves without a parser", function()
   if not ok then error(err, 0) end
 end)
 
+-- ========= Group E: filetoken URL handling =========
+-- Regression for a bug where a URL under the cursor (e.g. in a markdown doc)
+-- got joined with the current file's directory instead of being recognised
+-- as an external target, producing a bogus path like
+-- ".../personal/http://www.google.com" and offering to create it.
+
+check("filetoken: URL under cursor is returned verbatim, not cwd-joined", function()
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+    "See http://www.google.com for details.",
+  })
+  vim.api.nvim_set_current_buf(buf)
+  vim.bo[buf].filetype = "markdown"
+
+  local col = assert(({ vim.api.nvim_buf_get_lines(buf, 0, 1, false) })[1][1]:find("http"))
+    - 1
+  vim.api.nvim_win_set_cursor(0, { 1, col })
+
+  local filetoken = require("gopath.resolvers.common.filetoken")
+  local r = filetoken.resolve()
+  assert_truthy(r, "expected a result")
+  assert_eq(r.path, "http://www.google.com", "path must be the raw URL, not cwd-joined")
+  assert_truthy(r.exists, "URL results should be marked as existing")
+end)
+
 -- ========= summary =========
 
 if #failures > 0 then
