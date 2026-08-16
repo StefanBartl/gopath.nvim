@@ -261,39 +261,21 @@ function M._save_to_disk()
     version = 1,
   }
 
-  -- Use pcall to handle JSON encoding errors gracefully
-  local ok, json = pcall(vim.json.encode, data)
-  if not ok then
-    LOG.error("Failed to encode cache data")
-    return
-  end
-
-  local file = io.open(config.cache_file, "w")
-  if not file then
-    LOG.error("Failed to open cache file for writing")
-    return
-  end
-
-  file:write(json)
-  file:close()
+  local ok, err = require("lib.nvim.fs.json").write(config.cache_file, data)
+  if not ok then LOG.error("Failed to write cache file: " .. tostring(err)) end
 end
 
 ---Load cache from disk
 ---Called on startup to restore previous session's cache
 ---@return boolean success True if cache was loaded
 function M.load_from_disk()
-  local file = io.open(config.cache_file, "r")
-  if not file then
+  if not require("lib.nvim.fs.is_readable_file")(config.cache_file) then
     return false -- Cache file doesn't exist (first run)
   end
 
-  local content = file:read("*a")
-  file:close()
-
-  -- === Parse JSON ===
-  local ok, data = pcall(vim.json.decode, content)
-  if not ok or not data then
-    LOG.warn("Failed to parse cache file")
+  local data, err = require("lib.nvim.fs.json").read(config.cache_file)
+  if not data then
+    LOG.warn("Failed to parse cache file: " .. tostring(err))
     return false
   end
 

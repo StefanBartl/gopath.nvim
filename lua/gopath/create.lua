@@ -62,14 +62,8 @@ local function touch(path)
     return true, nil
   end
 
-  local dir = vim.fn.fnamemodify(native, ":h")
-  if dir ~= "" and dir ~= "." then
-    local ok_mkdir = pcall(vim.fn.mkdir, dir, "p")
-    if not ok_mkdir then return false, "mkdir failed: " .. dir end
-  end
-  local f, err = io.open(native, "w")
-  if not f then return false, err or ("could not open " .. native) end
-  f:close()
+  local ok_write, err = require("lib.nvim.fs.write.to_file")(native, "")
+  if not ok_write then return false, err or ("could not open " .. native) end
   PATH.invalidate_caches()
   return true, nil
 end
