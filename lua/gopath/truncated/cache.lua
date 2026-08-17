@@ -233,22 +233,27 @@ function M.build_async(callback)
 end
 
 ---Finalize cache build (save to disk, update state)
+---
+---Reached from `scan_roots_bounded`'s completion callback, which runs inside a
+---libuv `fs_scandir` callback — a fast event context where most Vimscript
+---functions are forbidden (`vim.fn.mkdir` raises E5560). Everything below
+---therefore runs on the main loop via `vim.schedule`.
 ---@param callback fun(success: boolean)
 ---@private
 function M._finalize_build(callback)
-  state.last_built = os.time()
-  state.building = false
-
-  -- === Save to Disk ===
-  M._save_to_disk()
-
-  -- Build completion is reported by the caller (setup / :GopathCacheBuild);
-  -- keep this as a dev-only trace to avoid duplicate notifications.
   vim.schedule(function()
-    LOG.debug(string.format("Cache built: %d files indexed", #state.paths))
-  end)
+    state.last_built = os.time()
+    state.building = false
 
-  callback(true)
+    -- === Save to Disk ===
+    M._save_to_disk()
+
+    -- Build completion is reported by the caller (setup / :GopathCacheBuild);
+    -- keep this as a dev-only trace to avoid duplicate notifications.
+    LOG.debug(string.format("Cache built: %d files indexed", #state.paths))
+
+    callback(true)
+  end)
 end
 
 ---Save cache to disk for persistence across sessions
@@ -364,11 +369,17 @@ function M.start_periodic_refresh(interval_seconds)
   ---@diagnostic disable-next-line lib.uv
   local timer = uv.new_timer()
 
-  -- Start timer: check every interval, refresh if needed
+  -- Start timer: check every interval, refresh if needed.
+  -- The timer callback is a fast event context, but `build_async` calls
+  -- Vimscript functions (`vim.fn.isdirectory`, notifications), so hop onto the
+  -- main loop first.
   timer:start(0, interval_seconds * 1000, function()
     if M.needs_refresh(interval_seconds) and not state.building then
       -- Rebuild cache in background
-      M.build_async(function() end)
+      vim.schedule(function()
+        if state.building then return end
+        M.build_async(function() end)
+      end)
     end
   end)
 end
