@@ -16,7 +16,7 @@
 ![Lua](https://img.shields.io/badge/language-Lua-yellow.svg)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)
 
-A modular file-navigation plugin for Neovim. gopath.nvim resolves symbols, `require()` paths, and arbitrary file references under your cursor using a multi-phase pipeline — LSP → Treesitter → whole-line extraction → suffix search → fuzzy alternate — so a single keypress takes you to the right file, at the right line, however the reference is written.
+A modular file-navigation plugin for Neovim. gopath.nvim resolves symbols, `require()` paths, and arbitrary file references under your cursor using a multi-phase pipeline — LSP → Treesitter → whole-line extraction → suffix search → fuzzy alternate — so a single keypress takes you to the right file, at the right line, however the reference is written. Non-text targets (images, PDFs, other media) open straight in your system's default application instead of as a text buffer.
 
 > Pairs well with [buffer-ctx.nvim](https://github.com/StefanBartl/buffer-ctx.nvim):
 > use buffer-ctx to generate a `require("foo.bar")` / `path:line` reference,
@@ -71,7 +71,7 @@ work, for turning it off without touching any plugin's config.
 
 ## Documentation
 
-- [Features](./docs/features.md) — navigation capabilities and per-language support.
+- [Features](./docs/FEATURES/README.md) — navigation capabilities, per-language support, the filesystem cache, and external-file opening.
 - [Installation](./docs/installation.md) — lazy.nvim/packer snippets, optional dependencies, recommended CLI tools.
 - [Configuration](./docs/configuration.md) — full `setup()` option reference with defaults.
 - [Keymaps, commands & autocommands](./docs/BINDINGS.md) — full cheatsheet of every binding, including `create_on_missing`.
