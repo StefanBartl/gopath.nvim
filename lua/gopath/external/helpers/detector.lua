@@ -52,17 +52,18 @@ local EXTERNAL_EXTENSIONS = {
 }
 
 ---Check if a path is a URL.
+---Delegates to `gopath.util.url`, the single source of truth shared with the
+---URL resolver — the two must agree, or a token resolved as a URL would be
+---routed back into the buffer-editing path here.
+---Only the strict forms count: a bare host like "github.com/x" is a URL by
+---intent, not by spelling, and the resolver decides that (late, after the file
+---resolvers) rather than this extension-level check.
 ---@internal
 ---@param path string
 ---@return boolean is_url
 local function is_url(path)
   if not path or path == "" then return false end
-
-  -- Match common URL schemes
-  return path:match("^https?://")
-    or path:match("^ftps?://")
-    or path:match("^file://")
-    or path:match("^www%.")
+  return require("gopath.util.url").is_strict_url(path)
 end
 
 ---Check if a file extension indicates an external file.

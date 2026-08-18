@@ -30,6 +30,17 @@
 ---@field enable boolean Default: true
 ---@field extensions string[]|nil Default: nil. Extends (does not replace) the built-in extension list.
 
+---@class GopathUrlOptions
+---@field enable boolean Default: true. Recognise URLs under the cursor and open them externally.
+---@field bare_hosts boolean Default: true.
+--- Also accept scheme-less targets — `github.com/neovim/neovim`,
+--- `git@github.com:foo/bar.git` — which are normalized to `https://…`.
+--- These only win after every file resolver has failed, so a real file of the
+--- same name always takes precedence. Set to false to require an explicit
+--- scheme (or a `www.` prefix).
+---@field schemes string[]|nil Default: nil. Extends (does not replace) the built-in scheme list.
+---@field tlds string[]|nil Default: nil. Extends (does not replace) the built-in TLD list used by `bare_hosts`.
+
 ---@class GopathLanguageOptions
 ---@field enable boolean Default: true
 ---@field resolvers string[]|nil Default: nil (all available resolvers). Whitelist of resolver names to run for this filetype.
@@ -87,6 +98,7 @@
 ---@field languages? table<string, GopathLanguageOptions> Language-specific configuration
 ---@field alternate? GopathAlternateOptions Fuzzy alternate resolution
 ---@field external? GopathExternalOptions External file opening
+---@field url? GopathUrlOptions URL recognition (gF on a link opens the browser)
 ---@field env_variable_resolution? GopathEnvVariableResolution Expand $VAR prefixes in paths
 ---@field create_on_missing? GopathCreateOnMissing Offer to create missing files instead of erroring
 ---@field mappings? GopathKeymaps|false Keymaps (false = disable all)

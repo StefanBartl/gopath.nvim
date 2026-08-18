@@ -318,6 +318,37 @@ external = {
     enable = false disables the external opener entirely; matching files
     are then opened as normal buffers instead.
 
+                                                          *gopath-config-url*
+url = {
+  enable     = true,
+  bare_hosts = true,
+  schemes    = nil,
+  tlds       = nil,
+}
+    URL recognition. A URL under the cursor is handed to the external
+    opener (browser) instead of being resolved as a file path, which is
+    what makes the open keymaps work on links in :messages, notification
+    buffers, comments and markdown.
+
+    Strict forms — an explicit scheme ("https://", "ftp://", "file://",
+    "mailto:") or a "www." prefix — are matched before every file
+    resolver: no local path can be spelled that way.
+
+    bare_hosts = true additionally accepts scheme-less targets such as
+    "github.com/neovim/neovim" and scp-style git remotes such as
+    "git@github.com:foo/bar.git", normalizing both to https://. Those
+    forms DO collide with real filenames, so they are only tried once
+    every file resolver has come up empty — an existing "notes.info"
+    still opens as a file. Set bare_hosts = false to require a scheme.
+
+    schemes / tlds: string[] that EXTEND the built-in scheme and TLD
+    lists — neither is replaced.
+
+    The URL is read from the buffer line rather than from <cfile>, so
+    query strings and fragments survive ('isfname' stops at "?" / "&" /
+    "#"). Wrapping delimiters and trailing sentence punctuation are
+    stripped: "(https://x)." resolves to "https://x".
+
                                                     *gopath-config-truncated*
 truncated = {
   enable                 = true,

@@ -51,6 +51,15 @@ function M.open(res, mode)
   if not (res and res.path) then return end
 
   local external = require("gopath.external")
+
+  -- A URL result is never a buffer and never a create-candidate: hand it to
+  -- the external opener regardless of what the extension heuristic thinks
+  -- (a URL may well end in ".md" or carry no extension at all).
+  if res.kind == "url" then
+    external.open(res.path)
+    return
+  end
+
   if external.should_open_externally(res.path) then
     external.open(res.path)
     return

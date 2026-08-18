@@ -43,6 +43,15 @@ require("gopath").setup({
     extensions = nil,  -- string[] of extra extensions, EXTENDS the built-in list
   },
 
+  -- URLs under the cursor open in the browser instead of resolving to a file
+  url = {
+    enable     = true,
+    bare_hosts = true,  -- also accept "github.com/x" / "git@github.com:a/b.git";
+                        -- these only win after every file resolver missed
+    schemes    = nil,   -- string[] of extra URL schemes, EXTENDS the built-in list
+    tlds       = nil,   -- string[] of extra TLDs for bare_hosts, EXTENDS the built-in list
+  },
+
   -- $VAR / ${VAR} prefix expansion
   env_variable_resolution = {
     enable = true,

@@ -15,6 +15,7 @@
 ---| '"table"'    # A Lua table / namespace
 ---| '"primitive"'# A primitive value binding
 ---| '"help"'     # A Neovim :help subject
+---| '"url"'      # A URL, opened with the system browser (never a buffer)
 
 ---@alias GopathSource
 ---| '"lsp"'              # Resolved via LSP goto-definition
@@ -23,6 +24,7 @@
 ---| '"builtin-fallback"' # Last-resort cfile fallback
 ---| '"regex"'            # Resolved via a pattern match (language-specific)
 ---| '"static"'           # Statically known (e.g. stdlib mapping)
+---| '"url"'              # Recognised as a URL under the cursor
 
 ---@class GopathRange
 --- A 1-based cursor position used to jump to a definition after opening.

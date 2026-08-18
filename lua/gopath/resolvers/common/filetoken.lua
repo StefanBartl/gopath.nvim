@@ -120,15 +120,19 @@ function M.resolve()
   -- cwd-join fallback further down would corrupt them into a bogus local
   -- path like "docs/ROADMAP/personal/http://www.google.com". Hand them
   -- back verbatim so gopath.external can open them in the browser.
-  local ok_ext, external = pcall(require, "gopath.external")
-  if ok_ext and external.should_open_externally(token) then
+  --
+  -- `gopath.resolve` already catches these one step earlier (and from the raw
+  -- line, so query strings survive); this guard exists for the callers that
+  -- invoke filetoken directly.
+  local ok_url, URL = pcall(require, "gopath.util.url")
+  if ok_url and URL.is_strict_url(token) then
     return {
       language = vim.bo.filetype or "text",
-      kind = "file",
+      kind = "url",
       path = token,
-      range = LOC.create_range(parsed.line, parsed.col),
+      range = nil,
       chain = nil,
-      source = "builtin-url",
+      source = "url",
       confidence = 0.9,
       exists = true,
     }
