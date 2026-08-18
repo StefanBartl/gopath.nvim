@@ -38,6 +38,13 @@ return {
     extensions = nil,
   },
 
+  url = {
+    enable = true,
+    bare_hosts = true,
+    schemes = nil,
+    tlds = nil,
+  },
+
   env_variable_resolution = {
     enable = true,
   },

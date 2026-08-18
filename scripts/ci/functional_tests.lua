@@ -418,8 +418,7 @@ check("filetoken: URL under cursor is returned verbatim, not cwd-joined", functi
   vim.api.nvim_set_current_buf(buf)
   vim.bo[buf].filetype = "markdown"
 
-  local col = assert(({ vim.api.nvim_buf_get_lines(buf, 0, 1, false) })[1][1]:find("http"))
-    - 1
+  local col = assert(({ vim.api.nvim_buf_get_lines(buf, 0, 1, false) })[1][1]:find("http")) - 1
   vim.api.nvim_win_set_cursor(0, { 1, col })
 
   local filetoken = require("gopath.resolvers.common.filetoken")
@@ -427,6 +426,95 @@ check("filetoken: URL under cursor is returned verbatim, not cwd-joined", functi
   assert_truthy(r, "expected a result")
   assert_eq(r.path, "http://www.google.com", "path must be the raw URL, not cwd-joined")
   assert_truthy(r.exists, "URL results should be marked as existing")
+end)
+
+-- ========= URL resolution (gopath.resolve pipeline) =========
+--- The full pipeline must hand URLs to the external opener instead of turning
+--- them into local paths. Strict forms (explicit scheme, "www.") pre-empt the
+--- file resolvers; scheme-less hosts only win after every file resolver missed,
+--- so a real file of the same name still opens as a file.
+
+---Place the cursor on `anchor` inside `line` and run the full resolve pipeline.
+---@param line string
+---@param anchor string substring of `line` to put the cursor on
+---@return GopathResult|nil
+local function resolve_on(line, anchor)
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { line })
+  vim.api.nvim_set_current_buf(buf)
+  vim.bo[buf].filetype = "markdown"
+  vim.api.nvim_win_set_cursor(0, { 1, assert(line:find(anchor, 1, true)) - 1 })
+  return (require("gopath.resolve").resolve_at_cursor({}))
+end
+
+---@param name string
+---@param line string
+---@param anchor string
+---@param expected string
+local function check_url(name, line, anchor, expected)
+  check(name, function()
+    local r = resolve_on(line, anchor)
+    assert_truthy(r, "expected a result")
+    assert_eq(r.kind, "url", "kind")
+    assert_eq(r.path, expected, "url")
+    assert_truthy(r.exists, "URL results must be marked existing so create-on-missing is skipped")
+  end)
+end
+
+check_url(
+  "url: query string and fragment survive (<cfile> would truncate at '?')",
+  "docs at https://example.com/a?b=1&c=2#frag ok",
+  "https",
+  "https://example.com/a?b=1&c=2#frag"
+)
+
+check_url(
+  "url: wrapping parens and trailing sentence period are trimmed",
+  "See (https://example.com/x).",
+  "https",
+  "https://example.com/x"
+)
+
+check_url(
+  "url: markdown link target",
+  "[docs](https://neovim.io/doc/user/index.html#top)",
+  "https",
+  "https://neovim.io/doc/user/index.html#top"
+)
+
+check_url(
+  "url: 'www.' prefix gets the implicit scheme",
+  "www.google.com",
+  "www",
+  "https://www.google.com"
+)
+
+check_url(
+  "url: bare host with a known TLD (loose pass)",
+  "clone github.com/neovim/neovim first",
+  "github",
+  "https://github.com/neovim/neovim"
+)
+
+check_url(
+  "url: scp-style git remote is rewritten to https",
+  "git@github.com:foo/bar.git",
+  "git@",
+  "https://github.com/foo/bar"
+)
+
+check("url: a real file is never mistaken for a bare host", function()
+  local r = resolve_on("see README.md for details", "README")
+  assert_truthy(r, "expected a result")
+  assert_eq(r.kind ~= "url", true, "README.md must not resolve as a URL")
+end)
+
+check("url: bare_hosts = false disables the loose pass", function()
+  require("gopath.config").setup({ url = { bare_hosts = false } })
+  local r = resolve_on("clone github.com/neovim/neovim first", "github")
+  local is_url = r ~= nil and r.kind == "url"
+  require("gopath.config").setup({ url = { bare_hosts = true } })
+  assert_eq(is_url, false, "loose pass must stay off when bare_hosts = false")
 end)
 
 -- ========= summary =========

@@ -129,6 +129,11 @@ function M.check_under_cursor()
     return
   end
 
+  if res.kind == "url" then
+    LOG.info("URL — nothing to check on disk: " .. res.path)
+    return
+  end
+
   if res.exists ~= false then
     LOG.info("exists: " .. res.path)
     return
@@ -150,6 +155,14 @@ function M.resolve_and_copy()
 
   local l = res.range and res.range.line or 1
   local c = res.range and res.range.col or 1
+
+  -- A URL has no line/col to append -- copy it verbatim so the clipboard
+  -- content stays pasteable into a browser.
+  if res.kind == "url" then
+    vim.fn.setreg("+", tostring(res.path or "?"))
+    LOG.info("copied to clipboard")
+    return
+  end
 
   local left
   if res.kind == "help" then

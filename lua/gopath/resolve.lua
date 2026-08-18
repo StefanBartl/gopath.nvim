@@ -3,11 +3,13 @@
 ---@description
 --- Entry point for all cursor-based resolution. Tries resolvers in this order:
 ---   1. Help (:h subject) — always, all filetypes.
+---   1.5 URL (strict) — explicit scheme / www., which no local path can look like.
 ---   2. Env var path ($VAR/...) — always, before filetoken sees raw token.
 ---   3. Filetoken — high-confidence existing hit returned immediately;
 ---      low-confidence / non-existent result held as fallback.
 ---   3.5 Linepath — whole-line path extraction (when cascade enabled).
 ---   4. Language-specific pipeline (lsp / treesitter / builtin).
+---   4.5 URL (loose) — bare host / scp-style remote; only once no file matched.
 ---   5. Filetoken fallback — the low-confidence result from step 3, if any.
 ---   6. Raw cfile — last resort.
 
@@ -33,6 +35,18 @@ function M.resolve_at_cursor(opts)
   do
     local help = require("gopath.resolvers.common.help").resolve()
     if help then return help, nil end
+  end
+
+  -- 1.5 URL with an explicit scheme ("https://…", "mailto:…") or a "www."
+  --     prefix. Nothing on disk is spelled like that, so this may run before
+  --     every file resolver — which it must: filetoken/linepath would otherwise
+  --     turn the URL into "<cwd>/https:/…" and offer to create that file.
+  do
+    local ok, url_mod = pcall(require, "gopath.resolvers.common.url")
+    if ok then
+      local url = url_mod.resolve_strict()
+      if url then return url, nil end
+    end
   end
 
   -- 2. Environment variable path ($VAR/foo.md, ${VAR}/foo.md).
@@ -103,6 +117,18 @@ function M.resolve_at_cursor(opts)
         })
       end)
       if ok and result then return result, nil end
+    end
+  end
+
+  -- 4.5 URL without a scheme ("github.com/neovim/neovim", "git@github.com:a/b").
+  --     These forms are indistinguishable from a relative path, so they only
+  --     win once every file resolver above has come up empty — a real
+  --     "notes.info" on disk still opens as a file.
+  do
+    local ok, url_mod = pcall(require, "gopath.resolvers.common.url")
+    if ok then
+      local url = url_mod.resolve_loose()
+      if url then return url, nil end
     end
   end
 
