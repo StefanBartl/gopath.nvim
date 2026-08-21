@@ -28,6 +28,7 @@ README.md → Configuration for the exact option shapes.
 | `g\|` | n | `open_split` | Resolve and open in horizontal split |
 | `g\` | n | `open_vsplit` | Resolve and open in vertical split |
 | `g}` | n | `open_tab` | Resolve and open in new tab |
+| `gM` | n | `open_explorer` | Reveal target in the system file manager (Explorer/Finder/…) instead of opening it |
 | `gY` | n | `copy_location` | Copy `path:line:col` to clipboard |
 | `g?` | n | `debug` | Print resolution chain to `:messages` |
 | `gC` | n | `check` | Check path under cursor exists; offer to create if missing (does not open on hit) |
@@ -37,6 +38,13 @@ README.md → Configuration for the exact option shapes.
 Set any config key to `false` to disable that single mapping, or
 `mappings = false` to disable all of them. Values may be a single lhs string
 or a list of lhs strings (`{ "gP", "<leader>gp" }`).
+
+`open_explorer` (`gM`) is the odd one out: it never opens a buffer, so it does
+not go through create-on-missing or the external-opener heuristic below — it
+warns instead of prompting when the resolved path does not exist. Backed by
+[lib.nvim's `cross.reveal_in_fm`](https://github.com/StefanBartl/lib.nvim),
+falling back to a minimal built-in per-OS reveal
+(`explorer.exe /select,`/`open -R`/`xdg-open`) when lib.nvim is absent.
 
 ### Create-on-missing
 
@@ -75,7 +83,7 @@ tab-completion works at every level. `cache *` subcommands only appear when
 
 | Subcommand | Args | Action |
 | --- | --- | --- |
-| `open` | `[edit\|split\|vsplit\|tab]` | Resolve and open |
+| `open` | `[edit\|split\|vsplit\|tab\|explorer]` | Resolve and open (`explorer` reveals in the file manager instead) |
 | `copy` | — | Copy `path:line:col` to clipboard |
 | `debug` | — | Print resolution chain to `:messages` |
 | `probe` | `[edit\|split\|vsplit]` | Probe path under cursor / selection |
