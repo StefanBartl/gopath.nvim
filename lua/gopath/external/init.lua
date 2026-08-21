@@ -28,4 +28,16 @@ function M.open(path)
   return opener.open_with_system(path)
 end
 
+---Reveal a file or directory in the system file manager (Explorer/Finder/…)
+---instead of opening it — selects a file inside its parent directory,
+---navigates into a directory.
+---@param path string File or directory path
+---@return boolean success True if the reveal command was invoked successfully
+function M.reveal(path)
+  if not path or path == "" then return false end
+
+  local revealer = require("gopath.external.helpers.revealer")
+  return revealer.reveal(path)
+end
+
 return M

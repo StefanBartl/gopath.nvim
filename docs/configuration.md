@@ -85,6 +85,7 @@ require("gopath").setup({
     open_split    = "g|",
     open_vsplit   = "g\\",
     open_tab      = "g}",
+    open_explorer = "gM",  -- reveal in system file manager instead of opening
     copy_location = "gY",
     debug         = "g?",
     check         = "gC",

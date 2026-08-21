@@ -6,6 +6,9 @@
 ---@field open_split string|string[]|false Default: "g|"
 ---@field open_vsplit string|string[]|false Default: "g\\"
 ---@field open_tab string|string[]|false Default: "g}"
+---@field open_explorer string|string[]|false Default: "gM"
+--- Reveal the resolved path in the OS file manager (Explorer/Finder/…)
+--- instead of opening a buffer for it.
 ---@field copy_location string|string[]|false Default: "gY"
 ---@field debug string|string[]|false Default: "g?"
 ---@field probe string|string[]|false Default: "<leader>pp" (n + v mode)

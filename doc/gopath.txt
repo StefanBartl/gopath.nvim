@@ -35,6 +35,7 @@ Key capabilities:
   - Env var expansion: $VAR/path/file.md
   - Fuzzy alternate (Levenshtein) when file does not exist
   - External opener for images, PDFs, media
+  - Reveal resolved targets in the OS file manager (gM)
 
 ==============================================================================
 2. REQUIREMENTS                                         *gopath-requirements*
@@ -74,6 +75,7 @@ Default keymaps (all configurable, see |gopath-config-mappings|):
   g|            Open target in horizontal split
   g\            Open target in vertical split
   g}            Open target in new tab
+  gM            Reveal target in the system file manager (Explorer/Finder/…)
   gY            Copy path:line:col to clipboard
   g?            Debug resolution under cursor
   <leader>pp    (n) Probe path under cursor via suffix search (vsplit)
@@ -96,8 +98,10 @@ Multiple keys for one action: >lua
 
 Unified command with tab-completion at every level:        *:Gopath*
 
-  :Gopath open [edit|split|vsplit|tab]
+  :Gopath open [edit|split|vsplit|tab|explorer]
       Resolve and open target with the given mode.
+      "explorer" reveals the target in the system file manager
+      (Explorer/Finder/…) instead of opening a buffer for it.
       Default mode: edit (current window).
 
   :Gopath copy
@@ -369,6 +373,7 @@ mappings = {
   open_split    = "g|",
   open_vsplit   = "g\\",
   open_tab      = "g}",
+  open_explorer = "gM",
   copy_location = "gY",
   debug         = "g?",
   probe         = "<leader>pp",

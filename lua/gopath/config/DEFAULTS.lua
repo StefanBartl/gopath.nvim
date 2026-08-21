@@ -94,6 +94,7 @@ return {
     open_split = "g|",
     open_vsplit = "g\\",
     open_tab = "g}",
+    open_explorer = "gM",
     copy_location = "gY",
     debug = "g?",
     probe = "<leader>pp",

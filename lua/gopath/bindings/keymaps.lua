@@ -72,6 +72,11 @@ function M.setup(config)
     commands.resolve_and_open("tab")
   end, "open in tab")
 
+  -- Reveal in the system file manager (Explorer/Finder/…) instead of opening
+  map_many("n", maps.open_explorer, function()
+    commands.resolve_and_open("explorer")
+  end, "reveal in file explorer")
+
   -- Copy location
   map_many("n", maps.copy_location, function()
     commands.resolve_and_copy()

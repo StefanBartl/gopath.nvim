@@ -12,7 +12,7 @@ local CROSS = require("gopath.util.cross")
 
 local M = {}
 
----@alias GopathOpenMode "edit"|"window"|"vsplit"|"tab"
+---@alias GopathOpenMode "edit"|"window"|"vsplit"|"tab"|"explorer"
 
 ---Create the target window/tab before editing the file.
 ---Each function is a no-op or issues one window-management command only.
@@ -57,6 +57,19 @@ function M.open(res, mode)
   -- (a URL may well end in ".md" or carry no extension at all).
   if res.kind == "url" then
     external.open(res.path)
+    return
+  end
+
+  -- "explorer" reveals the resolved path in the OS file manager instead of
+  -- opening a buffer/window for it -- takes priority over the external-app
+  -- heuristic below (an image should still be revealed, not launched, when
+  -- the user explicitly asked for the file manager).
+  if mode == "explorer" then
+    if res.exists == false then
+      LOG.warn("cannot reveal — path does not exist: " .. tostring(res.path))
+      return
+    end
+    external.reveal(res.path)
     return
   end
 

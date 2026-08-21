@@ -43,6 +43,30 @@ create-on-missing flow — this is the fix for `gF` on a link offering to create
   scheme), `opts.url.schemes` / `opts.url.tlds` (default `nil`, both extend the
   built-in lists)
 
+## Reveal in file manager
+
+`gM` (config key `mappings.open_explorer`, also `:Gopath open explorer` /
+`:GopathOpen explorer`) resolves the path under the cursor like the other
+open keymaps, but instead of opening it in a buffer/window, reveals it in the
+OS file manager — Explorer on Windows, Finder on macOS, the first
+select-capable manager found on Linux (`nautilus`, `nemo`, `dolphin --select`,
+`thunar`, `caja`; falls back to opening the parent directory when none is
+select-capable). A file is selected inside its parent directory; a directory
+is navigated into.
+
+This is a distinct intent from external opening above: external opening hands
+a path to whatever application is registered for its extension (an image
+viewer, a PDF reader); `gM` shows *where* the file lives instead of launching
+anything. It takes priority over the external-app heuristic, so `gM` on an
+image reveals it in Explorer/Finder rather than launching an image viewer.
+A resolved-but-missing path is not offered through create-on-missing here —
+`gM` warns instead, since there is nothing on disk yet to reveal.
+
+- **Module:** `external/helpers/revealer.lua`, backed by
+  [lib.nvim's `cross.reveal_in_fm`](https://github.com/StefanBartl/lib.nvim)
+  (falls back to a minimal built-in per-OS reveal when lib.nvim is absent)
+- **Config:** `mappings.open_explorer` (default `"gM"`, set `false` to disable)
+
 ## Opener fallback chain
 
 Three-stage fallback for actually launching the external application, each

@@ -27,7 +27,7 @@ local M = {}
 
 -- ── Subcommand table ─────────────────────────────────────────────────────────
 
-local OPEN_MODES = { "edit", "split", "vsplit", "tab" }
+local OPEN_MODES = { "edit", "split", "vsplit", "tab", "explorer" }
 local PROBE_MODES = { "edit", "split", "vsplit" }
 
 ---Normalize open/probe mode strings to the keys used by commands.lua.
@@ -39,6 +39,7 @@ local function norm_mode(raw)
   if m == "split" or m == "window" then return "window" end
   if m == "vsplit" then return "vsplit" end
   if m == "tab" then return "tab" end
+  if m == "explorer" then return "explorer" end
   return "edit"
 end
 
