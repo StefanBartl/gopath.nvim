@@ -41,6 +41,18 @@ require("gopath").setup({
   external = {
     enable     = true,
     extensions = nil,  -- string[] of extra extensions, EXTENDS the built-in list
+                       -- (also makes those extensions findable in a line, so a
+                       --  Markdown link to one resolves like any other path)
+
+    -- PDF handling. Only has an effect when pdfport.nvim is installed;
+    -- without it a PDF always goes straight to the system viewer.
+    pdf = {
+      picker  = true,      -- chooser: System app / Buffer / Float / Terminal
+                           -- ("System app" is first — it's the exception case,
+                           --  so it stays one keystroke away)
+      default = "system",  -- mode used when picker = false
+                           -- "system"|"buffer"|"float"|"terminal"
+    },
   },
 
   -- URLs under the cursor open in the browser instead of resolving to a file

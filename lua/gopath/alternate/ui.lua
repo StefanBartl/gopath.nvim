@@ -1,79 +1,75 @@
 ---@module 'gopath.alternate.ui'
 ---@description Interactive selection UI for alternate file candidates.
+---
+--- This module only *picks*; it never opens anything. The caller decides what a
+--- chosen candidate means and routes it through `gopath.open` — which is what
+--- gives alternates the same window placement, OS-native paths, line/col jump
+--- and external/PDF handling as every other result.
+---
+--- The result is reported through a callback, not a return value. It used to
+--- return a boolean assigned inside the picker callback, which is only ever
+--- correct for a *synchronous* picker: with telescope-ui-select / dressing /
+--- fzf-lua / kit's own chooser that callback fires later, so the caller always
+--- saw `false` and carried on as if nothing had been picked — opening the
+--- missing file and (since create-on-missing landed) stacking a create dialog
+--- on top of the still-open picker.
 
 local M = {}
 
----Present similar files in an interactive selection window.
----Respects user's configured UI backend (builtin/telescope/fzf-lua)
+---Present similar files and report the chosen one via `opts.on_choice`.
+---Respects the user's configured UI backend: `kit.select` with
+---`respect_override` defers to `vim.ui.select` when something has replaced it,
+---and otherwise uses kit's themed chooser. Falls back to plain `vim.ui.select`
+---if lib.nvim is unavailable.
 ---
----@param matches table[] List of {path, similarity, filename}
----@param original_path string The original path that failed
----@param opts table|nil Options:
----  - open_cmd: string - Command for opening selected file
----  - line: integer|nil - 1-based line to jump to after opening
----  - col: integer|nil - 1-based column to jump to after opening
----@return boolean handled True if user selected a file
+---@param matches AlternateMatch[]  candidates, best first
+---@param original_path string      the path that failed to resolve
+---@param opts AlternateSelectOpts  { on_choice }
+---@return nil
 function M.present_selection(matches, original_path, opts)
-  opts = opts or {}
-  local open_cmd = opts.open_cmd or "edit"
-  local line = opts.line
-  local col = opts.col
+  local on_choice = (opts or {}).on_choice or function() end
 
-  if not matches or #matches == 0 then return false end
-
-  -- === Format Items for Display ===
-  -- Show: "filename (85%) — 2.3 KB, modified 5m ago"
-  local dir_helper = require("gopath.alternate.helpers.directory")
-  local items = {}
-  for _, match in ipairs(matches) do
-    local display = string.format("%s (%.0f%%)", match.filename, match.similarity)
-    local meta = dir_helper.file_meta(match.path)
-    if meta then display = display .. " — " .. meta end
-    table.insert(items, display)
+  if not matches or #matches == 0 then
+    on_choice(nil)
+    return
   end
 
-  -- === Track Selection ===
-  local selected = false
+  local dir_helper = require("gopath.alternate.helpers.directory")
 
-  -- === Use kit.select (respect_override) ===
-  -- Defers to the user's configured vim.ui.select backend if one is
-  -- installed (telescope-ui-select, dressing.nvim, ...), otherwise uses
-  -- kit's own themed chooser instead of the plain built-in vim.ui.select.
-  require("lib.nvim.ui.kit").select({
-    items = items,
-    respect_override = true,
-    title = string.format(
-      "File not found: %s - Select alternate:",
-      vim.fn.fnamemodify(original_path, ":t")
-    ),
-    format_item = function(item)
-      return "  " .. item
-    end,
-    on_select = function(_, index)
-      if not index then
-        return -- User cancelled
-      end
+  -- Show: "filename (85%) — 2.3 KB, modified 5m ago"
+  ---@param match AlternateMatch
+  ---@return string
+  local function format_item(match)
+    local display = string.format("  %s (%.0f%%)", match.filename, match.similarity)
+    local meta = dir_helper.file_meta(match.path)
+    if meta then display = display .. " — " .. meta end
+    return display
+  end
 
-      local match = matches[index]
-      if match and match.path then
-        -- === Open Selected File ===
-        -- Use the command specified by caller (respects split/vsplit/etc.)
-        local ok = pcall(vim.cmd, open_cmd .. " " .. vim.fn.fnameescape(match.path))
-        if ok then
-          selected = true
+  local title =
+    string.format("File not found: %s - Select alternate:", vim.fn.fnamemodify(original_path, ":t"))
 
-          -- Jump to location if the caller provided one (truncated paths carry :line:col)
-          if line and line > 0 then
-            local c = math.max(0, (col or 1) - 1)
-            pcall(vim.api.nvim_win_set_cursor, 0, { line, c })
-            pcall(vim.cmd, "normal! zz")
-          end
-        end
-      end
-    end,
-  })
+  local ok_kit, kit = pcall(require, "lib.nvim.ui.kit")
+  if ok_kit and type(kit.select) == "function" then
+    kit.select({
+      items = matches,
+      respect_override = true,
+      title = title,
+      format_item = format_item,
+      on_select = function(item)
+        on_choice(item)
+      end,
+      on_cancel = function()
+        on_choice(nil)
+      end,
+    })
+    return
+  end
 
-  return selected
+  vim.ui.select(matches, { prompt = title, format_item = format_item }, function(item)
+    -- vim.ui.select signals cancellation with nil — same contract as on_choice.
+    on_choice(item)
+  end)
 end
 
 return M

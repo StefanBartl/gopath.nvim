@@ -29,9 +29,21 @@
 ---@field enable boolean Default: true
 ---@field similarity_threshold number Default: 75 (0-100)
 
+---@alias GopathPdfMode "system"|"buffer"|"float"|"terminal"
+
+---@class GopathPdfOptions
+---@field picker boolean Default: true.
+--- Show a chooser (System app / Buffer / Float / Terminal) when opening a PDF.
+--- Requires pdfport.nvim; without it a PDF always goes to the system viewer and
+--- no chooser appears. Set false to always use `default` instead.
+---@field default GopathPdfMode Default: "system".
+--- Mode used when `picker = false`. "system" preserves the pre-pdfport
+--- behaviour; the other three are pdfport.nvim renderers.
+
 ---@class GopathExternalOptions
 ---@field enable boolean Default: true
 ---@field extensions string[]|nil Default: nil. Extends (does not replace) the built-in extension list.
+---@field pdf GopathPdfOptions PDF-specific opening (pdfport.nvim integration)
 
 ---@class GopathUrlOptions
 ---@field enable boolean Default: true. Recognise URLs under the cursor and open them externally.

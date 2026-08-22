@@ -36,6 +36,13 @@ return {
   external = {
     enable = true,
     extensions = nil,
+
+    -- PDF handling. Only takes effect when pdfport.nvim is installed;
+    -- without it a PDF always goes straight to the system viewer.
+    pdf = {
+      picker = true, -- false → always open with `default`, no chooser
+      default = "system", -- mode used when picker = false
+    },
   },
 
   url = {

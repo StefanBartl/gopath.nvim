@@ -71,6 +71,24 @@ local _path = "resolvers/common/tailsearch.lua:55"  -- cursor here, then :Gopath
 
 local _missing_link = "[missing doc](./docs/DOES-NOT-EXIST.md)"  -- cursor on the path, then gC
 
+-- ── Markdown links: cursor on the LABEL, not the path ────────────────────────
+-- Put the cursor on the *label text* (e.g. on "cache" below) and press gP.
+-- filetoken sees only a plain word there and bails, so linepath handles it:
+-- the candidate is extracted by extension, the unbalanced ")" is stripped, and
+-- the path is tried relative to the BUFFER's directory (not just cwd).
+--
+--   [gopath cache pdf](personal/gopatcache.pdf)   → opens the PDF
+--   [readme](docs/README.md)                      → opens the file
+--
+-- Expected for a PDF: with pdfport.nvim installed, a chooser appears
+-- (System app / Buffer / Float / Terminal — System app first). Without
+-- pdfport, it goes straight to the system viewer with no dialog.
+-- With `external.pdf = { picker = false }` it always uses `default`.
+--
+-- A link pointing at a *missing* external file (e.g. `[x](nope.pdf)`) must
+-- report "File not found" and must NOT launch the system opener, and must NOT
+-- offer to create it.
+
 -- ── Tab-completion tests ──────────────────────────────────────────────────────
 -- Type each of the following and press <Tab> to verify completion:
 --

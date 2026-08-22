@@ -68,12 +68,29 @@ local config = {
 
 ---Cache state
 ---Stored in memory for fast access during Neovim session
----@type { paths: string[], last_built: integer|nil, building: boolean }
+---`norm[i]` is the lowercased, forward-slash form of `paths[i]`, precomputed
+---once per index rather than per query. `M.search` used to derive it inline for
+---every cached path on every lookup — two string allocations × 20k+ paths ×
+---every keystroke-triggered resolve. Keep the two arrays index-aligned.
+---@type { paths: string[], norm: string[], last_built: integer|nil, building: boolean }
 local state = {
   paths = {}, -- All indexed file paths
+  norm = {}, -- paths[i] lowercased with "/" separators
   last_built = nil, -- Unix timestamp of last cache build
   building = false, -- Flag to prevent concurrent builds
 }
+
+---Rebuild the `norm` mirror of `state.paths`.
+---@internal
+---@return nil
+local function reindex()
+  local norm = {}
+  local paths = state.paths
+  for i = 1, #paths do
+    norm[i] = paths[i]:gsub("\\", "/"):lower()
+  end
+  state.norm = norm
+end
 
 ---Setup cache configuration from user options
 ---Called during gopath.setup()
@@ -91,12 +108,28 @@ function M.setup(opts)
     -- user profile to max_depth on startup produces a huge, slow cache. We
     -- stick to the directories that actually hold openable files for this
     -- editor. Users who need more can pass `truncated.cache_roots`.
+    -- Git root is resolved by walking up for a `.git` marker (lib.nvim), NOT by
+    -- shelling out to `git rev-parse`. The old call was a synchronous subprocess
+    -- spawn on the main loop during setup() — expensive on Windows (AV scan on
+    -- every spawn) — and its `2>/dev/null` redirect is POSIX shell syntax that
+    -- cmd.exe does not understand, so on Windows it also polluted the result.
+    local git_root
+    do
+      local ok, find_root = pcall(require, "lib.nvim.fs.find_root")
+      if ok then
+        local ok_find, root = pcall(function()
+          return find_root({ markers = { ".git" } }).find(vim.fn.getcwd())
+        end)
+        if ok_find then git_root = root end
+      end
+    end
+
     local candidates = {
       vim.fn.getcwd(), -- project / working directory
       vim.fn.stdpath("config"), -- nvim config (init, lua/, …)
       vim.fn.stdpath("data"), -- plugins (lazy/, …)
       vim.fn.stdpath("cache"), -- runtime/cache files
-      vim.fn.systemlist("git rev-parse --show-toplevel 2>/dev/null")[1], -- git repository root (if in one)
+      git_root, -- git repository root (if in one)
     }
     config.scan_roots = {}
     for _, p in ipairs(candidates) do
@@ -211,6 +244,7 @@ function M.build_async(callback)
   -- === Initialize Build ===
   state.building = true
   state.paths = {} -- Clear existing paths
+  state.norm = {}
 
   safe.safe_notify_defer(
     string.format("[gopath] Building cache from %d roots...", #config.scan_roots),
@@ -228,6 +262,7 @@ function M.build_async(callback)
   -- === Single bounded-concurrency scan across all roots ===
   scan_roots_bounded(roots, function(paths)
     state.paths = paths
+    reindex()
     M._finalize_build(callback)
   end)
 end
@@ -287,6 +322,7 @@ function M.load_from_disk()
   -- === Restore State ===
   state.paths = data.paths or {}
   state.last_built = data.last_built
+  reindex()
 
   return true
 end
@@ -311,25 +347,40 @@ function M.search(tail)
     return {} -- Cache is empty
   end
 
+  -- Self-heal if the mirror ever drifts out of sync with `paths`.
+  if #state.norm ~= #state.paths then reindex() end
+
   -- === Normalize Tail ===
   -- Convert to lowercase and forward slashes for comparison
   local normalized_tail = tail:gsub("\\", "/"):lower()
   local tail_parts = vim.split(normalized_tail, "/", { trimempty = true })
 
+  -- Hoisted out of the loop: this was rebuilt once per cached path (20k+ times
+  -- per query), and it only ever depends on the tail.
+  local suffix_pat = vim.pesc(normalized_tail) .. "$"
+  -- Non-nil only for multi-segment tails; doubles as the Strategy-2 guard below.
+  local last_part = (#tail_parts > 1) and tail_parts[#tail_parts] or nil
+
   local matches = {}
+  local paths, norm = state.paths, state.norm
 
   -- === Search All Cached Paths ===
-  for _, path in ipairs(state.paths) do
-    local normalized_path = path:gsub("\\", "/"):lower()
+  for i = 1, #paths do
+    local normalized_path = norm[i]
 
     -- === Strategy 1: Exact Tail Match ===
     -- Path ends with the exact tail
-    if normalized_path:match(vim.pesc(normalized_tail) .. "$") then
-      table.insert(matches, path)
+    if normalized_path:match(suffix_pat) then
+      matches[#matches + 1] = paths[i]
 
     -- === Strategy 2: Sequential Part Match ===
-    -- All tail parts appear in path in order
-    elseif #tail_parts > 1 then
+    -- All tail parts appear in path in order.
+    -- Guarded by a plain-substring pre-check on the tail's LAST segment: the
+    -- sequential match requires every tail part to appear as a whole path
+    -- segment, so a path that doesn't even contain that segment as a substring
+    -- can never match. The check allocates nothing, while the split below
+    -- allocates a table per path — this prunes nearly all of them.
+    elseif last_part and normalized_path:find(last_part, 1, true) then
       local path_parts = vim.split(normalized_path, "/", { trimempty = true })
       local tail_idx = 1
 
@@ -338,7 +389,7 @@ function M.search(tail)
       end
 
       -- All tail parts found in sequence
-      if tail_idx > #tail_parts then table.insert(matches, path) end
+      if tail_idx > #tail_parts then matches[#matches + 1] = paths[i] end
     end
   end
 
@@ -373,7 +424,13 @@ function M.start_periodic_refresh(interval_seconds)
   -- The timer callback is a fast event context, but `build_async` calls
   -- Vimscript functions (`vim.fn.isdirectory`, notifications), so hop onto the
   -- main loop first.
-  timer:start(0, interval_seconds * 1000, function()
+  -- Initial delay = one full interval, NOT 0. With a 0 delay the timer fired
+  -- immediately on setup() and — since `needs_refresh(interval)` is true for any
+  -- cache older than the interval, which at startup it almost always is —
+  -- kicked off a full rebuild right away, on top of the deferred build that
+  -- `gopath.init._setup_cache` already schedules. That meant two scans (and two
+  -- 2 MB cache writes) during startup.
+  timer:start(interval_seconds * 1000, interval_seconds * 1000, function()
     if M.needs_refresh(interval_seconds) and not state.building then
       -- Rebuild cache in background
       vim.schedule(function()
