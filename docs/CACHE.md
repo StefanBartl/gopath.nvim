@@ -171,7 +171,9 @@ For each candidate, `cache.search` matches every indexed path with two
 strategies (case-insensitive, `\`→`/` normalized — the normalized form is
 precomputed once per index in `state.norm`, not derived per lookup):
 
-1. **Exact tail (suffix) match** — the indexed path *ends with* the candidate.
+1. **Exact tail (suffix) match** — the indexed path *ends with* the candidate
+   (a plain `sub`/compare, not a pattern match: the candidate is a literal, so
+   the pattern engine bought nothing and cost ~3× on the hot path).
    This is what reconstructs the absolute left part: the full hit
    `C:/Users/me/AppData/Local/nvim/lua/config/.../win.lua` ends with
    `lua/config/.../win.lua`, so the missing `C:/Users/me/AppData/Local/nvim`
@@ -224,12 +226,28 @@ is true for any cache older than the interval — i.e. almost always at startup 
 so it kicked off a full rebuild on top of the deferred one above: two scans and
 two cache writes while Neovim was still starting.
 
-> **Startup cost lives in the I/O, not the walk.** The scan itself is a bounded,
-> non-blocking libuv walk (`max_concurrency = 16`) and never blocks the event
-> loop. What *does* run on the main loop is loading and saving the cache file —
-> a JSON encode/decode of every indexed path (a 20k-path index is ~2 MB). If you
-> are chasing a startup stall, measure there first (`nvim --startuptime`), not in
-> the traversal.
+> **Where the time actually goes.** Measured on a 20.5k-path / 2.1 MB index:
+>
+> | Step | Cost |
+> |------|------|
+> | raw file read | ~2 ms |
+> | `vim.json.decode` | ~6 ms |
+> | full `load_from_disk` (read + decode + normalize) | ~23 ms |
+> | `vim.json.encode` (save) | ~5 ms |
+> | one `cache.search` query | ~5 ms |
+>
+> Two things worth knowing before optimizing here. **JSON is not the
+> bottleneck** — `vim.json` is C, and a hand-rolled newline-delimited format
+> measured *slower* (~8 ms) than `decode` because the split happens in Lua. And
+> **the persisted-file I/O is ~25 ms total**, so it cannot explain a
+> multi-second startup stall.
+>
+> If you are chasing such a stall, the candidate is the scan's *callback*
+> volume: the walk uses non-blocking `fs_scandir`, but its callbacks still run
+> on the main loop, and tens of thousands of entries' worth of them add up
+> even though no single call blocks. That is the one thing an out-of-process
+> indexer would genuinely fix. Measure with `nvim --startuptime` before
+> assuming.
 
 ---
 
