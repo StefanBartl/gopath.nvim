@@ -74,6 +74,19 @@ function M.open(res, mode)
   end
 
   if external.should_open_externally(res.path) then
+    -- An external file that does not exist has nothing to hand the OS: launching
+    -- the system opener on a missing path yields a cryptic shell/Start-Process
+    -- error. Report it here instead. (No create-offer either — an empty .pdf or
+    -- .png is not a useful thing to conjure up.)
+    if res.exists == false then
+      LOG.error("File not found: " .. res.path)
+      return
+    end
+
+    -- PDFs get a mode chooser when pdfport.nvim is installed; everything else
+    -- (and PDFs without pdfport) goes straight to the system viewer.
+    if require("gopath.external.pdf").try_open(res.path) then return end
+
     external.open(res.path)
     return
   end

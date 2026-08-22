@@ -89,6 +89,23 @@ function M.resolve()
       return make_result(rel, lineno, col, "linepath-relative", 0.88)
     end
 
+    -- 2b) Try buffer-relative. Links inside a document (Markdown `[x](a/b.pdf)`,
+    --     include directives, …) are *document*-relative by definition, not
+    --     cwd-relative — so a link only resolvable this way would otherwise fall
+    --     through to the fuzzy tail search, or fail outright when the cursor sits
+    --     on the link label rather than on the path token (filetoken, which has
+    --     its own bufdir fallback, never sees it in that case).
+    --     Deliberately ordered AFTER cwd so existing resolutions never change;
+    --     this only adds hits that previously failed.
+    local bufdir = vim.fn.expand("%:p:h")
+    if bufdir ~= "" then
+      local brel = vim.fs.normalize(bufdir .. "/" .. path)
+      st = uv.fs_stat(brel)
+      if st and st.type == "file" then
+        return make_result(brel, lineno, col, "linepath-bufdir", 0.9)
+      end
+    end
+
     -- 3) Suffix search via cache only (instant, non-blocking). The live
     --    filesystem walk is deferred to the async command layer to keep the
     --    resolve pipeline from freezing the UI on large trees.

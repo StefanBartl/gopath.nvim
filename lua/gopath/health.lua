@@ -188,6 +188,24 @@ end
 
 ---Report nvim-treesitter availability and parser coverage for the current filetype.
 ---@internal
+local function check_pdfport()
+  start_s("pdfport.nvim")
+  local ok_cfg, cfg_mod = pcall(require, "gopath.config")
+  local pdf_cfg = ok_cfg and (cfg_mod.get().external or {}).pdf or {}
+
+  if require_ok("pdfport") then
+    if pdf_cfg.picker ~= false then
+      ok_s("pdfport.nvim installed — PDFs offer System app / Buffer / Float / Terminal")
+    else
+      info_s("pdfport.nvim installed, but external.pdf.picker = false — "
+        .. "PDFs always open with mode '" .. tostring(pdf_cfg.default or "system") .. "'")
+    end
+  else
+    info_s("pdfport.nvim not installed — PDFs go straight to the system viewer\n"
+      .. "  install StefanBartl/pdfport.nvim to read PDFs inside Neovim")
+  end
+end
+
 local function check_treesitter()
   start_s("Tree-sitter")
   if require_ok("nvim-treesitter") then
@@ -375,6 +393,7 @@ function M.check()
   check_open_nvim()
   check_lib_nvim()
   check_filetree_nvim()
+  check_pdfport()
   check_treesitter()
   check_which_key()
   check_config()

@@ -58,7 +58,7 @@ in order and returns the first success:
 | 1 | `:help` subject | token looks like a Vim help tag |
 | 2 | `$VAR` env path | token starts with `$` or `${` |
 | 3 | **filetoken** | `<cfile>` under cursor; searches `&path` (honouring `suffixesadd`), rtp, then the **cache** |
-| 3.5 | **linepath** | scans the whole current line (stacktraces, extension-driven, absolute) |
+| 3.5 | **linepath** | scans the whole current line (stacktraces, extension-driven, absolute); resolves absolute → cwd-relative → **buffer-relative** → cache tail |
 | 4 | Language pipeline | LSP → Treesitter → builtin (per filetype, e.g. Lua `require`) |
 | 5 | filetoken fallback | the low-confidence/non-existent result held from phase 3 |
 | 6 | raw `<cfile>` | last resort |
@@ -97,6 +97,23 @@ Cleanup that matters cross-platform:
 
 This is why a markdown link like `[x](.\spickzettel/Learn.md)` — mixed
 separators, a leading paren, a `.\` prefix — resolves correctly.
+
+Two things make a link work even with the cursor on its **label** rather than on
+the path, where `<cfile>` yields a plain word and phase 3 bails out:
+
+- The line extractor scans for **externally-openable extensions too** (`.pdf`,
+  `.png`, `.docx`, … from `gopath.external`, plus your own
+  `external.extensions`), not just source/text extensions. Without this a
+  `[report](docs/report.pdf)` link produced no candidate at all.
+- An **unbalanced trailing bracket** is dropped: expanding left from
+  `docs/report.pdf` in `[report](docs/report.pdf)` stops at `(`, leaving a `)`
+  on the right with no opener. A bracket whose opener *is* present is kept, so
+  `C:/Program Files (x86)/x.pdf` survives intact.
+
+Because a link inside a document is **document-relative**, linepath also tries
+the path relative to the **buffer's own directory** (after cwd, so no existing
+resolution changes). Previously such a link only resolved when the cwd happened
+to match, or when the fuzzy tail search found it.
 
 ---
 
@@ -177,7 +194,18 @@ top-level entry can be hidden by a stale index, and four signals cover that:
 [`open/init.lua`](../lua/gopath/open/init.lua) handles the actual open:
 
 1. **External files** (images, PDFs, …) are handed to the system opener via
-   `gopath.external`.
+   `gopath.external`. A missing external file is reported as `File not found`
+   *before* the opener runs — handing the OS a non-existent path only produces a
+   cryptic `Start-Process`/shell error, and there is no create-offer here either
+   (an empty `.pdf` is not a useful thing to conjure up).
+   **PDFs** additionally route through
+   [`gopath.external.pdf`](../lua/gopath/external/pdf.lua): with
+   [pdfport.nvim](https://github.com/StefanBartl/pdfport.nvim) installed you get
+   a chooser — *System app* (first; it's the exception, so it stays one
+   keystroke away), *Buffer*, *Float*, *Terminal*. "System app" goes through
+   gopath's own opener, so it behaves identically with or without pdfport.
+   Without pdfport, nothing changes: straight to the system viewer, no dialog.
+   Configure via `external.pdf = { picker = true, default = "system" }`.
 2. A non-existent path is offered for creation via
    [`gopath.create`](../lua/gopath/create.lua) (`create_on_missing`, see
    below) instead of just reporting `File not found`. On confirmation the
@@ -195,7 +223,18 @@ When resolution yields a path that does not exist, `commands` tries, in order:
 
 1. **Fuzzy alternate** — Levenshtein similarity against files in the same
    directory ([`alternate/`](../lua/gopath/alternate)), gated by
-   `alternate.similarity_threshold`.
+   `alternate.similarity_threshold`. The picker reports back through a
+   **callback**, so an asynchronous backend (telescope-ui-select, dressing,
+   kit's chooser) can't make the caller fall through while the list is still on
+   screen — that used to open the missing file *and* stack a create dialog on
+   top of the open picker. Dismissing the picker counts as *handled*: it means
+   "none of these", so the chain stops rather than chaining another dialog onto
+   the one you just dismissed. The chosen candidate is opened through
+   `gopath.open`, so it honours the window mode you actually pressed
+   (`gP`/`g|`/`g\`/`g}`) and the `:line:col` jump — both were previously lost:
+   the mode was passed under a key the callee never read, and even when read it
+   was concatenated into an Ex command line, where a gopath mode like `window`
+   or `tab` is not a valid command (`E492`).
 2. **Create on missing** — if that fails too, `gopath.open` asks (button
    dialog via lib.nvim's `ui.kit.confirm`, falling back to `vim.ui.select`
    when lib.nvim is absent) whether to create the file. See

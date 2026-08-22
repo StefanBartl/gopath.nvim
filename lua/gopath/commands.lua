@@ -35,13 +35,20 @@ local function finish_open(res, kind)
   local cfg = CONFIG.get()
 
   if res.exists == false and cfg.alternate and cfg.alternate.enable then
-    -- Try fuzzy alternate resolution (Levenshtein similarity in same dir)
+    -- Try fuzzy alternate resolution (Levenshtein similarity in same dir).
+    -- Callback-based: the picker can be asynchronous, so we may only fall
+    -- through once it has actually reported back — otherwise the create-offer
+    -- below opens on top of a picker that is still on screen.
     local alternate = require("gopath.alternate")
-    local handled = alternate.try_resolve(res.path, {
+    alternate.try_resolve(res.path, {
       similarity_threshold = cfg.alternate.similarity_threshold or 75,
-      open_mode = kind or "edit",
-    })
-    if handled then return end
+      mode = kind or "edit",
+      range = res.range,
+    }, function(handled)
+      if handled then return end
+      open_for_kind(res, kind or "edit")
+    end)
+    return
   end
 
   open_for_kind(res, kind or "edit")

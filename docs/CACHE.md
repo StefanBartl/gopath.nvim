@@ -93,7 +93,7 @@ conservative — we do **not** index a whole drive by default):
 | Neovim config | `vim.fn.stdpath("config")` |
 | Neovim data (plugins) | `vim.fn.stdpath("data")` |
 | Neovim cache | `vim.fn.stdpath("cache")` |
-| Git repository root | `git rev-parse --show-toplevel` (if inside a repo) |
+| Git repository root | nearest ancestor holding a `.git` marker, via `lib.nvim.fs.find_root` (if inside a repo) |
 
 Each root is walked up to `truncated.max_depth` levels deep (default **6**),
 skipping `truncated.excluded_dirs` (`.git`, `node_modules`, `target`, `build`,
@@ -168,7 +168,8 @@ candidates (longest → shortest, up to max_components):
 ```
 
 For each candidate, `cache.search` matches every indexed path with two
-strategies (case-insensitive, `\`→`/` normalized):
+strategies (case-insensitive, `\`→`/` normalized — the normalized form is
+precomputed once per index in `state.norm`, not derived per lookup):
 
 1. **Exact tail (suffix) match** — the indexed path *ends with* the candidate.
    This is what reconstructs the absolute left part: the full hit
@@ -216,6 +217,19 @@ See [RESOLUTION.md](./RESOLUTION.md) for how this fits into the full pipeline.
 
 `needs_refresh(max_age)` and `start_periodic_refresh(interval)` implement this.
 Concurrent builds are prevented by a `state.building` guard.
+
+The periodic timer's **first** tick is one full interval out, not immediate. A
+zero initial delay made it fire during `setup()`, where `needs_refresh(interval)`
+is true for any cache older than the interval — i.e. almost always at startup —
+so it kicked off a full rebuild on top of the deferred one above: two scans and
+two cache writes while Neovim was still starting.
+
+> **Startup cost lives in the I/O, not the walk.** The scan itself is a bounded,
+> non-blocking libuv walk (`max_concurrency = 16`) and never blocks the event
+> loop. What *does* run on the main loop is loading and saving the cache file —
+> a JSON encode/decode of every indexed path (a 20k-path index is ~2 MB). If you
+> are chasing a startup stall, measure there first (`nvim --startuptime`), not in
+> the traversal.
 
 ---
 

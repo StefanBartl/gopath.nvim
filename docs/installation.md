@@ -79,6 +79,10 @@ use {
 - *(optional)* [filetree.nvim](https://github.com/StefanBartl/filetree.nvim) —
   adds an "Open in filetree" button to the create-on-missing dialog when the
   unresolved path has an existing ancestor directory
+- *(optional)* [pdfport.nvim](https://github.com/StefanBartl/pdfport.nvim) —
+  opening a PDF offers a chooser (System app / Buffer / Float / Terminal)
+  instead of always handing it to the system viewer; see
+  `external.pdf` in [configuration.md](./configuration.md)
 
 ## Recommended CLI tools
 

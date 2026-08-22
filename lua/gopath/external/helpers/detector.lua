@@ -89,6 +89,27 @@ local function has_external_extension(path, extra_extensions)
   return false
 end
 
+---The externally-openable extensions (without a leading dot), optionally
+---extended by the user's `external.extensions`.
+---
+---Exposed so the line extractor can look for these too: a file gopath is able
+---to *open* externally must also be one it can *find* in a line, or a Markdown
+---link like `[report](docs/report.pdf)` is invisible to the whole resolver
+---pipeline whenever the cursor isn't sitting directly on the path token. Single
+---source of truth — the two lists must not drift apart.
+---@param extra string[]|nil
+---@return string[]
+function M.extensions(extra)
+  local out = {}
+  for i, ext in ipairs(EXTERNAL_EXTENSIONS) do
+    out[i] = ext
+  end
+  for _, ext in ipairs(extra or {}) do
+    if type(ext) == "string" and ext ~= "" then out[#out + 1] = ext:lower() end
+  end
+  return out
+end
+
 ---Check if a file or URL should be opened externally.
 ---@param path string File path or URL
 ---@param extra_extensions string[]|nil  extends the built-in extension list

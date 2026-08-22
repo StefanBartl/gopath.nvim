@@ -58,7 +58,7 @@ Resolver der Reihe nach und gibt den ersten Erfolg zurück:
 | 1 | `:help`-Subjekt | Token sieht aus wie ein Vim-Help-Tag |
 | 2 | `$VAR`-Env-Pfad | Token beginnt mit `$` oder `${` |
 | 3 | **filetoken** | `<cfile>` unter Cursor; sucht `&path` (unter Beachtung von `suffixesadd`), rtp, dann den **Cache** |
-| 3.5 | **linepath** | scannt die ganze aktuelle Zeile (Stacktraces, Endung-getrieben, absolut) |
+| 3.5 | **linepath** | scannt die ganze aktuelle Zeile (Stacktraces, Endung-getrieben, absolut); löst auf: absolut → cwd-relativ → **buffer-relativ** → Cache-Tail |
 | 4 | Sprach-Pipeline | LSP → Treesitter → builtin (je Filetype, z. B. Lua `require`) |
 | 5 | filetoken-Fallback | das aus Phase 3 gehaltene, unsichere/nicht-existente Ergebnis |
 | 6 | rohes `<cfile>` | letzter Ausweg |
@@ -187,7 +187,18 @@ greifen vier Signale:
 [`open/init.lua`](../lua/gopath/open/init.lua) übernimmt das eigentliche Öffnen:
 
 1. **Externe Dateien** (Bilder, PDFs, …) werden über `gopath.external` an den
-   System-Opener übergeben.
+   System-Opener übergeben. Eine fehlende externe Datei wird **vor** dem Opener
+   als `File not found` gemeldet — ein nicht existierender Pfad erzeugt beim OS
+   nur einen kryptischen `Start-Process`-/Shell-Fehler; ein Anlage-Angebot gibt
+   es hier ebenfalls nicht (eine leere `.pdf` ist nichts Sinnvolles).
+   **PDFs** laufen zusätzlich über
+   [`gopath.external.pdf`](../lua/gopath/external/pdf.lua): mit installiertem
+   [pdfport.nvim](https://github.com/StefanBartl/pdfport.nvim) erscheint eine
+   Auswahl — *System app* (an erster Stelle; der Ausnahmefall bleibt so einen
+   Tastendruck entfernt), *Buffer*, *Float*, *Terminal*. „System app" geht über
+   gopaths eigenen Opener und verhält sich damit mit und ohne pdfport identisch.
+   Ohne pdfport ändert sich nichts: direkt zum System-Viewer, kein Dialog.
+   Konfiguration: `external.pdf = { picker = true, default = "system" }`.
 2. Ein nicht existierender Pfad wird zur Anlage angeboten via
    [`gopath.create`](../lua/gopath/create.lua) (`create_on_missing`, siehe
    unten), statt nur `File not found` zu melden. Bei Bestätigung wird die
@@ -207,7 +218,18 @@ Reihe nach:
 
 1. **Fuzzy-Alternate** — Levenshtein-Ähnlichkeit gegen Dateien im selben
    Verzeichnis ([`alternate/`](../lua/gopath/alternate)), gesteuert über
-   `alternate.similarity_threshold`.
+   `alternate.similarity_threshold`. Der Picker meldet sich per **Callback**
+   zurück, damit ein asynchrones Backend (telescope-ui-select, dressing, kit's
+   Chooser) den Aufrufer nicht durchfallen lässt, während die Liste noch offen
+   ist — vorher wurde dabei die fehlende Datei geöffnet *und* ein Anlage-Dialog
+   über den offenen Picker gelegt. Abbrechen gilt als *behandelt*: es heißt
+   „keine davon", also stoppt die Kette, statt einen weiteren Dialog an den
+   gerade weggeklickten zu hängen. Der gewählte Kandidat wird über `gopath.open`
+   geöffnet und respektiert damit den tatsächlich gedrückten Fenstermodus
+   (`gP`/`g|`/`g\`/`g}`) sowie den `:line:col`-Sprung — beides ging vorher
+   verloren: der Modus wurde unter einem Key übergeben, den die Gegenseite nie
+   las, und selbst gelesen landete er roh in einer Ex-Kommandozeile, wo ein
+   gopath-Modus wie `window` oder `tab` gar kein gültiges Kommando ist (`E492`).
 2. **Anlegen bei Fehlen** — scheitert auch das, fragt `gopath.open` (Button-
    Dialog über lib.nvim's `ui.kit.confirm`, mit `vim.ui.select`-Fallback wenn
    lib.nvim fehlt), ob die Datei angelegt werden soll. Siehe

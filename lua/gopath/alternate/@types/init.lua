@@ -13,18 +13,17 @@
 
 ---@class AlternateOpts
 --- Options accepted by `alternate.try_resolve` and `alternate.try_resolve_with_matches`.
----@field open_cmd            string       Ex command used to open the file ("edit"|"split"|"vsplit"|"tabedit")
----@field line                integer|nil  1-based line to jump to after opening
----@field col                 integer|nil  1-based column to jump to after opening
----@field similarity_threshold number|nil  Minimum score to include a candidate (default 75)
+---@field mode                 GopathOpenMode|nil  Window mode for the open ("edit"|"window"|"vsplit"|"tab"); default "edit"
+---@field range                GopathRange|nil     Line/col to jump to after opening (truncated paths carry one)
+---@field similarity_threshold number|nil          Minimum score to include a candidate (default 75)
 
 -- #####################################################################
 -- ui.lua
 
 ---@class AlternateSelectOpts
 --- Options forwarded from `try_resolve` to `ui.present_selection`.
----@field open_cmd string      Ex command for opening ("edit"|"split"|"vsplit"|"tabedit")
----@field line     integer|nil 1-based line to jump to after opening
----@field col      integer|nil 1-based column to jump to after opening
+---@field on_choice fun(match: AlternateMatch|nil): nil
+--- Called exactly once with the chosen candidate, or `nil` when the user
+--- dismissed the picker. Callback-based because the picker may be asynchronous.
 
 return {}

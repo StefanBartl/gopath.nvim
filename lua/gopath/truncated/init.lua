@@ -31,6 +31,18 @@ local OPEN_CMD = {
   tabedit = "tabedit",
 }
 
+---The same values expressed as gopath *modes*, for handing off to
+---`gopath.open` / `gopath.alternate` (which take a mode, not an Ex command).
+---@type table<string, GopathOpenMode>
+local OPEN_MODE = {
+  edit = "edit",
+  split = "window",
+  window = "window",
+  vsplit = "vsplit",
+  tab = "tab",
+  tabedit = "tab",
+}
+
 ---Check if a path looks truncated.
 ---Recognizes "..." (3+ dots) and the unicode ellipsis "…", optionally followed
 ---by a path separator.
@@ -161,12 +173,14 @@ function M._show_selection(matches, tail, source, open_cmd, line, col)
 
   LOG.debug(string.format("Found %d matches via %s", #formatted, source))
 
+  -- The picker is async, so "a selection was shown" is the answer we can give
+  -- synchronously here — which is exactly what this function's contract says.
   local alternate = require("gopath.alternate")
-  return alternate.try_resolve_with_matches(formatted, tail, {
-    open_cmd = OPEN_CMD[open_cmd] or "edit",
-    line = line,
-    col = col,
+  alternate.try_resolve_with_matches(formatted, tail, {
+    mode = OPEN_MODE[open_cmd] or "edit",
+    range = (line and line > 0) and { line = line, col = col or 1 } or nil,
   })
+  return true
 end
 
 return M
