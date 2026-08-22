@@ -355,9 +355,13 @@ function M.search(tail)
   local normalized_tail = tail:gsub("\\", "/"):lower()
   local tail_parts = vim.split(normalized_tail, "/", { trimempty = true })
 
-  -- Hoisted out of the loop: this was rebuilt once per cached path (20k+ times
-  -- per query), and it only ever depends on the tail.
-  local suffix_pat = vim.pesc(normalized_tail) .. "$"
+  -- Strategy 1 is a plain suffix comparison, not a pattern match. It used to be
+  -- `path:match(vim.pesc(tail) .. "$")` — but `vim.pesc` makes the tail a
+  -- *literal*, so the anchored pattern was only ever asking "does this path end
+  -- with this exact string". `sub(-n) == tail` answers that with a memcmp
+  -- instead of starting the pattern engine 20k times per query. Identical
+  -- semantics, measurably cheaper on the hot path.
+  local tail_len = #normalized_tail
   -- Non-nil only for multi-segment tails; doubles as the Strategy-2 guard below.
   local last_part = (#tail_parts > 1) and tail_parts[#tail_parts] or nil
 
@@ -370,7 +374,7 @@ function M.search(tail)
 
     -- === Strategy 1: Exact Tail Match ===
     -- Path ends with the exact tail
-    if normalized_path:match(suffix_pat) then
+    if #normalized_path >= tail_len and normalized_path:sub(-tail_len) == normalized_tail then
       matches[#matches + 1] = paths[i]
 
     -- === Strategy 2: Sequential Part Match ===
