@@ -20,6 +20,9 @@ filesystem live.
   `:Gopath cache info`, `:GopathCacheInfo` (statistics),
   `:Gopath cache add-root <dir>`, `:GopathCacheAddRoot <dir>` (extend
   search roots) — all require `opts.truncated.enable = true`
+- **Completion:** `<dir>` is declared `type = "DIR"` on the composer route, so
+  `<Tab>` offers directories and a non-directory is rejected before the
+  handler runs. The alias sets `complete = "dir"` for the same effect.
 - **Config:** `opts.truncated.enable` (default `true`),
   `opts.truncated.cache_roots` (default: auto-detected), `opts.truncated.
   max_depth` (default `6`), `opts.truncated.excluded_dirs` (`.git`,

@@ -92,6 +92,11 @@ tab-completion works at every level. `cache *` subcommands only appear when
 | `cache info` | — | Show cache statistics |
 | `cache add-root` | `<dir>` | Add directory to cache search roots |
 
+`<Tab>` completes subcommands throughout, and `cache add-root`'s `<dir>`
+completes directories — it is declared as a `DIR` argument, so the composer
+derives both its completion and its validation from that one declaration. The
+`:GopathCacheAddRoot` alias below completes the same way.
+
 ### Individual aliases
 
 Kept for backward compatibility; each is a thin wrapper around the
