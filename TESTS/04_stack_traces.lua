@@ -1,4 +1,4 @@
--- docs/TESTS/04_stack_traces.lua
+-- TESTS/04_stack_traces.lua
 -- Real-world error / stacktrace lines for testing linepath + tailsearch.
 -- Press gP with cursor anywhere on a line to attempt resolution.
 -- Expected: Neovim opens the referenced file at the correct line.

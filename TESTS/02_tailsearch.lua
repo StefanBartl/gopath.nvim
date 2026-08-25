@@ -1,4 +1,4 @@
--- docs/TESTS/02_tailsearch.lua
+-- TESTS/02_tailsearch.lua
 -- Test the suffix-based filesystem search (tailsearch / pathprobe strategy).
 --
 -- HOW TO TEST

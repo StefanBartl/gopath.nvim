@@ -1,4 +1,4 @@
--- docs/TESTS/01_linepath.lua
+-- TESTS/01_linepath.lua
 -- Test the whole-line path extraction (linepath / pathfinder strategy).
 --
 -- HOW TO TEST

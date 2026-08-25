@@ -8,7 +8,7 @@ globals = {
 }
 
 exclude_files = {
-  "docs/TESTS/*.lua",
+  "TESTS/*.lua",
 }
 
 -- Long lines are handled by stylua's column_width; don't duplicate the check here.

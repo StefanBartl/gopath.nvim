@@ -1,4 +1,4 @@
--- docs/TESTS/05_direct_symbol_jump.lua
+-- TESTS/05_direct_symbol_jump.lua
 -- Test direct symbol/definition jumps (LSP / treesitter / identifier_locator)
 -- on require() bindings and their subsequent usages.
 --

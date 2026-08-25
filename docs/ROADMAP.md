@@ -29,11 +29,11 @@
   (`which_key = false` to disable)
 - `:checkhealth gopath`
 - `docs/BINDINGS.md` — machine-readable keymap/command/autocmd cheatsheet
-- `docs/TESTS/` — manual test guides for the core resolution pipeline
+- `TESTS/` — manual test guides for the core resolution pipeline
   (linepath, tailsearch, `:Gopath`, stack traces, direct symbol jumps)
 - CI (`.github/workflows/ci.yml`): `stylua --check`, `luacheck`, and a
   headless smoke test (`scripts/ci/headless_tests.lua`) that boots gopath
-  and executes every `docs/TESTS/*.lua` fixture as a plain Lua chunk
+  and executes every `TESTS/*.lua` fixture as a plain Lua chunk
 
 ---
 
@@ -65,7 +65,7 @@ Suffix-Matching, beides klein und pure-function). Konkrete Funde behoben
   `bindings/{keymaps,usrcmds,autocmds,which_key,init}.lua`).
 - ~~Keine which-key-Unterstützung~~ — `bindings/which_key.lua` (soft
   dependency, v2/v3-Fallback) ergänzt, inkl. Healthcheck-Zeile.
-- ~~Kein CI-Workflow~~ (stylua + luacheck + `docs/TESTS`-Runner headless) —
+- ~~Kein CI-Workflow~~ (stylua + luacheck + `TESTS`-Runner headless) —
   `.github/workflows/ci.yml` ergänzt, einziger offener "empfohlen"-Punkt aus
   Checklist §7 damit erledigt.
 

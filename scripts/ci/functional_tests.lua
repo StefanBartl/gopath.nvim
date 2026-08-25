@@ -1,7 +1,7 @@
 -- scripts/ci/functional_tests.lua
 -- Headless CI functional tests for the Lua resolvers' Treesitter-first
 -- table/symbol locating (table_locator.lua, symbol_locator.lua), and a couple
--- of end-to-end buffer+cursor cases mirroring docs/TESTS/05_direct_symbol_jump.lua.
+-- of end-to-end buffer+cursor cases mirroring TESTS/05_direct_symbol_jump.lua.
 --
 -- Unlike scripts/ci/headless_tests.lua (which only load-checks fixtures),
 -- these are real behavioral assertions: fixture files/buffers are written,
@@ -282,7 +282,7 @@ check("symbol_locator: unknown symbol falls back to a module reference", functio
   assert_eq(r.confidence, 0.5, "confidence")
 end)
 
--- ========= Group C: end-to-end buffer+cursor (mirrors docs/TESTS/05) =========
+-- ========= Group C: end-to-end buffer+cursor (mirrors TESTS/05) =========
 
 check("value_origin: cursor on a nested chain resolves through a real buffer+cursor", function()
   local path = write_fixture("c1_value_origin.lua", {

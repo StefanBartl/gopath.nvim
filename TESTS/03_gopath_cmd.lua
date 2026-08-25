@@ -1,4 +1,4 @@
--- docs/TESTS/03_gopath_cmd.lua
+-- TESTS/03_gopath_cmd.lua
 -- Test the unified :Gopath command and all individual aliases.
 --
 -- Run these from the command line while cursor is on a relevant symbol / path.

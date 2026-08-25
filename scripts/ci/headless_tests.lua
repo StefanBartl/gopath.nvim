@@ -1,8 +1,8 @@
 -- scripts/ci/headless_tests.lua
 -- Headless CI smoke test: verifies gopath.nvim loads, `setup()` runs without
--- error, and every fixture in docs/TESTS/ is valid, side-effect-free Lua.
+-- error, and every fixture in TESTS/ is valid, side-effect-free Lua.
 --
--- The docs/TESTS/*.lua files are written as manual, interactive test guides
+-- The TESTS/*.lua files are written as manual, interactive test guides
 -- (place cursor on a marked token, press a keymap, inspect the result) rather
 -- than automated assertions, so this runner can't verify resolution outcomes.
 -- What it *can* verify cheaply, on every push, is that the plugin still loads
@@ -33,17 +33,17 @@ check("require('gopath')", function() require("gopath") end)
 
 check("gopath.setup({})", function() require("gopath").setup({}) end)
 
-local tests_dir = root .. "/docs/TESTS"
+local tests_dir = root .. "/TESTS"
 local fixtures = vim.fn.globpath(tests_dir, "*.lua", false, true)
 table.sort(fixtures)
 
 if #fixtures == 0 then
-  print("[FAIL] no fixtures found under docs/TESTS/")
-  failures[#failures + 1] = "docs/TESTS discovery"
+  print("[FAIL] no fixtures found under TESTS/")
+  failures[#failures + 1] = "TESTS discovery"
 end
 
 for _, path in ipairs(fixtures) do
-  check("docs/TESTS/" .. vim.fn.fnamemodify(path, ":t"), function()
+  check("TESTS/" .. vim.fn.fnamemodify(path, ":t"), function()
     local chunk = assert(loadfile(path))
     chunk()
   end)
