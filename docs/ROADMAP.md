@@ -37,66 +37,68 @@
 
 ---
 
-## Qualität & Checklist-Audits
+## Quality & checklist audits
 
-gopath.nvim wurde gegen die drei persönlichen Lua/Neovim-Checklisten
-auditiert (2026-07-04), analog zum bereits durchgeführten Audit von
-`buffer-ctx.nvim`:
+gopath.nvim was audited against the three personal Lua/Neovim checklists
+(2026-07-04), analogously to the audit of `buffer-ctx.nvim` that had already
+been carried out:
 
-- [Arch&Coding.md](ROADMAP/Arch&Coding.md) — Architektur- & Coding-Regeln
-- [Zentral-Prinzipien.md](ROADMAP/Zentral-Prinzipien.md) — zentrale Modul-Prinzipien
-- [Checklist.md](ROADMAP/Checklist.md) — Master-Checklist (Schnell-Check/PR/Coding)
+- [Arch&Coding.md](ROADMAP/Arch&Coding.md) — architecture & coding rules
+- [Zentral-Prinzipien.md](ROADMAP/Zentral-Prinzipien.md) — central module principles
+- [Checklist.md](ROADMAP/Checklist.md) — the master checklist (quick check/PR/coding)
 
-**Bilanz:** überwiegend erfüllt. Sortier-/Datenstruktur-/Bit-Operationen-Kapitel
-sind n/a (kein eigener Algorithmus-Code jenseits von Levenshtein-Distanz und
-Suffix-Matching, beides klein und pure-function). Konkrete Funde behoben
-(2026-07-04):
+**Verdict:** mostly met. The chapters on sorting, data structures and bit
+operations are n/a (no algorithm code of its own beyond the Levenshtein
+distance and suffix matching, both small and pure functions). Concrete findings
+fixed (2026-07-04):
 
-- ~~Vereinzelte direkte `vim.notify(...)`-Aufrufe~~ in `commands.lua`,
+- ~~A few direct `vim.notify(...)` calls~~ in `commands.lua`,
   `bindings/usrcmds.lua`, `truncated/finder.lua`,
-  `resolvers/common/env_path.lua`, `external/helpers/opener.lua` und
-  `util/cross.lua` auf `gopath.util.log` umgestellt — konsistentes Prefixing
-  und, wo installiert, Delegation an `lib.nvim.notify` (analog
+  `resolvers/common/env_path.lua`, `external/helpers/opener.lua` and
+  `util/cross.lua` switched over to `gopath.util.log` — consistent prefixing
+  and, where installed, delegation to `lib.nvim.notify` (analogous to
   `buffer_ctx.util.notify`).
-- ~~`GopathKeymaps`-Typ fehlte das `probe`-Feld~~ in `@types/config.lua`
-  ergänzt (Checklist §7: "jeder Key braucht einen Typ").
-- ~~Kein `/config`- bzw. `/bindings`-Ordner~~ — beide analog zu
-  `buffer-ctx.nvim` eingeführt (`config/DEFAULTS.lua` + `config/init.lua`,
+- ~~The `GopathKeymaps` type was missing the `probe` field~~ — added in
+  `@types/config.lua` (checklist §7: "every key needs a type").
+- ~~No `/config` or `/bindings` folder~~ — both introduced analogously to
+  `buffer-ctx.nvim` (`config/DEFAULTS.lua` + `config/init.lua`,
   `bindings/{keymaps,usrcmds,autocmds,which_key,init}.lua`).
-- ~~Keine which-key-Unterstützung~~ — `bindings/which_key.lua` (soft
-  dependency, v2/v3-Fallback) ergänzt, inkl. Healthcheck-Zeile.
-- ~~Kein CI-Workflow~~ (stylua + luacheck + `TESTS`-Runner headless) —
-  `.github/workflows/ci.yml` ergänzt, einziger offener "empfohlen"-Punkt aus
-  Checklist §7 damit erledigt.
+- ~~No which-key support~~ — `bindings/which_key.lua` (a soft dependency, with
+  a v2/v3 fallback) added, including a healthcheck line.
+- ~~No CI workflow~~ (stylua + luacheck + the `TESTS` runner headless) —
+  `.github/workflows/ci.yml` added, which closes the only open "recommended"
+  item from checklist §7.
 
-Damit sind alle aus dem Audit vom 2026-07-04 offenen Punkte abgearbeitet.
+All points left open by the audit of 2026-07-04 are thereby worked off.
 
 ---
 
-## Geplante Features
+## Planned features
 
-- **Frecency-Lernen für Alternate-Vorschläge** — oft gewählte Alternates
-  sollen hochsortiert werden. `pickers.nvim` hat mit `smart/frecency.lua`
-  bereits eine Implementierung; die gehört über `lib.nvim` geteilt statt in
-  gopath neu gebaut. Cross-repo-Arbeit (lib.nvim + pickers.nvim + gopath),
-  daher nicht in einer Einzelsession umgesetzt. UI-Backend-Konfigurierbarkeit
-  und eine Preview (Größe/mtime) sind dagegen bereits vorhanden — siehe
+- **Frecency learning for alternate suggestions** — frequently chosen
+  alternates should be sorted to the top. `pickers.nvim` already has an
+  implementation in `smart/frecency.lua`; that belongs shared via `lib.nvim`
+  instead of rebuilt in gopath. It is cross-repo work (lib.nvim +
+  pickers.nvim + gopath) and therefore not done in a single session. A
+  configurable UI backend and a preview (size/mtime), by contrast, already
+  exist — see
   [FEATURES/NAVIGATION.md](FEATURES/NAVIGATION.md#fuzzy-alternate-resolution).
 
-- **Treesitter statt Zeilen-Pattern in `symbol_locator`/`table_locator`** —
-  beide lokalisieren ihr Ziel trotz des "treesitter provider"-Namens über
-  zeilenorientierte Lua-Patterns, nicht über echte Treesitter-Queries
-  (bewusst so gebaut, für Toleranz gegenüber Zeilenumbrüchen nach `=`,
-  bracket-Keys und Tabellen innerhalb von Funktionsaufrufen). Eine volle
-  Migration ist ~1 Woche Aufwand, weil alle 8 Fallback-Strategien in
-  `table_locator.locate` erhalten bleiben müssen. Konkrete Bugs in der
-  bestehenden Pattern-Logik werden bei Gelegenheit behoben (siehe
-  `find_child_table`-Fix, der eine doppelte Klammer-Zählung korrigiert hat).
+- **Treesitter instead of line patterns in `symbol_locator`/`table_locator`** —
+  despite the "treesitter provider" name, both locate their target via
+  line-oriented Lua patterns rather than real treesitter queries (built that
+  way deliberately, for tolerance of line breaks after `=`, bracket keys and
+  tables inside function calls). A full migration is roughly a week of work,
+  because all 8 fallback strategies in `table_locator.locate` have to be
+  preserved. Concrete bugs in the existing pattern logic get fixed as they
+  come up (see the `find_child_table` fix, which corrected a double bracket
+  count).
 
-Sonst keine dringenden offenen Features zum jetzigen Zeitpunkt; neue Ideen
-werden hier ergänzt, sobald sie konkret anstehen.
+Otherwise there are no urgent open features at this point; new ideas get added
+here as soon as they become concrete.
 
-## Nicht geplant
+## Not planned
 
-- **Eigener Fuzzy-Finder/Picker** — Integration mit Telescope/fzf-lua bleibt
-  bewusst außerhalb des Scopes; gopath löst Pfade auf, es ersetzt keinen Picker.
+- **A fuzzy finder/picker of its own** — integration with Telescope/fzf-lua
+  deliberately stays out of scope; gopath resolves paths, it does not replace a
+  picker.
