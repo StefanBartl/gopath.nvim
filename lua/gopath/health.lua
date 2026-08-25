@@ -197,12 +197,18 @@ local function check_pdfport()
     if pdf_cfg.picker ~= false then
       ok_s("pdfport.nvim installed — PDFs offer System app / Buffer / Float / Terminal")
     else
-      info_s("pdfport.nvim installed, but external.pdf.picker = false — "
-        .. "PDFs always open with mode '" .. tostring(pdf_cfg.default or "system") .. "'")
+      info_s(
+        "pdfport.nvim installed, but external.pdf.picker = false — "
+          .. "PDFs always open with mode '"
+          .. tostring(pdf_cfg.default or "system")
+          .. "'"
+      )
     end
   else
-    info_s("pdfport.nvim not installed — PDFs go straight to the system viewer\n"
-      .. "  install StefanBartl/pdfport.nvim to read PDFs inside Neovim")
+    info_s(
+      "pdfport.nvim not installed — PDFs go straight to the system viewer\n"
+        .. "  install StefanBartl/pdfport.nvim to read PDFs inside Neovim"
+    )
   end
 end
 
