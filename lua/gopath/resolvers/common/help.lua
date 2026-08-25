@@ -47,7 +47,8 @@ local function build_subjects(tok)
   local fn_name = tok:match("^vim%.fn%.([%w_]+)$")
   if fn_name then return { fn_name .. "()", "vim.fn" } end
 
-  -- vim.loop.<something> → keine einzelnen Tags; auf Übersicht fallen
+  -- vim.loop.<something> -> no per-function tags exist; fall back to the
+  -- overview page.
   if tok:match("^vim%.loop%.") then return { "vim.loop", "luv" } end
 
   return nil
