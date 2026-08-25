@@ -63,7 +63,7 @@ local resolver = require("gopath.resolve")
 -- Cursor here → gP
 -- Expected: Opens gopath/resolve.lua
 -- Source: identifier_locator (NEW!)
--- Aktuelles Resultat: öffnet die datei nicht, gibt aber aus:
+-- Actual result: does not open the file, but reports:
 -- Debug  16:08:03 notify.debug [gopath] Opening with range: line=25, col=7
 -- Debug  16:08:03 notify.debug [gopath] Normalized range: line=25, col=7
 --   Info  16:08:03 notify.info [gopath] Jumped to line 25, col 6

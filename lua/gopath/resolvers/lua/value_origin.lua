@@ -140,7 +140,8 @@ local function try_locate_with_roots(abs, extra_chain, last_key)
     if hit then return hit end
   end
 
-  -- optional: last resort – Locator kann „any-root“ selbst schon, daher oft nicht nötig
+  -- Optional last resort: the locator already handles "any root" itself, so
+  -- this is usually unnecessary.
   return nil
 end
 
@@ -199,7 +200,8 @@ function M.resolve()
     local abs = vim.api.nvim_buf_get_name(0)
     if type(abs) ~= "string" or abs == "" then return nil end
 
-    -- wichtig: hier NICHT hart "M" verwenden, sondern ebenfalls die Roots probieren
+    -- Do NOT hard-code "M" here -- try the roots as well, or a module using a
+    -- different local name for its table resolves to nothing.
     local hit = try_locate_with_roots(abs, base_res.extra_chain or "", last_key)
     if hit then
       return {
