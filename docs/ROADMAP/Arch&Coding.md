@@ -766,7 +766,8 @@ end)
 
 ## CPU-Operationen und deren relative Kosten in Lua
 
-![CPU operation costs](./CPU_Operations.png)
+*(The CPU-operation cost table this referenced was an image in the notes
+repository; it did not come along with the text and is not in this repo.)*
 
 | Kategorie                     | Kosten (Zyklen) | Beispiel                          |
 | ----------------------------- | --------------- | --------------------------------- |

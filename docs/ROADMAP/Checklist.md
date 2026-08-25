@@ -1,5 +1,14 @@
 # Checklisten für Lua/Neovim-Architektur, Performance und Codierungsregeln
 
+> **What this file is.** A verbatim copy of the shared Lua/Neovim checklist, not
+> a gopath.nvim audit — unlike the sibling repos, where `Checklist.md` is the
+> checklist *applied* to that plugin. It is kept as the reference text.
+>
+> Its cross-references pointed into the notes repository it came from and
+> resolved nowhere here, so they are plain names now; `Arch&Coding.md` in this
+> same folder *is* the gopath-specific audit.
+
+
 ## Table of content
 
 - [Checklisten für Lua/Neovim-Architektur, Performance und Codierungsregeln](#checklisten-fr-luaneovim-architektur-performance-und-codierungsregeln)
@@ -90,7 +99,7 @@
   3. Für Hotpaths zusätzlich den Performance-Spickzettel prüfen.
   4. Bei Neovim-Fenster/Buffer-Code immer Handle-Validierung doppelt prüfen, insbesondere in asynchronen Callbacks.
 
-Referenz: [Arch\&Coding-Regeln](./Arch&Coding-Regeln.md)
+Referenz: `Arch&Coding-Regeln`
 
 ## Schnell-Check (10 Punkte, vor jedem Merge)
 
@@ -186,7 +195,7 @@ Verwende die custom `/nvim/lua/lib/**/**.lua`-Library, insbesondere:
 
 ## Coding-Checkliste (beim Implementieren)
 
-[reduce-reuse-recycle Prinzip beachten](./MyNotes/Checklists/Lua/Referenzen/reduce-reuse-recycle.md)
+`reduce-reuse-recycle Prinzip beachten`
 
 **WICHTIG**:
 Verwende die custom `/nvim/lua/lib/**/**.lua`-Library, insbesondere:
@@ -202,7 +211,7 @@ Verwende die custom `/nvim/lua/lib/**/**.lua`-Library, insbesondere:
 
 ### Funktionales Programmieren in Lua
 
-[filter-sinks-pumps](../../../../WKDBooks/Development/wkdbook-Lua/Literatur/Lua-Programming-Gems/functional-programming/filter-sinks-pumps.md)
+`filter-sinks-pumps`
 
 Wenn man folgende Aufgaben auf die Filter/Sources/Sinks/Pumps-Architektur abbildet, kann man **Arbeitsspeicher sparen, die Verarbeitung parallelisieren und die Modularität erhöhen**, ohne dass man große Datenmengen auf einmal laden muss.
 
@@ -357,8 +366,8 @@ Man kann die gezeigte Technik als eine *lazy-initializing*, *on-demand* Konfigur
 
 ## Sortieralgorithmen (Auswahl, Implementierung, Review) mit Prioritäten
 
-[Referenz](./Referenzen/Sortieralgorithmen-Ref.md)
-[All-Sort notes](../../Architektur/Sortieralgorithmen/All-Sort.md)
+`Referenz`
+`All-Sort notes`
 
 ### Eingabe- und Randbedingungen
 
@@ -433,7 +442,7 @@ Man kann die gezeigte Technik als eine *lazy-initializing*, *on-demand* Konfigur
 
 ## Einfüge-/Lösch-/Update-/Such-Algorithmen und verwandte Datenstruktur-Operationen
 
-[Referenz](./Referenzen/DataStructures-Ref.md)
+`Referenz`
 
 ### Anforderungen und Randbedingungen
 
@@ -615,8 +624,8 @@ Man kann die gezeigte Technik als eine *lazy-initializing*, *on-demand* Konfigur
 
 ## Zeit- und Platzkomplexität (Notation, Kommunikation, Nachweis) mit Prioritäten
 
-[Referenz](./Referenzen/Complexity-Ref.md)
-[Detaillerte Infos](./Referenzen/Zeitkomplexität.md)
+`Referenz`
+`Detaillerte Infos`
 
 ### Notationsdisziplin
 
@@ -663,8 +672,8 @@ Man kann die gezeigte Technik als eine *lazy-initializing*, *on-demand* Konfigur
 
 ## Bitoperationen
 
-[Referenz](./Referenzen/Bitoperationen-Ref.md)
-[Details](./Referenzen/Bitoperationen.md)
+`Referenz`
+`Details`
 
 ### Plattform/Eignung (Kurz-Check)
 
