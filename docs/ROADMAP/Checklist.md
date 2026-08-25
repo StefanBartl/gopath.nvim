@@ -1,12 +1,15 @@
 # Checklisten für Lua/Neovim-Architektur, Performance und Codierungsregeln
 
-> **What this file is.** A verbatim copy of the shared Lua/Neovim checklist, not
-> a gopath.nvim audit — unlike the sibling repos, where `Checklist.md` is the
-> checklist *applied* to that plugin. It is kept as the reference text.
+> **What this file is.** A verbatim copy of the Lua/Neovim checklist as it stood
+> before the rules were reorganised — not, as in every sibling repo, that
+> checklist *applied* to gopath.nvim. `Arch&Coding.md` in this same folder is
+> the gopath-specific audit.
 >
-> Its cross-references pointed into the notes repository it came from and
-> resolved nowhere here, so they are plain names now; `Arch&Coding.md` in this
-> same folder *is* the gopath-specific audit.
+> **It is not the canonical rules.** Those live in
+> [`WKDBooks/Development/wkdbook-Lua/Checklists/`](../../../WKDBooks/Development/wkdbook-Lua/Checklists/) — `regeln/` for what
+> applies, `gates/` for the point-in-time checks, `nachschlagen/` for the
+> reference tables. This copy predates that split and is not maintained; read
+> it only if you want the older wording.
 
 
 ## Table of content
@@ -99,7 +102,7 @@
   3. Für Hotpaths zusätzlich den Performance-Spickzettel prüfen.
   4. Bei Neovim-Fenster/Buffer-Code immer Handle-Validierung doppelt prüfen, insbesondere in asynchronen Callbacks.
 
-Referenz: `Arch&Coding-Regeln`
+Referenz: [`regeln/PRINCIPLES.md`](../../../WKDBooks/Development/wkdbook-Lua/Checklists/regeln/PRINCIPLES.md)
 
 ## Schnell-Check (10 Punkte, vor jedem Merge)
 
