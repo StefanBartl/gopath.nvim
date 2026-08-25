@@ -81,7 +81,7 @@ Damit sind alle aus dem Audit vom 2026-07-04 offenen Punkte abgearbeitet.
   gopath neu gebaut. Cross-repo-Arbeit (lib.nvim + pickers.nvim + gopath),
   daher nicht in einer Einzelsession umgesetzt. UI-Backend-Konfigurierbarkeit
   und eine Preview (Größe/mtime) sind dagegen bereits vorhanden — siehe
-  [features.md](../docs/features.md#fuzzy-alternate-resolution).
+  [FEATURES/NAVIGATION.md](FEATURES/NAVIGATION.md#fuzzy-alternate-resolution).
 
 - **Treesitter statt Zeilen-Pattern in `symbol_locator`/`table_locator`** —
   beide lokalisieren ihr Ziel trotz des "treesitter provider"-Namens über
