@@ -140,9 +140,9 @@ end
 ---@internal
 local function check_lib_nvim()
   start_s("lib.nvim")
-  -- Required: the :Gopath command layer (lib.nvim.usercmd.composer)
+  -- Required: the :Gopath command layer (lib.nvim.bindings.usercmd.composer)
   -- registers unconditionally, no pcall fallback.
-  if require_ok("lib.nvim.usercmd.composer") then
+  if require_ok("lib.nvim.bindings.usercmd.composer") then
     ok_s("lib.nvim detected (:Gopath command layer available)")
   else
     warn_s(
@@ -416,7 +416,7 @@ function M.check()
     deps_health.report_for("gopath.nvim")
   end
 
-  require("lib.nvim.usercmd.composer").checkhealth("Gopath")
+  require("lib.nvim.bindings.usercmd.composer").checkhealth("Gopath")
 end
 
 return M

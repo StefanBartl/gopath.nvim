@@ -10,7 +10,7 @@
 ---   2. Opt-in: rebuild the truncated-path filesystem cache after saving
 ---      matching files, debounced to at most once per 5 minutes.
 
-local autocmd = require("lib.nvim.autocmd")
+local autocmd = require("lib.nvim.bindings.autocmd")
 
 local M = {}
 

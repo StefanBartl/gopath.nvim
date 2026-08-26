@@ -2,7 +2,7 @@
 --- Automatic keymap registration based on config.
 --- Supports single lhs (string) or multiple lhs (string[]).
 
-local map = require("lib.nvim.map")
+local map = require("lib.nvim.bindings.keymap")
 
 local M = {}
 

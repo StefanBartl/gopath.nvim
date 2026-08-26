@@ -1,6 +1,6 @@
 ---@module 'gopath.bindings.usrcmds'
 ---@brief User command registration: unified :Gopath (built via
---- lib.nvim.usercmd.composer) + individual convenience commands.
+--- lib.nvim.bindings.usercmd.composer) + individual convenience commands.
 ---
 --- Unified command:
 ---   :Gopath open [edit|split|vsplit|tab]   resolve & open
@@ -18,8 +18,8 @@
 ---   :GopathOpen [mode]  :GopathCopy  :GopathDebug  :GopathResolve
 ---   :GopathCacheBuild   :GopathCacheInfo  :GopathCacheAddRoot
 
-local composer = require("lib.nvim.usercmd.composer")
-local usercmd = require("lib.nvim.usercmd")
+local composer = require("lib.nvim.bindings.usercmd.composer")
+local usercmd = require("lib.nvim.bindings.usercmd")
 local expand_path = require("lib.nvim.cross.fs.expand_path")
 local LOG = require("gopath.util.log")
 

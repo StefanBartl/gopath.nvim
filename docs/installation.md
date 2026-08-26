@@ -40,7 +40,7 @@ dependencies, and recommended CLI tools. For a minimal quickstart, see the
 > applies — a trigger is still required for lazy.nvim to ever call it.
 
 > **`lib.nvim`** is now **required**: the `:Gopath` command layer is built on
-> `lib.nvim.usercmd.composer`, which registers unconditionally. It also
+> `lib.nvim.bindings.usercmd.composer`, which registers unconditionally. It also
 > provides cross-platform separator handling (forward-slash canonicalization
 > internally, OS-native paths when opening files) and the `ui.kit.confirm`
 > create-on-missing dialog — those specific integrations still degrade to
@@ -67,7 +67,7 @@ use {
 ## Dependencies
 
 - **Required**: [lib.nvim](https://github.com/StefanBartl/lib.nvim) — the
-  `:Gopath` command layer (`lib.nvim.usercmd.composer`); also used for
+  `:Gopath` command layer (`lib.nvim.bindings.usercmd.composer`); also used for
   cross-platform path separators, notify styling, and the `ui.kit.confirm`
   create-on-missing dialog (those specific integrations still fall back to
   built-ins / `vim.ui.select` if lib.nvim is somehow missing)

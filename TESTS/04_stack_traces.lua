@@ -4,7 +4,8 @@
 -- Expected: Neovim opens the referenced file at the correct line.
 
 -- ── Neovim Lua stacktrace ────────────────────────────────────────────────────
-local _01 = "E5113: Error while calling lua chunk: ...AppData/Local/nvim/init.lua:14: module 'pickers' not found"
+local _01 =
+  "E5113: Error while calling lua chunk: ...AppData/Local/nvim/init.lua:14: module 'pickers' not found"
 local _02 = "stack traceback:"
 local _03 = "	[C]: in function 'require'"
 local _04 = "	C:/Users/bartl/AppData/Local/nvim/lua/custom/pathprobe/init.lua:14: in main chunk"
@@ -17,7 +18,7 @@ local _06 = "goroutine 1 [running]:\nmain.main()\n\t/home/user/myproject/main.go
 
 -- ── Python traceback ─────────────────────────────────────────────────────────
 local _07 = '  File "/home/user/project/app/views.py", line 88, in get'
-local _08 = "  File \"C:\\Users\\bartl\\project\\main.py\", line 12, in <module>"
+local _08 = '  File "C:\\Users\\bartl\\project\\main.py", line 12, in <module>'
 
 -- ── Rust / cargo ─────────────────────────────────────────────────────────────
 local _09 = "  --> src/main.rs:42:10"

@@ -77,7 +77,7 @@ Config: `create_on_missing = { enable = true, confirm = true }`.
 ### `:Gopath` subcommand tree
 
 `:Gopath <subcommand> [args…]` — built via
-[`lib.nvim.usercmd.composer`](https://github.com/StefanBartl/lib.nvim),
+[`lib.nvim.bindings.usercmd.composer`](https://github.com/StefanBartl/lib.nvim),
 tab-completion works at every level. `cache *` subcommands only appear when
 `truncated.enable = true` in config.
 

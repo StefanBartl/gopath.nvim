@@ -11,7 +11,7 @@
 --   :Gopath open vsplit   → opens in vertical split
 --   :Gopath open tab      → opens in new tab
 
-local example_require = require("gopath.config")  -- cursor on "gopath.config"
+local example_require = require("gopath.config") -- cursor on "gopath.config"
 
 -- ── :Gopath copy ─────────────────────────────────────────────────────────────
 --   :Gopath copy
@@ -32,7 +32,7 @@ local example_require = require("gopath.config")  -- cursor on "gopath.config"
 --   :GopathProbe            → same as :Gopath probe vsplit
 --   :GopathProbe!           → opens in horizontal split
 
-local _path = "resolvers/common/tailsearch.lua:55"  -- cursor here, then :Gopath probe
+local _path = "resolvers/common/tailsearch.lua:55" -- cursor here, then :Gopath probe
 
 -- ── :Gopath cache ────────────────────────────────────────────────────────────
 --   :Gopath cache info          → show cache statistics
@@ -69,7 +69,7 @@ local _path = "resolvers/common/tailsearch.lua:55"  -- cursor here, then :Gopath
 -- keymap that triggered it (edit/split/vsplit/tab) instead of always "edit".
 -- There is no more automatic "open nearest folder as a buffer" fallback.
 
-local _missing_link = "[missing doc](./docs/DOES-NOT-EXIST.md)"  -- cursor on the path, then gC
+local _missing_link = "[missing doc](./docs/DOES-NOT-EXIST.md)" -- cursor on the path, then gC
 
 -- ── Markdown links: cursor on the LABEL, not the path ────────────────────────
 -- Put the cursor on the *label text* (e.g. on "cache" below) and press gP.
