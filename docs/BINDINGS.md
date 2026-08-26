@@ -143,10 +143,19 @@ key on. See [Resolution](RESOLUTION.md#path-lookup-caching).
 
 ## which-key
 
-which-key.nvim is a soft dependency (`lua/gopath/bindings/which_key.lua`):
-when installed and `which_key ~= false` in config, the `probe` keymap gets a
-`"gopath: probe path under cursor/selection"` label in both normal and
-visual mode. No-op if which-key.nvim is not installed. `:checkhealth gopath`
-reports whether it was detected.
+which-key.nvim is a soft dependency. Per-key labels need no registration at
+all: which-key reads the mappings itself and labels each from its own `desc`,
+which every gopath mapping carries. gopath used to register the `probe`
+description a second time, which only gave the same string two places to
+drift apart in.
+
+What which-key cannot work out for itself is the *group* label. gopath's keys
+are single `g`-prefixed ones except `probe`, which sits under the user's
+`<leader>` prefix — so that prefix is the one thing handed over, and only when
+`probe` is actually configured. `which_key = false` in config opts out of the
+label while leaving every mapping and its description in place. Declared in
+the keymap spec (`lua/gopath/bindings/keymaps.lua`) and applied by
+`lib.nvim.bindings.keymap`. `:checkhealth gopath` reports whether which-key
+was detected.
 
 ---

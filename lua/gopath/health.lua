@@ -113,12 +113,12 @@ local function check_which_key()
 
   if require_ok("which-key") then
     if which_key_enabled then
-      ok_s("which-key.nvim installed — probe keymap label registered")
+      ok_s("which-key.nvim installed — the probe prefix is labelled as a group")
     else
       info_s("which-key.nvim installed, but which_key = false in config")
     end
   else
-    info_s("which-key.nvim not installed — optional, no label for the probe keymap")
+    info_s("which-key.nvim not installed — optional; mappings still carry their own descriptions")
   end
 end
 

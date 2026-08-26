@@ -1,125 +1,134 @@
 ---@module 'gopath.bindings.keymaps'
---- Automatic keymap registration based on config.
---- Supports single lhs (string) or multiple lhs (string[]).
+--- The keymap preset, declared as named actions.
+---
+--- Declared through `lib.nvim.bindings.keymap`'s registry rather than bound
+--- here by hand. Every key stays an individually overridable config value and
+--- `false` still drops just that one, but a wrong *name* is now reported
+--- instead of silently binding nothing:
+---
+---   [lib.nvim.bindings.keymap] gopath: no such keymap action: open_hear
+---   (did you mean open_here?)
+---
+--- `mappings = false` still switches the whole preset off, and every `lhs`
+--- still accepts a list -- `open_here = { "gF", "<2-LeftMouse>" }` binds both.
 
-local map = require("lib.nvim.bindings.keymap")
+local keymap = require("lib.nvim.bindings.keymap")
 
 local M = {}
 
---- Normalize lhs into a list of strings.
---- Returns nil if mapping is disabled.
----@internal
----@param lhs string|string[]|false|nil
----@return string[]|nil
-local function normalize_lhs(lhs)
-  if lhs == false or lhs == nil or lhs == "" then return nil end
-
-  if type(lhs) == "string" then
-    ---@type string[]
-    return { lhs }
-  end
-
-  if type(lhs) == "table" then
-    ---@type string[]
-    return lhs
-  end
-
-  return nil
-end
-
---- Set one or multiple keymaps safely.
----@internal
----@param mode string|string[]
----@param lhs string|string[]|false|nil
----@param rhs function|string
----@param desc string
----@return nil
-local function map_many(mode, lhs, rhs, desc)
-  local lhs_list = normalize_lhs(lhs)
-  if not lhs_list then return end
-
-  for _, key in ipairs(lhs_list) do
-    map(mode, key, rhs, {}, "gopath: " .. desc)
-  end
-end
-
---- Setup default keymaps if not disabled in config.
+--- Declare and bind the preset's actions.
 ---@param config GopathOptions
----@return nil
+---@return Lib.Keymap.Registered[]
 function M.setup(config)
-  if config.mappings == false then return end
-
-  local maps = config.mappings or {}
   local commands = require("gopath.commands")
 
-  -- Open here (current window)
-  map_many("n", maps.open_here, function()
-    commands.resolve_and_open("edit")
-  end, "open here")
-
-  -- Open in horizontal split
-  map_many("n", maps.open_split, function()
-    commands.resolve_and_open("window")
-  end, "open in split")
-
-  -- Open in vertical split
-  map_many("n", maps.open_vsplit, function()
-    commands.resolve_and_open("vsplit")
-  end, "open in vsplit")
-
-  -- Open in new tab
-  map_many("n", maps.open_tab, function()
-    commands.resolve_and_open("tab")
-  end, "open in tab")
-
-  -- Reveal in the system file manager (Explorer/Finder/…) instead of opening
-  map_many("n", maps.open_explorer, function()
-    commands.resolve_and_open("explorer")
-  end, "reveal in file explorer")
-
-  -- Copy location
-  map_many("n", maps.copy_location, function()
-    commands.resolve_and_copy()
-  end, "copy path:line:col")
-
-  -- Debug
-  map_many("n", maps.debug, function()
-    commands.debug_under_cursor()
-  end, "debug under cursor")
-
-  -- Check: report existence of path under cursor; offer to create if missing
-  map_many("n", maps.check, function()
-    commands.check_under_cursor()
-  end, "check path exists / offer create")
-
-  -- Probe: suffix-based search in normal and visual mode
-  if maps.probe then
-    local lhs_list = normalize_lhs(maps.probe)
-    if lhs_list then
-      for _, key in ipairs(lhs_list) do
-        -- Normal mode: probe <cfile> / token under cursor
-        map("n", key, function()
-          commands.probe_selection({ open_cmd = "vsplit", ask = true })
-        end, {}, "gopath: probe path under cursor (vsplit)")
-
-        -- Visual mode: probe selection
-        map("v", key, function()
-          -- Exit visual mode first so marks '< '> are set
-          vim.api.nvim_feedkeys(
-            vim.api.nvim_replace_termcodes("<Esc>", true, false, true),
-            "x",
-            false
-          )
-          vim.schedule(function()
-            -- selection=true because this mapping only fires from Visual mode.
-            -- The callee cannot infer that itself: the <Esc> above (and the
-            -- schedule) mean Visual mode is already over by the time it runs.
-            commands.probe_selection({ open_cmd = "vsplit", ask = true, selection = true })
-          end)
-        end, {}, "gopath: probe selected path (vsplit)")
-      end
+  ---@param kind string
+  ---@return fun(): nil
+  local function open(kind)
+    return function()
+      commands.resolve_and_open(kind)
     end
   end
+
+  -- `probe` is the one mapping that lives under the user's <leader> prefix
+  -- rather than being a single g-prefixed key, so it is the only one whose
+  -- group label which-key cannot work out for itself. The prefix is derived
+  -- only when `probe` is actually configured, so the label never lands on a
+  -- group the user does not use -- and `config.which_key = false` opts out of
+  -- the label while leaving every mapping (and its own desc) in place.
+  local prefix, group
+  local probe = config.mappings and config.mappings.probe
+  local probe_lhs = type(probe) == "table" and probe[1] or probe
+  if config.which_key ~= false and type(probe_lhs) == "string" then
+    prefix = probe_lhs:match("^(<leader>.)%a$")
+    if prefix then group = { group = "gopath", mode = { "n", "v" } } end
+  end
+
+  ---@type Lib.Keymap.Spec
+  local spec = {
+    prefix = prefix,
+    which_key = group,
+    order = {
+      "open_here",
+      "open_split",
+      "open_vsplit",
+      "open_tab",
+      "open_explorer",
+      "copy_location",
+      "debug",
+      "check",
+      "probe",
+    },
+    actions = {
+      open_here = { default = "gP", rhs = open("edit"), desc = "open here" },
+      open_split = { rhs = open("window"), desc = "open in split" },
+      open_vsplit = { rhs = open("vsplit"), desc = "open in vsplit" },
+      open_tab = { rhs = open("tab"), desc = "open in tab" },
+      open_explorer = { rhs = open("explorer"), desc = "reveal in file explorer" },
+
+      copy_location = {
+        rhs = function()
+          commands.resolve_and_copy()
+        end,
+        desc = "copy path:line:col",
+      },
+
+      debug = {
+        rhs = function()
+          commands.debug_under_cursor()
+        end,
+        desc = "debug under cursor",
+      },
+
+      -- Reports whether the path under the cursor exists, and offers to
+      -- create it when it does not.
+      check = {
+        rhs = function()
+          commands.check_under_cursor()
+        end,
+        desc = "check path exists / offer create",
+      },
+
+      -- Suffix-based search. Same key in both modes, same intent, different
+      -- source for the text -- so one action with two binds.
+      probe = {
+        binds = {
+          {
+            mode = "n",
+            desc = "probe path under cursor (vsplit)",
+            rhs = function()
+              commands.probe_selection({ open_cmd = "vsplit", ask = true })
+            end,
+          },
+          {
+            mode = "v",
+            desc = "probe selected path (vsplit)",
+            rhs = function()
+              -- Leave Visual mode first so the '< '> marks are set.
+              vim.api.nvim_feedkeys(
+                vim.api.nvim_replace_termcodes("<Esc>", true, false, true),
+                "x",
+                false
+              )
+              vim.schedule(function()
+                -- selection = true because this mapping only ever fires from
+                -- Visual mode. The callee cannot infer that itself: the <Esc>
+                -- above (and the schedule) mean Visual mode is already over by
+                -- the time it runs.
+                commands.probe_selection({
+                  open_cmd = "vsplit",
+                  ask = true,
+                  selection = true,
+                })
+              end)
+            end,
+          },
+        },
+      },
+    },
+  }
+
+  return keymap.register("gopath", spec, config.mappings)
 end
 
 return M
