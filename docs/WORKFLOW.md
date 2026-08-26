@@ -70,6 +70,42 @@ runs the same suffix-candidate search the cache-backed resolver uses, so
 an overly broad selection (extra words around the filename) produces worse
 candidates than a tight one.
 
+## A URL under the cursor opens as a URL now, not as a path to create
+
+`gP` (and anything bound to it — `gF`, `<2-LeftMouse>`) used to turn a URL
+into a local path and then offer to create it: `<cwd>/https:/example.com/…`.
+Two things were wrong and both are fixed: the token character class had no
+`?`, `&` or `#`, so every URL with a query string or fragment was silently
+truncated first, and nothing recognised the result as a URL afterwards.
+
+So the habit stays one key: put the cursor on it and press `gP`, whatever "it"
+turns out to be.
+
+## Links in a document are document-relative
+
+Markdown links resolve with the cursor on the **label**, not only on the path,
+and the path is tried relative to the buffer's own directory rather than only
+against the working directory — which is what a link in a document actually
+means.
+
+The line extractor sources its openable extensions from `gopath.external`,
+including your own `external.extensions`, so "can open this" and "can find this
+in a line" cannot drift apart — a `.pdf` link used to produce no candidate at
+all. Unbalanced trailing brackets are dropped while balanced ones are kept, so
+`C:/Program Files (x86)/x.pdf` survives and a link's closing `)` does not come
+along.
+
+## `gM` reveals instead of opening
+
+Every other open mode turns the resolved target into a buffer. `gM`
+(`:Gopath open explorer`) hands it to the OS file manager instead — selecting
+a file inside its parent directory, navigating into a directory.
+
+Reach for it when the next step is not reading the file but doing something to
+it: attaching it, renaming it, looking at what else is in that folder. It takes
+priority over the external-app heuristic, so it reveals even a file that would
+otherwise have been opened in another application.
+
 ## Language resolvers vs. universal resolvers don't fight over precedence — order matters per filetype
 
 Disabling `opts.languages.lua.enable` doesn't disable navigation on `.lua`
