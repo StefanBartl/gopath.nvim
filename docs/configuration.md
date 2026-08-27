@@ -82,6 +82,10 @@ require("gopath").setup({
     enable                 = true,
     use_cache              = true,
     cache_refresh_interval = 600,   -- seconds between auto-refreshes
+    -- How long the per-runtimepath-entry name index stays valid, in ms. Only
+    -- a brand-new top-level entry can be hidden by a stale index; lower this
+    -- if you install plugins while Neovim is running.
+    rtp_index_ttl_ms = 30000,
     max_cache_age          = 3600,  -- seconds before cache is considered stale
     live_search_fallback   = true,
     similarity_threshold   = 75,
