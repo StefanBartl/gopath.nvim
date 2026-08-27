@@ -68,6 +68,7 @@
 ---@field enable boolean Default: true
 ---@field use_cache boolean
 ---@field cache_refresh_interval number Refresh every 10 minutes
+---@field rtp_index_ttl_ms number How long the runtimepath name index stays valid, in ms (default 30000)
 ---@field max_cache_age number Consider cache stale after 1 hour
 ---@field live_search_fallback boolean Use fd/rg/find if cache misses
 ---@field similarity_threshold number For multiple match selection

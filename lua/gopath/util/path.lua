@@ -37,7 +37,13 @@ local _rtp_list = nil ---@type string[]|nil
 -- Only the FIRST path segment is indexed, so this can only ever hide a
 -- brand-new top-level entry; adding files under an existing directory resolves
 -- normally regardless of index age.
-local RTP_INDEX_TTL_MS = 30000
+---@return integer
+local function rtp_index_ttl_ms()
+  local ok, config = pcall(require, "gopath.config")
+  if not ok or type(config.get) ~= "function" then return 30000 end
+  local n = ((config.get() or {}).truncated or {}).rtp_index_ttl_ms
+  return (type(n) == "number" and n >= 0) and n or 30000
+end
 
 -- Per-runtimepath-entry index of the names present at `<rtp>/` and `<rtp>/lua/`.
 -- Entries are stored in runtimepath order so lookups preserve search order.
@@ -130,7 +136,9 @@ end
 local function get_rtp_index()
   local s = vim.o.runtimepath
   local now = vim.uv.now()
-  if _rtpidx and s == _rtpidx_str and (now - _rtpidx_at) < RTP_INDEX_TTL_MS then return _rtpidx end
+  if _rtpidx and s == _rtpidx_str and (now - _rtpidx_at) < rtp_index_ttl_ms() then
+    return _rtpidx
+  end
 
   local idx = {}
   local rtp = get_rtp_list()
