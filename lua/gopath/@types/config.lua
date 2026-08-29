@@ -46,8 +46,8 @@
 ---@field pdf GopathPdfOptions PDF-specific opening (pdfport.nvim integration)
 
 ---@class GopathUrlOptions
----@field enable boolean Default: true. Recognise URLs under the cursor and open them externally.
----@field bare_hosts boolean Default: true.
+---@field enable? boolean Default: true. Recognise URLs under the cursor and open them externally.
+---@field bare_hosts? boolean Default: true.
 --- Also accept scheme-less targets — `github.com/neovim/neovim`,
 --- `git@github.com:foo/bar.git` — which are normalized to `https://…`.
 --- These only win after every file resolver has failed, so a real file of the
@@ -107,7 +107,7 @@
 --- create missing files silently (no prompt) whenever offered.
 
 ---@class GopathOptions
----@field dev_mode boolean # Print debug notifies
+---@field dev_mode? boolean # Print debug notifies
 ---@field mode? "builtin"|"treesitter"|"lsp"|"hybrid" Default: "hybrid"
 ---@field order? string[] Default: { "treesitter", "lsp", "builtin" }
 ---@field lsp_timeout_ms? integer Default: 200
@@ -121,6 +121,6 @@
 ---@field commands? GopathCommands|false User commands (false = disable all)
 ---@field which_key? boolean Default: true. Label the probe keymap via which-key.nvim, if installed.
 ---@field deps_popup? boolean Default: true. Show the lib.nvim.deps "declared tools" popup once, ever, on first setup() after install (needs lib.nvim.deps — a no-op without it).
----@field truncated GopathTruncated
+---@field truncated? GopathTruncated
 ---@field linepath? GopathLinepath Whole-line path extraction
 ---@field tailsearch? GopathTailsearch Cache + filesystem suffix search

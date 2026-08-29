@@ -21,11 +21,11 @@ local LOG = require("gopath.util.log")
 local uv = vim.loop
 
 ---@class CacheConfig
----@field max_depth integer Maximum directory depth to scan
----@field max_concurrency integer Max directories scanned concurrently (bounds open handles)
----@field excluded_dirs string[] Directories to skip during scan
----@field cache_file string Path to persistent cache file
----@field scan_roots string[] Directories/drives to scan
+---@field max_depth? integer Maximum directory depth to scan
+---@field max_concurrency? integer Max directories scanned concurrently (bounds open handles)
+---@field excluded_dirs? string[] Directories to skip during scan
+---@field cache_file? string Path to persistent cache file
+---@field scan_roots? string[] Directories/drives to scan
 
 ---Default cache configuration
 ---User can override via gopath.setup({ truncated = { cache_roots = {...} } })
