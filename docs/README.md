@@ -19,7 +19,6 @@ Deep dives into the more complex features, available in English and German.
 | Topic | Page |
 |-------|------|
 | Keymap / user command / autocommand cheatsheet | [BINDINGS.md](./BINDINGS.md) |
-| Roadmap & checklist audits | [ROADMAP.md](./ROADMAP.md) |
 
 ## Developer notes
 

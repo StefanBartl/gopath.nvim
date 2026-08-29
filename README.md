@@ -79,7 +79,6 @@ work, for turning it off without touching any plugin's config.
 - [Filesystem cache & truncated-path resolution](./docs/CACHE.md) — the `truncated.*` subsystem ([Deutsch](./docs/CACHE-DE.md)).
 - [Lua symbol & require resolution](./docs/LUA-SYMBOLS.md) — the Lua language layer ([Deutsch](./docs/LUA-SYMBOLS-DE.md)).
 - [Health check & troubleshooting](./docs/troubleshooting.md) — `:checkhealth gopath` and common issues.
-- [Roadmap](./docs/ROADMAP.md) — implemented features, checklist audits, planned work.
 - [Developer notes](./docs/Developer-Notes/DEV-README.md) — architecture, providers, resolvers, for contributors.
 
 Full index of all docs: [docs/README.md](./docs/README.md).
