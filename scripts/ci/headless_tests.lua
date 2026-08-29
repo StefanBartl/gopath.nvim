@@ -29,9 +29,13 @@ local function check(name, fn)
   end
 end
 
-check("require('gopath')", function() require("gopath") end)
+check("require('gopath')", function()
+  require("gopath")
+end)
 
-check("gopath.setup({})", function() require("gopath").setup({}) end)
+check("gopath.setup({})", function()
+  require("gopath").setup({})
+end)
 
 local tests_dir = root .. "/TESTS"
 local fixtures = vim.fn.globpath(tests_dir, "*.lua", false, true)
