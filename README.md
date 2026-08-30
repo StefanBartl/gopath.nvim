@@ -82,3 +82,7 @@ work, for turning it off without touching any plugin's config.
 - [Developer notes](./docs/Developer-Notes/DEV-README.md) — architecture, providers, resolvers, for contributors.
 
 Full index of all docs: [docs/README.md](./docs/README.md).
+
+## License
+
+MIT — see [LICENSE](LICENSE).
