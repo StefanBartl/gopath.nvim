@@ -1,6 +1,7 @@
 > **Active development.** This repository is in its development phase — breaking changes are to be expected at any time. Pin a commit or tag if you depend on it.
 
 # Gopath.nvim — Intelligent Navigation for Neovim
+
 ```
    ___  ___  ___  __ _____  _  _
   / __|/ _ \| _ \/_\|_   _|| || |
@@ -8,13 +9,12 @@
   \___|\___/|_|/_/ \_\|_|  |_||_|
 ```
 
-![CI](https://github.com/StefanBartl/gopath.nvim/actions/workflows/ci.yml/badge.svg)
-![version](https://img.shields.io/badge/version-0.3.0-blue.svg)
-![status](https://img.shields.io/badge/status-beta-orange.svg)
-![Neovim](https://img.shields.io/badge/Neovim-0.9%2B-success.svg)
-![Lazy.nvim](https://img.shields.io/badge/lazy.nvim-supported-success.svg)
-![Lua](https://img.shields.io/badge/language-Lua-yellow.svg)
-![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Neovim](https://img.shields.io/badge/Neovim-0.9%2B-57A143?logo=neovim&logoColor=white)](https://neovim.io)
+[![Lua](https://img.shields.io/badge/Lua-5.1%2FLuaJIT-2C2D72?logo=lua&logoColor=white)](https://www.lua.org)
+![Status](https://img.shields.io/badge/status-beta-orange)
+[![CI](https://github.com/StefanBartl/gopath.nvim/actions/workflows/ci.yml/badge.svg)](https://github.com/StefanBartl/gopath.nvim/actions/workflows/ci.yml)
+![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey)
 
 A modular file-navigation plugin for Neovim. gopath.nvim resolves symbols, `require()` paths, and arbitrary file references under your cursor using a multi-phase pipeline — LSP → Treesitter → whole-line extraction → suffix search → fuzzy alternate — so a single keypress takes you to the right file, at the right line, however the reference is written. Non-text targets (images, PDFs, other media) open straight in your system's default application instead of as a text buffer.
 
