@@ -76,10 +76,27 @@ shows size and modification recency (`filename (85%) — 2.3 KB, modified
 5m ago`); the picker itself defers to your configured `vim.ui.select`
 backend via lib.nvim's `ui.kit.select`.
 
+Candidates you have picked from this dialog before rise within their
+similarity band, so the second time `config.lua` / `configs.lua` /
+`config.local.lua` come up together, the one you meant last time is on top.
+Which of three near-identical names you want is not a property of the string —
+it is a property of your history, and after the first time it is known.
+
+**A tiebreak, never an override.** The bonus saturates and is capped at
+`max_bonus` similarity points (default 10, on the same 0–100 scale whose
+threshold admits everything from 75 up): it reorders within a band and can
+never push a 95% match below a 76% one. The store is
+[`lib.nvim.frecency`](https://github.com/StefanBartl/lib.nvim/blob/main/lua/lib/nvim/frecency/README.md)
+on its own namespace — the same implementation `pickers.nvim` ranks files
+with, deliberately not the same store: a path opened often in a picker says
+nothing about which alternate was meant here.
+
 - **Module:** `alternate/init.lua`, `alternate/helpers/matcher.lua`,
-  `alternate/helpers/directory.lua`, `alternate/ui.lua`
+  `alternate/helpers/directory.lua`, `alternate/ui.lua`,
+  `alternate/frecency.lua`
 - **Config:** `opts.alternate.enable` (default `true`),
-  `opts.alternate.similarity_threshold` (default `75`)
+  `opts.alternate.similarity_threshold` (default `75`),
+  `opts.alternate.frecency = { enable = true, max_bonus = 10, dir = nil }`
 
 ## Create on missing
 

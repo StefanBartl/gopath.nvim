@@ -28,6 +28,17 @@
 ---@class GopathAlternateOptions
 ---@field enable boolean Default: true
 ---@field similarity_threshold number Default: 75 (0-100)
+---@field frecency? GopathAlternateFrecency Order candidates by what was chosen before
+
+--- Frequency x recency ordering for the alternate list, on top of similarity.
+--- Backed by `lib.nvim.frecency` on its own namespace — the same
+--- implementation `pickers.nvim` ranks files with, deliberately not the same
+--- store: a path opened often in a picker says nothing about which alternate
+--- was meant here.
+---@class GopathAlternateFrecency
+---@field enable boolean Default: true. False records nothing and reorders nothing.
+---@field max_bonus number Default: 10. The ceiling of the bonus, in similarity points — history breaks near-ties within a band and never inverts a clear winner. 0 keeps recording but stops reordering.
+---@field dir? string|nil Override the storage directory (default: `lib.nvim.frecency`'s own, `stdpath("data")/lib.nvim/frecency`).
 
 ---@alias GopathPdfMode "system"|"buffer"|"float"|"terminal"
 

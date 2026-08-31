@@ -31,6 +31,17 @@ return {
   alternate = {
     enable = true,
     similarity_threshold = 75,
+
+    -- Candidates you have chosen from this dialog before rise within their
+    -- similarity band. `max_bonus` is that band, in similarity points: 10 on
+    -- a 0-100 scale that admits everything from 75 up, so history breaks
+    -- near-ties and never inverts a clear winner. 0 disables the reordering
+    -- while still recording; `enable = false` disables both.
+    frecency = {
+      enable = true,
+      max_bonus = 10,
+      dir = nil, -- default: lib.nvim's own, stdpath("data")/lib.nvim/frecency
+    },
   },
 
   external = {

@@ -517,6 +517,144 @@ check("url: bare_hosts = false disables the loose pass", function()
   assert_eq(is_url, false, "loose pass must stay off when bare_hosts = false")
 end)
 
+-- ========= alternate frecency: ordering by what was chosen before =========
+--
+-- The property worth pinning is not "does it reorder" -- it is the ceiling.
+-- Without one, a single visit scores log(2) x 100 = 69 on a scale where
+-- similarity itself runs 0-100, and the list would be ordered by history
+-- alone with similarity as decoration. Every check below is about the bonus
+-- staying a tiebreak.
+
+do
+  local frecency = require("gopath.alternate.frecency")
+  local config = require("gopath.config")
+
+  local frec_dir = vim.fn.tempname()
+  vim.fn.mkdir(frec_dir, "p")
+
+  ---@param overrides table|nil
+  local function configure(overrides)
+    config.setup({
+      alternate = {
+        frecency = vim.tbl_extend(
+          "force",
+          { enable = true, max_bonus = 10, dir = frec_dir },
+          overrides or {}
+        ),
+      },
+    })
+  end
+
+  ---@param spec table[] { path, similarity }
+  ---@return table[]
+  local function candidates(spec)
+    local out = {}
+    for _, s in ipairs(spec) do
+      out[#out + 1] = {
+        path = s[1],
+        filename = vim.fn.fnamemodify(s[1], ":t"),
+        similarity = s[2],
+      }
+    end
+    return out
+  end
+
+  ---@param matches table[]
+  ---@return string[]
+  local function paths_of(matches)
+    local out = {}
+    for _, m in ipairs(matches) do
+      out[#out + 1] = m.path
+    end
+    return out
+  end
+
+  configure()
+
+  check("alternate frecency: no history leaves the similarity order alone", function()
+    local ordered = frecency.rerank(candidates({
+      { "/p/config.lua", 90 },
+      { "/p/configs.lua", 88 },
+    }))
+    assert_eq(paths_of(ordered)[1], "/p/config.lua", "the better match must stay first")
+  end)
+
+  check("alternate frecency: a chosen candidate wins a near-tie", function()
+    frecency.record("/p/configs.lua")
+    local ordered = frecency.rerank(candidates({
+      { "/p/config.lua", 90 },
+      { "/p/configs.lua", 88 },
+    }))
+    assert_eq(
+      paths_of(ordered)[1],
+      "/p/configs.lua",
+      "two points of similarity must lose to a real choice"
+    )
+  end)
+
+  check("alternate frecency: a clear winner is never inverted", function()
+    -- Same recorded choice as above, now against a match 19 points better.
+    -- This is the one that would fail without the saturating ceiling.
+    local ordered = frecency.rerank(candidates({
+      { "/p/config.lua", 95 },
+      { "/p/configs.lua", 76 },
+    }))
+    assert_eq(
+      paths_of(ordered)[1],
+      "/p/config.lua",
+      "history must not push a 95% match below a 76% one"
+    )
+  end)
+
+  check("alternate frecency: max_bonus = 0 records but does not reorder", function()
+    configure({ max_bonus = 0 })
+    local ordered = frecency.rerank(candidates({
+      { "/p/config.lua", 90 },
+      { "/p/configs.lua", 88 },
+    }))
+    configure()
+    assert_eq(paths_of(ordered)[1], "/p/config.lua", "a zero ceiling is no reordering at all")
+  end)
+
+  check("alternate frecency: enable = false reorders nothing", function()
+    configure({ enable = false })
+    local ordered = frecency.rerank(candidates({
+      { "/p/config.lua", 90 },
+      { "/p/configs.lua", 88 },
+    }))
+    configure()
+    assert_eq(paths_of(ordered)[1], "/p/config.lua", "disabled must mean the raw similarity order")
+  end)
+
+  check("alternate frecency: a single candidate is returned untouched", function()
+    local one = candidates({ { "/p/configs.lua", 88 } })
+    assert_eq(frecency.rerank(one), one, "nothing to order, nothing to read")
+  end)
+
+  check("alternate frecency: equal similarity keeps the incoming order", function()
+    -- Lua's table.sort is not stable, so this is a real risk rather than a
+    -- theoretical one: without the index tiebreak these two could swap.
+    local ordered = frecency.rerank(candidates({
+      { "/p/aaa.lua", 80 },
+      { "/p/bbb.lua", 80 },
+    }))
+    assert_eq(paths_of(ordered)[1], "/p/aaa.lua", "a tie must resolve deterministically")
+  end)
+
+  check("alternate frecency: the choice survives a fresh store", function()
+    require("lib.nvim.frecency")._reset_handles()
+    local ordered = frecency.rerank(candidates({
+      { "/p/config.lua", 90 },
+      { "/p/configs.lua", 88 },
+    }))
+    assert_eq(
+      paths_of(ordered)[1],
+      "/p/configs.lua",
+      "a recorded choice must be flushed, not held in memory until exit"
+    )
+  end)
+end
+
 -- ========= summary =========
 
 if #failures > 0 then

@@ -35,6 +35,17 @@ require("gopath").setup({
   alternate = {
     enable               = true,
     similarity_threshold = 75,  -- 0-100; higher = stricter
+
+    -- Candidates you have chosen from this dialog before rise within their
+    -- similarity band. max_bonus is that band, in similarity points -- 10 on
+    -- a 0-100 scale admitting everything from 75 up, so history breaks
+    -- near-ties and never inverts a clear winner. 0 keeps recording but stops
+    -- reordering; enable = false does neither.
+    frecency = {
+      enable    = true,
+      max_bonus = 10,
+      dir       = nil,  -- nil = lib.nvim's own, stdpath("data")/lib.nvim/frecency
+    },
   },
 
   -- External file opener (images, PDFs, etc.)

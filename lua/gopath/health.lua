@@ -271,6 +271,16 @@ local function check_config()
   if alt.enable then
     ok_s("alternate.enable = true  (Levenshtein fuzzy fallback active)")
     info_s("  similarity_threshold = " .. tostring(alt.similarity_threshold or 75))
+    local frec = alt.frecency or {}
+    if frec.enable == false then
+      info_s("  frecency = off  (candidates ordered by similarity alone)")
+    else
+      info_s(
+        "  frecency = on, max_bonus = "
+          .. tostring(frec.max_bonus or 10)
+          .. "  (previously chosen candidates rise within their similarity band)"
+      )
+    end
   else
     info_s("alternate.enable = false")
   end

@@ -38,6 +38,12 @@ local function result_for(path, range)
 end
 
 ---Present candidates and open whichever one the user picks.
+---
+---Both entry points funnel through here, which is why the frecency pass sits
+---at this level and not in the matcher: the truncated-path route arrives with
+---its candidates already built, and a reordering that only covered the fuzzy
+---route would rank the same file two different ways depending on how the
+---dialog was reached.
 ---@internal
 ---@param matches AlternateMatch[]
 ---@param original_path string
@@ -45,7 +51,9 @@ end
 ---@param on_done fun(handled: boolean)
 ---@return nil
 local function present(matches, original_path, opts, on_done)
-  require("gopath.alternate.ui").present_selection(matches, original_path, {
+  local frecency = require("gopath.alternate.frecency")
+
+  require("gopath.alternate.ui").present_selection(frecency.rerank(matches), original_path, {
     on_choice = function(match)
       -- Cancelling means "none of these". Report it as handled so the caller
       -- aborts instead of falling through to the create-offer — chaining a
@@ -54,6 +62,11 @@ local function present(matches, original_path, opts, on_done)
         on_done(true)
         return
       end
+
+      -- Recorded on the *choice*, not on the open. Opening a file happens for
+      -- a dozen reasons; picking it out of this list happens for exactly one,
+      -- and that is the signal worth learning.
+      frecency.record(match.path)
 
       require("gopath.open").open(result_for(match.path, opts.range), opts.mode or "edit")
       on_done(true)

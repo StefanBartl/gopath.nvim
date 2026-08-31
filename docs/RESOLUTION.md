@@ -223,7 +223,10 @@ When resolution yields a path that does not exist, `commands` tries, in order:
 
 1. **Fuzzy alternate** — Levenshtein similarity against files in the same
    directory ([`alternate/`](../lua/gopath/alternate)), gated by
-   `alternate.similarity_threshold`. The picker reports back through a
+   `alternate.similarity_threshold`, then reordered by what you have chosen
+   from this dialog before (capped, so it breaks near-ties without inverting a
+   clear winner — see [NAVIGATION.md](FEATURES/NAVIGATION.md#fuzzy-alternate-resolution)).
+   The picker reports back through a
    **callback**, so an asynchronous backend (telescope-ui-select, dressing,
    kit's chooser) can't make the caller fall through while the list is still on
    screen — that used to open the missing file *and* stack a create dialog on
