@@ -385,6 +385,33 @@ end
 * `cofnig.lua` vs `config.lua`: **90%** (1 edit / 10 chars)
 * `init.lua` vs `unit.lua`: **80%** (1 substitution / 8 chars)
 
+### Ordering: similarity first, history as the tiebreak
+
+`matcher.find_similar_files` sorts by similarity alone. `alternate/frecency.lua`
+then reorders the surviving candidates by what was chosen from this dialog
+before, through
+[`lib.nvim.frecency`](https://github.com/StefanBartl/lib.nvim/blob/main/lua/lib/nvim/frecency/README.md)
+on the `gopath-alternates` namespace.
+
+The pass runs in `alternate/init.lua`'s `present()`, which is where both entry
+points meet — `try_resolve` and the truncated-path route that arrives with
+pre-built matches. Reordering in the matcher instead would have covered only
+the first and ranked the same file two different ways depending on how the
+dialog was reached.
+
+**The cap is the design.** The bonus is
+`max_bonus × score / (score + K)` with `K` set to one fresh visit's worth of
+score, so it saturates instead of growing with the visit count. Without it a
+single visit scores `log(2) × 100 ≈ 69` on the same 0–100 scale similarity
+uses, and the list would be ordered by history with similarity as decoration.
+Capped at 10 against a threshold of 75, it reorders inside a band and never
+inverts a clear winner. Both properties are asserted in
+`scripts/ci/functional_tests.lua`.
+
+Recorded on the **choice**, not the open — a file is opened for a dozen
+reasons, picked out of this list for exactly one — and flushed immediately,
+because this dialog is rare enough that the write costs nothing.
+
 ### Custom Similarity Functions (planned)
 
 ```lua

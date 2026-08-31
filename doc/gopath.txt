@@ -307,9 +307,26 @@ tailsearch = {
 alternate = {
   enable               = true,
   similarity_threshold = 75,
+  frecency = {
+    enable    = true,
+    max_bonus = 10,
+    dir       = nil,
+  },
 }
     Levenshtein fuzzy alternate resolution.
     Higher threshold = stricter matching.
+
+    frecency: candidates you have picked from this dialog before rise
+    within their similarity band, so the one you meant last time is on
+    top the next time three near-identical names come up together.
+
+    max_bonus is the size of that band, in similarity points. The bonus
+    saturates and is capped there, so history breaks near-ties and can
+    never push a 95% match below a 76% one. Set it to 0 to keep
+    recording without reordering; set enable = false for neither.
+
+    dir overrides the storage directory; nil uses lib.nvim.frecency's
+    own, under stdpath("data").
 
                                                      *gopath-config-external*
 external = {

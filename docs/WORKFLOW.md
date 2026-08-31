@@ -59,6 +59,13 @@ low for a codebase with many similarly-named files, you may get offered an
 unrelated file instead of the create-file prompt you expected — raise the
 threshold rather than fighting the picker if that keeps happening.
 
+**The threshold decides *what* is offered; frecency decides the order.** A
+candidate you have picked from this dialog before rises within its similarity
+band, capped so it can never lift something below the threshold or invert a
+clear winner. If the *wrong* file keeps appearing at all, that is the
+threshold; if the right one keeps appearing second, pick it once and it will
+be first from then on.
+
 ## Suffix search vs. exact resolution: `<leader>pp` is for when you already suspect a truncation
 
 Visual/normal-mode `<leader>pp` (probe) exists specifically for spans the

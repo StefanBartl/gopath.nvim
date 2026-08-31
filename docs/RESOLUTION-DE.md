@@ -218,7 +218,11 @@ Reihe nach:
 
 1. **Fuzzy-Alternate** — Levenshtein-Ähnlichkeit gegen Dateien im selben
    Verzeichnis ([`alternate/`](../lua/gopath/alternate)), gesteuert über
-   `alternate.similarity_threshold`. Der Picker meldet sich per **Callback**
+   `alternate.similarity_threshold`, danach umsortiert nach dem, was du aus
+   diesem Dialog vorher gewählt hast (gedeckelt, bricht also Beinahe-Gleichstände
+   auf, ohne einen klaren Sieger zu kippen — siehe
+   [NAVIGATION.md](FEATURES/NAVIGATION.md#fuzzy-alternate-resolution)).
+   Der Picker meldet sich per **Callback**
    zurück, damit ein asynchrones Backend (telescope-ui-select, dressing, kit's
    Chooser) den Aufrufer nicht durchfallen lässt, während die Liste noch offen
    ist — vorher wurde dabei die fehlende Datei geöffnet *und* ein Anlage-Dialog
