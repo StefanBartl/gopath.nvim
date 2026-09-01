@@ -454,7 +454,9 @@ end
 local function ts_direct_field(tbl_node, key, src)
   for i = 0, tbl_node:named_child_count() - 1 do
     local child = tbl_node:named_child(i)
-    if child:type() == "field" and AST.field_key_text(child, src) == key then return child end
+    if child and child:type() == "field" and AST.field_key_text(child, src) == key then
+      return child
+    end
   end
   return nil
 end
@@ -481,11 +483,15 @@ end
 ---@param src string
 ---@return TSNode|nil
 local function ts_descend(node, segs, src)
+  local cur = node
   for i = 1, #segs do
-    node = ts_direct_child_table(node, segs[i], src)
-    if not node then return nil end
+    -- The next node into its own local, checked, then assigned: `cur` stays a
+    -- TSNode for the next iteration's call instead of widening to TSNode|nil.
+    local child = ts_direct_child_table(cur, segs[i], src)
+    if not child then return nil end
+    cur = child
   end
-  return node
+  return cur
 end
 
 ---First `field` node anywhere in `scope`'s subtree (any depth) whose literal
@@ -614,7 +620,7 @@ end
 ---@return { path:string, key_line:integer|nil, key_col:integer|nil, tbl_start:integer|nil, tbl_end:integer|nil }|nil
 local function ts_locate(lines, segs, seek_key, abs_path)
   local root, src = AST.parse(lines)
-  if not root then return nil end
+  if not root or not src then return nil end
 
   local assigns = ts_collect_table_assignments(root, src)
   local tbl = nil

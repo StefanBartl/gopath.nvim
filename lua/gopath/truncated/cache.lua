@@ -422,7 +422,7 @@ function M.start_periodic_refresh(interval_seconds)
   interval_seconds = interval_seconds or 600
 
   ---@diagnostic disable-next-line lib.uv
-  local timer = uv.new_timer()
+  local timer = assert(uv.new_timer())
 
   -- Start timer: check every interval, refresh if needed.
   -- The timer callback is a fast event context, but `build_async` calls

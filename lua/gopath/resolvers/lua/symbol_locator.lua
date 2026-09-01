@@ -177,7 +177,7 @@ end
 ---@return integer|nil col 1-based
 local function ts_find_symbol(lines, needle)
   local root, src = AST.parse(lines)
-  if not root then return nil end
+  if not root or not src then return nil end
 
   local l, c = ts_find_function_decl(root, src, needle)
   if l then return l, c end

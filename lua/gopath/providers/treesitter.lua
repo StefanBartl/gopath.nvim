@@ -10,7 +10,7 @@ local function has_ts()
   return pcall(require, "vim.treesitter")
 end
 
----@return userdata|nil
+---@return TSNode|nil
 function M.node_at_cursor()
   if not has_ts() then return nil end
   local ts = require("vim.treesitter")

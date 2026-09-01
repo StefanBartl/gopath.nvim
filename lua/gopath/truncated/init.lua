@@ -78,14 +78,18 @@ end
 local function open_path(path, open_cmd, line, col)
   local cmd = OPEN_CMD[open_cmd] or "edit"
 
-  local ok = pcall(vim.cmd, cmd .. " " .. vim.fn.fnameescape(path))
+  local ok = pcall(function()
+    vim.cmd(cmd .. " " .. vim.fn.fnameescape(path))
+  end)
   if not ok then return false end
 
   if line and line > 0 then
     -- nvim_win_set_cursor uses 0-based columns
     local c = math.max(0, (col or 1) - 1)
     pcall(vim.api.nvim_win_set_cursor, 0, { line, c })
-    pcall(vim.cmd, "normal! zz")
+    pcall(function()
+      vim.cmd("normal! zz")
+    end)
   end
 
   return true

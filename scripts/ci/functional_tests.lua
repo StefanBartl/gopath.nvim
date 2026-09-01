@@ -2,6 +2,13 @@
 -- a fixture read, a uv handle -- this file must crash and name it. The nil
 -- guards LuaLS asks for below would hide the very failure it exists to report.
 ---@diagnostic disable: need-check-nil
+--
+-- Same reasoning for the three below: `AST.parse` is replaced as a test
+-- double for the length of one case and restored right after; the config
+-- literals fed to `setup()` are partial on purpose (the merge fills the
+-- rest); and a value asserted truthy on the line above is still optional
+-- to the type checker.
+---@diagnostic disable: duplicate-set-field, missing-fields, param-type-mismatch
 -- scripts/ci/functional_tests.lua
 -- Headless CI functional tests for the Lua resolvers' Treesitter-first
 -- table/symbol locating (table_locator.lua, symbol_locator.lua), and a couple

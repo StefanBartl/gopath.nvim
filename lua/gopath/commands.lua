@@ -360,8 +360,10 @@ local function format_debug_lines(info)
     end
   end
 
-  if info.cache_info then
-    local ci = info.cache_info
+  -- The local first, then the check on the local: narrowing a *field* does not
+  -- carry into a fresh read of it, so every `ci.x` below read as maybe-nil.
+  local ci = info.cache_info
+  if ci then
     t[#t + 1] = "  Cache:"
     t[#t + 1] = "    Files indexed:  " .. ci.files
     t[#t + 1] = "    Last built:     "
@@ -369,8 +371,8 @@ local function format_debug_lines(info)
     t[#t + 1] = "    Needs refresh:  " .. (ci.needs_refresh and "yes" or "no")
   end
 
-  if info.result then
-    local res = info.result
+  local res = info.result
+  if res then
     t[#t + 1] = "  Result:"
     t[#t + 1] = "    language:   " .. (res.language or "?")
     t[#t + 1] = "    kind:       " .. (res.kind or "?")

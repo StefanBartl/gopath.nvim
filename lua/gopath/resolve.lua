@@ -20,13 +20,13 @@ local LOG = require("gopath.util.log")
 
 local M = {}
 
----@class GopathResolveOpts
----@field order string[]|nil
----@field timeout_ms integer|nil
-
 ---Resolve the entity under the cursor using configured providers.
+---
+---`GopathResolveOpts` is declared once, in `@types/resolvers.lua`; the copy
+---that used to sit here declared the same two fields a second time.
 ---@param opts GopathResolveOpts|nil
----@return GopathResult|nil, string|nil  result, error
+---@return GopathResult|nil result
+---@return string|nil err
 function M.resolve_at_cursor(opts)
   local cfg = C.get()
   local ft = vim.bo.filetype or "text"

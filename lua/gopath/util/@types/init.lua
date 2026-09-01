@@ -25,7 +25,10 @@
 -- #####################################################################
 -- log.lua
 
----@alias LogLevel
+--- Namespaced: a bare `LogLevel` collides with the one lib.nvim's notify
+--- module publishes, which is a different thing (a number or a string,
+--- not this four-value set).
+---@alias Gopath.LogLevel
 ---| "debug"  # Shown only when dev_mode = true
 ---| "info"   # Always shown
 ---| "warn"   # Always shown

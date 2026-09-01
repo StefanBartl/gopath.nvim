@@ -84,6 +84,9 @@ local function run_custom_resolvers(lang_cfg)
 
   for i = 1, #list do
     local entry = list[i]
+    -- Widened here rather than inferred from `entry`: the string form below is
+    -- replaced by the module it names, or by nil when that require fails.
+    ---@type Resolver|string|nil
     local resolver = entry
 
     -- Allow a module name string for convenience.

@@ -30,7 +30,7 @@ end
 ---@internal
 ---@param name string  cache key
 ---@param query_str string
----@return TSQuery|nil
+---@return vim.treesitter.Query|nil
 function M.get_query(name, query_str)
   local cached = query_cache[name]
   if cached ~= nil then

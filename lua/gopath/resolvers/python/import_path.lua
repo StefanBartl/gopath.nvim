@@ -107,7 +107,9 @@ function M.resolve()
   local abs
   if rel_dots then
     abs = resolve_relative(rel_dots, dotted)
-  else
+  elseif dotted then
+    -- `elseif dotted` rather than `else`: the guard above already rules out
+    -- "neither", so this is the same branch, said in a way that carries.
     -- Try project root first, then current-file dir as a fallback.
     local root = H.find_root(PY_ROOT_MARKERS) or H.current_file_dir()
     abs = resolve_under(root, dotted, imported)

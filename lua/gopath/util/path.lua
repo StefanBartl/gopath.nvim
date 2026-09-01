@@ -280,7 +280,9 @@ local function get_plugin_dirs()
     if ok_pack and type(entries) == "table" then
       for _, e in ipairs(entries) do
         if type(e) == "table" then
-          add(e.path or (type(e.spec) == "table" and e.spec.path or nil))
+          -- `vim.pack.get()` entries carry no annotations, so the two paths
+          -- this reads are fetched by key rather than off a bare `table`.
+          add(vim.tbl_get(e, "path") or vim.tbl_get(e, "spec", "path"))
         end
       end
     end

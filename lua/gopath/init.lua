@@ -79,7 +79,8 @@ end
 ---Resolve the entity under the cursor without opening anything.
 ---Useful for custom integrations that need the raw GopathResult.
 ---@param opts GopathResolveOpts|nil
----@return GopathResult|nil, string|nil
+---@return GopathResult|nil result
+---@return string|nil err
 function M.resolve(opts)
   return R.resolve_at_cursor(opts)
 end

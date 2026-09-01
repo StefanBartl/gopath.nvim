@@ -198,14 +198,17 @@ end
 
 ---Build a GopathResult for a resolved path.
 ---@internal
----@param path string
+---@param path string|nil  nil short-circuits: `pick_best` answers nil for an
+---  empty list, and a result carrying no path but `exists = true` would be a
+---  lie the callers all have a nil branch for anyway
 ---@param conf number
 ---@param rng  GopathRange|nil
 ---@param bufnr integer|nil  buffer to read `filetype` from (captured before any
 ---  async work started); nil means "read from the current buffer now" (safe
 ---  only when called synchronously)
----@return table
+---@return table|nil
 local function make_result(path, conf, rng, bufnr)
+  if not path then return nil end
   local filetype
   if bufnr == nil then
     filetype = vim.bo.filetype
@@ -390,7 +393,7 @@ function M.probe(raw, opts, on_done)
   ---@internal
   ---@param path string|nil
   ---@param conf number
-  ---@return table
+  ---@return table|nil
   local function probe_result(path, conf)
     return make_result(path, conf, rng, bufnr)
   end
