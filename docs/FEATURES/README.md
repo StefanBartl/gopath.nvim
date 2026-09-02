@@ -18,3 +18,5 @@ dives into individual subsystems (`RESOLUTION.md`, `CACHE.md`,
   suffix search fast on large trees.
 - [External files](EXTERNAL.md) — opening non-text files in the system
   default application.
+- [Integrations](INTEGRATIONS.md) — the plugins that call
+  `resolve_at_cursor` from outside this repository, and what they rely on.

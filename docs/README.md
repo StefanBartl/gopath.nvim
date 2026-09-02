@@ -19,6 +19,7 @@ Deep dives into the more complex features, available in English and German.
 | Topic | Page |
 |-------|------|
 | Keymap / user command / autocommand cheatsheet | [BINDINGS.md](./BINDINGS.md) |
+| Plugins that call `resolve_at_cursor` from outside | [FEATURES/INTEGRATIONS.md](./FEATURES/INTEGRATIONS.md) |
 
 ## Developer notes
 
