@@ -59,7 +59,7 @@ in order and returns the first success:
 | 2 | `$VAR` env path | token starts with `$` or `${` |
 | 3 | **filetoken** | `<cfile>` under cursor; searches `&path` (honouring `suffixesadd`), rtp, then the **cache** |
 | 3.5 | **linepath** | scans the whole current line (stacktraces, extension-driven, absolute); resolves absolute → cwd-relative → **buffer-relative** → cache tail |
-| 4 | Language pipeline | LSP → Treesitter → builtin (per filetype, e.g. Lua `require`) |
+| 4 | Language pipeline | LSP → Treesitter → builtin (per filetype, e.g. Lua `require`). The LSP step returns immediately when no client is attached — see below |
 | 5 | filetoken fallback | the low-confidence/non-existent result held from phase 3 |
 | 6 | raw `<cfile>` | last resort |
 
@@ -273,3 +273,35 @@ Create/Cancel.
 
 See [CACHE.md](./CACHE.md) for the cache that backs phases 3/3.5 and the async
 fallback.
+
+## The LSP step does not wait for a server that is not there
+
+`vim.lsp.buf_request_sync` does **not** return early when nothing is attached
+to the buffer. Measured on 2026-09-03, zero clients, the 200 ms default: it
+blocked for the whole timeout and then answered `nil, "timeout"` — 219 ms.
+
+That cost landed on every resolve which reached stage 4 in a buffer with no
+server: a `.txt`, a `gitcommit`, a scratch buffer, any filetype without one,
+and every machine that runs no language server at all. Measured through
+`resolve_at_cursor` with the cursor on prose:
+
+| Token under the cursor | Before | After |
+| --- | --- | --- |
+| a bare word | 216 ms | **129 µs** |
+| a long word with no separator | 216 ms | 91 µs |
+| a dotted name | 216 ms | 520 µs |
+| `read/write/execute` | 231 ms | 11.5 ms |
+| an existing relative path | 1.6 ms | 1.6 ms |
+
+The last row never reached stage 4 — `filetoken` answers it — which is why it
+does not move. The fourth is the **tail search**, not the LSP wait: a token
+with separators that could be a relative path is searched for across the tree,
+and that is a different cost with a different answer (see
+[CACHE.md](CACHE.md)).
+
+So `providers/lsp.lua` asks whether any client is attached before sending. It
+deliberately does **not** ask whether an attached client supports
+`textDocument/definition`: the capability call changed shape across 0.9, 0.10
+and 0.11, and getting that wrong would silently reintroduce exactly the wait
+it removes. "Nobody is attached" is version-proof and is the case that was
+measured.

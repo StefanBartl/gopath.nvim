@@ -59,7 +59,7 @@ Resolver der Reihe nach und gibt den ersten Erfolg zurück:
 | 2 | `$VAR`-Env-Pfad | Token beginnt mit `$` oder `${` |
 | 3 | **filetoken** | `<cfile>` unter Cursor; sucht `&path` (unter Beachtung von `suffixesadd`), rtp, dann den **Cache** |
 | 3.5 | **linepath** | scannt die ganze aktuelle Zeile (Stacktraces, Endung-getrieben, absolut); löst auf: absolut → cwd-relativ → **buffer-relativ** → Cache-Tail |
-| 4 | Sprach-Pipeline | LSP → Treesitter → builtin (je Filetype, z. B. Lua `require`) |
+| 4 | Sprach-Pipeline | LSP → Treesitter → builtin (je Filetype, z. B. Lua `require`). Der LSP-Schritt kehrt sofort zurück, wenn kein Client hängt — siehe unten |
 | 5 | filetoken-Fallback | das aus Phase 3 gehaltene, unsichere/nicht-existente Ergebnis |
 | 6 | rohes `<cfile>` | letzter Ausweg |
 
@@ -270,3 +270,34 @@ wenn beide Bedingungen erfüllt sind — sonst ist der Dialog nur Create/Cancel.
 
 Siehe [CACHE-DE.md](./CACHE-DE.md) für den Cache hinter den Phasen 3/3.5 und dem
 async-Fallback.
+
+## Der LSP-Schritt wartet nicht auf einen Server, den es nicht gibt
+
+`vim.lsp.buf_request_sync` kehrt **nicht** früh zurück, wenn am Buffer nichts
+hängt. Gemessen am 2026-09-03, null Clients, Vorgabe 200 ms: es blockierte die
+volle Zeitspanne und antwortete dann `nil, "timeout"` — 219 ms.
+
+Das traf jeden Resolve, der Stufe 4 erreichte, in einem Buffer ohne Server:
+`.txt`, `gitcommit`, ein Scratch-Buffer, jeder Filetype ohne Server und jede
+Maschine, die gar keinen betreibt. Über `resolve_at_cursor` gemessen, Cursor
+auf Prosa:
+
+| Token unter dem Cursor | vorher | nachher |
+| --- | --- | --- |
+| ein bloßes Wort | 216 ms | **129 µs** |
+| ein langes Wort ohne Trenner | 216 ms | 91 µs |
+| ein dotted name | 216 ms | 520 µs |
+| `read/write/execute` | 231 ms | 11,5 ms |
+| ein existierender relativer Pfad | 1,6 ms | 1,6 ms |
+
+Die letzte Zeile erreicht Stufe 4 nie — `filetoken` beantwortet sie —, deshalb
+bewegt sie sich nicht. Die vierte ist die **Tail-Search**, nicht das
+LSP-Warten: ein Token mit Trennern, das ein relativer Pfad sein könnte, wird
+über den Baum gesucht, und das ist eine andere Kostenart mit einer anderen
+Antwort (siehe [CACHE-DE.md](CACHE-DE.md)).
+
+`providers/lsp.lua` fragt deshalb vor dem Senden, ob überhaupt ein Client
+hängt. Bewusst **nicht** gefragt wird, ob ein hängender Client
+`textDocument/definition` unterstützt: der Capability-Aufruf hat über 0.9,
+0.10 und 0.11 die Form gewechselt, und ihn falsch zu raten hieße genau das
+Warten still wieder einzubauen, das hier entfernt wird.

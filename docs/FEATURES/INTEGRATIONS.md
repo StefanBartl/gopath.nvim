@@ -30,18 +30,30 @@ surprises someone:
   it is the single most likely misattribution, because the float looks like a
   resolver verdict and is not one.
 
-**And one measurement that belongs here rather than there.** hover asks gopath
-first on an explicit request, but on its automatic `CursorHold` trigger it
-asks only where gopath could plausibly help: the token contains `...` or `…`,
-or it has no slash at all. That gate exists because a **failing**
-`resolve_at_cursor` cost **13.2 ms** in the population an ambient trigger
-produces — mostly prose that is not a path at all. Successful resolutions were
-well under 500 µs.
+**And one measurement that belongs here rather than there — with a correction
+made on 2026-09-03.** hover asks gopath first on an explicit request, but on
+its automatic `CursorHold` trigger it asks only where gopath could plausibly
+help: the token contains `...` or `…`, or it has no slash at all. That gate
+was built because a **failing** `resolve_at_cursor` was measured at **13.2 ms**
+in the population an ambient trigger produces — mostly prose that is not a
+path at all.
 
-The asymmetry is the finding: **the misses are the expensive case**, and a
-consumer running on a timer cannot pay for them. If a cheap "this token cannot
-resolve" early-out ever lands in this repository, that gate downstream becomes
-unnecessary.
+Measuring it here found **two** costs where that number saw one, and the
+larger had nothing to do with resolving:
+
+- **A 200 ms LSP wait**, on every buffer with no server attached.
+  `buf_request_sync` does not return early when nobody is listening. That is
+  fixed here now — the provider asks whether a client is attached before
+  sending — and it is why the original 13.2 ms could not be reproduced: it was
+  measured in a buffer that *had* a server, where the request is answered
+  rather than timed out. See [RESOLUTION.md](../RESOLUTION.md).
+- **The tail search**, ~11.5 ms for a token with separators that could be a
+  relative path. That one is real resolution work and is unchanged.
+
+So the downstream gate **stays**, and the reason is now sharper than it was:
+after the fix a token with no separator costs ~100 µs and one with separators
+still costs ~11.5 ms — which is exactly the shape hover's gate already has. It
+refuses the slash-bearing tokens and asks for the rest.
 
 - **Consumer module:** hover.nvim `lua/hover/bare_path.lua` (`via_gopath`)
 - **Their write-up:** [hover.nvim INTEGRATIONS.md](https://github.com/StefanBartl/hover.nvim/blob/main/docs/INTEGRATIONS.md)

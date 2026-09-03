@@ -668,6 +668,50 @@ end
 
 -- ========= summary =========
 
+-- ---------------------------------------------------------------------------
+-- The LSP provider does not wait for a server that is not there
+-- ---------------------------------------------------------------------------
+--
+-- `vim.lsp.buf_request_sync` does not return early when nothing is attached:
+-- measured 2026-09-03 on a buffer with zero clients, it blocked for the whole
+-- timeout and answered `nil, "timeout"` -- 219 ms for the 200 ms default. That
+-- landed on every resolve reaching the language pipeline in a buffer with no
+-- server, which is every `.txt`, every `gitcommit`, every scratch buffer and
+-- every machine that runs no LSP at all. Through `resolve_at_cursor` over
+-- prose the whole call was 216 ms, of which this was 200.
+--
+-- Asserted by whether the request is *made*, not by how long it takes: a
+-- timing assertion on a timeout is a flake waiting for a slow runner, and
+-- "did we ask nobody" is the thing the guard actually changes.
+
+check("lsp provider: no client attached means no request at all", function()
+  local lsp = require("gopath.providers.lsp")
+
+  local buf = vim.api.nvim_create_buf(true, false)
+  vim.api.nvim_win_set_buf(0, buf)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "hello world" })
+  vim.api.nvim_win_set_cursor(0, { 1, 2 })
+
+  local clients = (vim.lsp.get_clients or vim.lsp.get_active_clients)({ bufnr = buf })
+  assert_eq(#clients, 0, "the fixture buffer has no client")
+
+  local asked = 0
+  local real = vim.lsp.buf_request_sync
+  vim.lsp.buf_request_sync = function(...)
+    asked = asked + 1
+    return real(...)
+  end
+
+  local ok, res = pcall(lsp.definition_at_cursor, 200)
+
+  vim.lsp.buf_request_sync = real
+  vim.api.nvim_buf_delete(buf, { force = true })
+
+  assert_truthy(ok, "the provider does not error without a client")
+  assert_nil(res, "and answers nil")
+  assert_eq(asked, 0, "without sending a request nobody could answer")
+end)
+
 if #failures > 0 then
   print(("\n%d check(s) failed: %s"):format(#failures, table.concat(failures, ", ")))
   vim.cmd("cquit 1")
