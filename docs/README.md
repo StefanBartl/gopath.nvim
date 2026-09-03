@@ -6,13 +6,13 @@ individual subsystems.
 
 ## User guides (EN / DE)
 
-Deep dives into the more complex features, available in English and German.
+Deep dives into the more complex features.
 
-| Topic | English | Deutsch |
-|-------|---------|---------|
-| Filesystem cache & truncated-path resolution | [CACHE.md](./CACHE.md) | [CACHE-DE.md](./CACHE-DE.md) |
-| Resolution pipeline (cursor → opened file) | [RESOLUTION.md](./RESOLUTION.md) | [RESOLUTION-DE.md](./RESOLUTION-DE.md) |
-| Lua symbol & require resolution | [LUA-SYMBOLS.md](./LUA-SYMBOLS.md) | [LUA-SYMBOLS-DE.md](./LUA-SYMBOLS-DE.md) |
+| Topic | Page |
+|-------|------|
+| Filesystem cache & truncated-path resolution | [CACHE.md](./CACHE.md) |
+| Resolution pipeline (cursor → opened file) | [RESOLUTION.md](./RESOLUTION.md) |
+| Lua symbol & require resolution | [LUA-SYMBOLS.md](./LUA-SYMBOLS.md) |
 
 ## Reference
 

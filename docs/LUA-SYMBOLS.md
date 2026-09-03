@@ -1,7 +1,5 @@
 # Lua Symbol & Require Resolution
 
-> 🇩🇪 Deutsche Version: [LUA-SYMBOLS-DE.md](./LUA-SYMBOLS-DE.md)
-
 This document covers gopath's **Lua-specific** resolvers: turning `require(...)`
 calls, bare identifiers that hold a required module, and method/field chains into
 the file (and often the exact symbol) they refer to. It is the language layer of

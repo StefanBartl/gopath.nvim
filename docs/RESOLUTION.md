@@ -1,7 +1,5 @@
 # Resolution Pipeline
 
-> 🇩🇪 Deutsche Version: [RESOLUTION-DE.md](./RESOLUTION-DE.md)
-
 This document explains how gopath turns *the thing under your cursor* into *an
 opened file at the right line* — the ordered chain of resolvers, the
 asynchronous open flow, and the fallbacks. It complements

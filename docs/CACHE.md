@@ -1,7 +1,5 @@
 # Filesystem Cache & Truncated-Path Resolution
 
-> 🇩🇪 Deutsche Version: [CACHE-DE.md](./CACHE-DE.md)
-
 This document describes the **filesystem cache** that powers fast resolution of
 *truncated* and *partial* paths — the kind you get from error messages, stack
 traces and logs:

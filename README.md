@@ -75,9 +75,9 @@ work, for turning it off without touching any plugin's config.
 - [Installation](./docs/installation.md) — lazy.nvim/packer snippets, optional dependencies, recommended CLI tools.
 - [Configuration](./docs/configuration.md) — full `setup()` option reference with defaults.
 - [Keymaps, commands & autocommands](./docs/BINDINGS.md) — full cheatsheet of every binding, including `create_on_missing`.
-- [Resolution pipeline](./docs/RESOLUTION.md) — how the cursor token becomes an opened file ([Deutsch](./docs/RESOLUTION-DE.md)).
-- [Filesystem cache & truncated-path resolution](./docs/CACHE.md) — the `truncated.*` subsystem ([Deutsch](./docs/CACHE-DE.md)).
-- [Lua symbol & require resolution](./docs/LUA-SYMBOLS.md) — the Lua language layer ([Deutsch](./docs/LUA-SYMBOLS-DE.md)).
+- [Resolution pipeline](./docs/RESOLUTION.md) — how the cursor token becomes an opened file.
+- [Filesystem cache & truncated-path resolution](./docs/CACHE.md) — the `truncated.*` subsystem.
+- [Lua symbol & require resolution](./docs/LUA-SYMBOLS.md) — the Lua language layer.
 - [Health check & troubleshooting](./docs/troubleshooting.md) — `:checkhealth gopath` and common issues.
 - [Developer notes](./docs/Developer-Notes/DEV-README.md) — architecture, providers, resolvers, for contributors.
 
