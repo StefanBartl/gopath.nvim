@@ -10,7 +10,7 @@
 ```
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Neovim](https://img.shields.io/badge/Neovim-0.9%2B-57A143?logo=neovim&logoColor=white)](https://neovim.io)
+[![Neovim](https://img.shields.io/badge/Neovim-0.10%2B-57A143?logo=neovim&logoColor=white)](https://neovim.io)
 [![Lua](https://img.shields.io/badge/Lua-5.1%2FLuaJIT-2C2D72?logo=lua&logoColor=white)](https://www.lua.org)
 ![Status](https://img.shields.io/badge/status-alpha-red)
 [![CI](https://github.com/StefanBartl/gopath.nvim/actions/workflows/ci.yml/badge.svg)](https://github.com/StefanBartl/gopath.nvim/actions/workflows/ci.yml)
@@ -18,14 +18,21 @@
 
 A modular file-navigation plugin for Neovim. gopath.nvim resolves symbols, `require()` paths, and arbitrary file references under your cursor using a multi-phase pipeline — LSP → Treesitter → whole-line extraction → suffix search → fuzzy alternate — so a single keypress takes you to the right file, at the right line, however the reference is written. Non-text targets (images, PDFs, other media) open straight in your system's default application instead of as a text buffer.
 
-> Pairs well with [buffer-ctx.nvim](https://github.com/StefanBartl/buffer-ctx.nvim):
-> use buffer-ctx to generate a `require("foo.bar")` / `path:line` reference,
-> and gopath to jump straight back to it from anywhere.
+## Where it sits in the collection
+
+- **[lib.nvim]** — required. The `:Gopath` command tree, the keymaps, the
+  autocommands and the path helpers are built on it.
+- **[buffer-ctx.nvim]** — the other direction: it *writes* a
+  `require("foo.bar")` or `path:line` reference, gopath jumps back to one.
+- **[hover.nvim]** and **[images.nvim]** call `resolve_at_cursor()` from
+  outside — through `pcall`, so gopath stays a soft dependency on their side.
+  What they rely on is [docs/FEATURES/INTEGRATIONS.md](./docs/FEATURES/INTEGRATIONS.md).
 
 ---
 
 ## Table of Content
 
+- [Where it sits in the collection](#where-it-sits-in-the-collection)
 - [Quickstart](#quickstart)
 - [Documentation](#documentation)
 
@@ -72,12 +79,13 @@ work, for turning it off without touching any plugin's config.
 ## Documentation
 
 - [Features](./docs/FEATURES/README.md) — navigation capabilities, per-language support, the filesystem cache, and external-file opening.
+- [Workflow](./docs/WORKFLOW.md) — using it day to day: which keymap to reach for, when to let the cache warm up, and what happens when the target does not exist.
 - [Installation](./docs/installation.md) — lazy.nvim/packer snippets, optional dependencies, recommended CLI tools.
 - [Configuration](./docs/configuration.md) — full `setup()` option reference with defaults.
 - [Keymaps, commands & autocommands](./docs/BINDINGS.md) — full cheatsheet of every binding, including `create_on_missing`.
-- [Resolution pipeline](./docs/RESOLUTION.md) — how the cursor token becomes an opened file.
-- [Filesystem cache & truncated-path resolution](./docs/CACHE.md) — the `truncated.*` subsystem.
-- [Lua symbol & require resolution](./docs/LUA-SYMBOLS.md) — the Lua language layer.
+- [Resolution pipeline](./docs/resolution.md) — how the cursor token becomes an opened file.
+- [Filesystem cache & truncated-path resolution](./docs/cache.md) — the `truncated.*` subsystem.
+- [Lua symbol & require resolution](./docs/lua-symbols.md) — the Lua language layer.
 - [Health check & troubleshooting](./docs/troubleshooting.md) — `:checkhealth gopath` and common issues.
 - [Developer notes](./docs/Developer-Notes/DEV-README.md) — architecture, providers, resolvers, for contributors.
 
@@ -86,3 +94,8 @@ Full index of all docs: [docs/README.md](./docs/README.md).
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+[lib.nvim]: https://github.com/StefanBartl/lib.nvim
+[buffer-ctx.nvim]: https://github.com/StefanBartl/buffer-ctx.nvim
+[hover.nvim]: https://github.com/StefanBartl/hover.nvim
+[images.nvim]: https://github.com/StefanBartl/images.nvim

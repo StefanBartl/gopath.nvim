@@ -3,8 +3,8 @@
 This document provides in-depth technical information for developers who want to extend, customize, or contribute to gopath.nvim.
 
 > **Subsystem deep dives** (user-facing, EN + DE):
-> [Cache](../CACHE.md) · [Resolution pipeline](../RESOLUTION.md) ·
-> [Lua symbol resolution](../LUA-SYMBOLS.md). Full docs index:
+> [Cache](../cache.md) · [Resolution pipeline](../resolution.md) ·
+> [Lua symbol resolution](../lua-symbols.md). Full docs index:
 > [docs/README.md](../README.md).
 
 ---
@@ -91,13 +91,13 @@ gopath.nvim/
 │   │   │   ├── tailsearch.lua# suffix search (cache / sync / async)
 │   │   │   ├── env_path.lua  # $VAR / ${VAR} expansion
 │   │   │   └── help.lua      # :help tag resolution
-│   │   └── lua/              # Lua-specific resolvers (see LUA-SYMBOLS.md)
+│   │   └── lua/              # Lua-specific resolvers (see lua-symbols.md)
 │   │       ├── require_path.lua  chain.lua  binding_index.lua
 │   │       ├── alias_index.lua   identifier_locator.lua
 │   │       ├── symbol_locator.lua value_origin.lua
 │   │       └── local_to_module.lua table_locator.lua
 │   │
-│   ├── truncated/            # Truncated-path cache (see CACHE.md)
+│   ├── truncated/            # Truncated-path cache (see cache.md)
 │   │   ├── init.lua          # try_resolve + selection UI
 │   │   ├── cache.lua         # async filesystem index (in-memory + JSON)
 │   │   └── finder.lua        # live search (sync fd/rg + async libuv walk)
@@ -671,7 +671,7 @@ Two distinct caches exist:
 2. **The persistent filesystem cache** (`gopath.truncated.cache`) that indexes
    the filesystem in the background for fast truncated-path resolution — its
    scan strategy, matching and lifecycle are documented in
-   [CACHE.md](../CACHE.md).
+   [cache.md](../cache.md).
 
 The `changedtick` pattern:
 
@@ -721,8 +721,8 @@ a non-blocking libuv directory walk (`finder.find_async`); a single
 `"[gopath] Dateisuche läuft…"` message is shown only when that live walk
 actually starts, and the buffer opens once a match arrives.
 
-See [RESOLUTION.md](../RESOLUTION.md) (fast path vs. async search) and
-[CACHE.md](../CACHE.md) (the cache and live fallback).
+See [resolution.md](../resolution.md) (fast path vs. async search) and
+[cache.md](../cache.md) (the cache and live fallback).
 
 ---
 

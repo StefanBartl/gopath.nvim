@@ -137,7 +137,7 @@ not stat the filesystem on every keypress; writing a buffer is the usual way a
 new file appears mid-session, so a write invalidates those listings. Files
 created by gopath's own create-on-missing invalidate directly from
 `gopath.create`, and installing a plugin moves the runtimepath, which the caches
-key on. See [Resolution](RESOLUTION.md#path-lookup-caching).
+key on. See [Resolution](resolution.md#path-lookup-caching).
 
 ---
 

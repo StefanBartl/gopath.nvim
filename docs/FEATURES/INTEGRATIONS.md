@@ -46,7 +46,7 @@ larger had nothing to do with resolving:
   fixed here now — the provider asks whether a client is attached before
   sending — and it is why the original 13.2 ms could not be reproduced: it was
   measured in a buffer that *had* a server, where the request is answered
-  rather than timed out. See [RESOLUTION.md](../RESOLUTION.md).
+  rather than timed out. See [resolution.md](../resolution.md).
 - **The tail search**, ~11.5 ms for a token with separators that could be a
   relative path. That one is real resolution work and is unchanged.
 

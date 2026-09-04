@@ -88,7 +88,7 @@ require("gopath").setup({
     confirm = true,  -- false = create silently, no dialog
   },
 
-  -- Truncated path cache ("..." prefix paths) — see docs/CACHE.md
+  -- Truncated path cache ("..." prefix paths) — see docs/cache.md
   truncated = {
     enable                 = true,
     use_cache              = true,

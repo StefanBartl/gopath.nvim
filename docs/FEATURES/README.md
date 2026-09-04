@@ -6,8 +6,8 @@ Treesitter → whole-line extraction → suffix search → fuzzy alternate — s
 one keypress takes you to the right file, at the right line, however the
 reference is written. See the [project README](../../README.md) for
 install/quickstart, or the [documentation index](../README.md) for deep
-dives into individual subsystems (`RESOLUTION.md`, `CACHE.md`,
-`LUA-SYMBOLS.md`).
+dives into individual subsystems (`resolution.md`, `cache.md`,
+`lua-symbols.md`).
 
 - [Navigation](NAVIGATION.md) — the resolution pipeline, whole-line
   extraction, suffix search, visual probe, fuzzy alternates, and

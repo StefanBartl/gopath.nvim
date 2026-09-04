@@ -3,7 +3,7 @@
 This document explains how gopath turns *the thing under your cursor* into *an
 opened file at the right line* — the ordered chain of resolvers, the
 asynchronous open flow, and the fallbacks. It complements
-[CACHE.md](./CACHE.md), which covers the truncated-path cache that the pipeline
+[cache.md](./cache.md), which covers the truncated-path cache that the pipeline
 relies on.
 
 - Orchestrator: [`lua/gopath/resolve.lua`](../lua/gopath/resolve.lua)
@@ -143,7 +143,7 @@ resolve_at_cursor()            -- fast: help/env/rtp/&path/cache only
   when a match arrives. The UI never freezes.
 
 `tailsearch.resolve_async` itself is cache-first (instant) and only walks the
-filesystem on a miss — see [CACHE.md](./CACHE.md#live-fallback-search).
+filesystem on a miss — see [cache.md](./cache.md#live-fallback-search).
 
 The visual-selection / cursor **probe** (`:GopathProbe`, `<leader>pp`) uses the
 same async machinery and presents a `vim.ui.select` picker on ambiguity.
@@ -269,7 +269,7 @@ Create/Cancel.
   `env_variable_resolution.enable`, `alternate.enable`, and the `languages`
   table.
 
-See [CACHE.md](./CACHE.md) for the cache that backs phases 3/3.5 and the async
+See [cache.md](./cache.md) for the cache that backs phases 3/3.5 and the async
 fallback.
 
 ## The LSP step does not wait for a server that is not there
@@ -295,7 +295,7 @@ The last row never reached stage 4 — `filetoken` answers it — which is why i
 does not move. The fourth is the **tail search**, not the LSP wait: a token
 with separators that could be a relative path is searched for across the tree,
 and that is a different cost with a different answer (see
-[CACHE.md](CACHE.md)).
+[cache.md](cache.md)).
 
 So `providers/lsp.lua` asks whether any client is attached before sending. It
 deliberately does **not** ask whether an attached client supports
