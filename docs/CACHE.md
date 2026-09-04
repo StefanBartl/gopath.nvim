@@ -269,7 +269,7 @@ require("gopath").setup({
 ```
 
 Related knobs live under `tailsearch` (suffix length, ambiguity prompt, result
-limit) — see the [main README](../README.md#configuration).
+limit) — see the [configuration.md](configuration.md).
 
 ---
 
