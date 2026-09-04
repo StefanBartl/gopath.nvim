@@ -34,7 +34,7 @@ background and reconstructing the full absolute path from the visible tail.
 - [Configuration](#configuration)
 - [Commands](#commands)
 - [Tuning & troubleshooting](#tuning--troubleshooting)
-- [Design notes & future ideas](#design-notes--future-ideas)
+- [Design notes](#design-notes)
 
 ---
 
