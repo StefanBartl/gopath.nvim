@@ -30,9 +30,9 @@
     - [2. Range Parsing](#2-range-parsing)
     - [3. Relative Line Numbers](#3-relative-line-numbers)
   - [Common Pitfalls](#common-pitfalls)
-    - [❌ Don't: Mix 0-indexed and 1-indexed](#dont-mix-0-indexed-and-1-indexed)
-    - [❌ Don't: Assume range exists](#dont-assume-range-exists)
-    - [❌ Don't: Parse location multiple times](#dont-parse-location-multiple-times)
+    - [Don't: Mix 0-indexed and 1-indexed](#dont-mix-0-indexed-and-1-indexed)
+    - [Don't: Assume range exists](#dont-assume-range-exists)
+    - [Don't: Parse location multiple times](#dont-parse-location-multiple-times)
   - [Summary](#summary)
     - [Key Takeaways](#key-takeaways)
     - [Integration Checklist](#integration-checklist)
@@ -462,7 +462,7 @@ Support relative jumps:
 
 ## Common Pitfalls
 
-### ❌ Don't: Mix 0-indexed and 1-indexed
+### Don't: Mix 0-indexed and 1-indexed
 
 ```lua
 -- BAD
@@ -476,7 +476,7 @@ local normalized = LOC.normalize_range(range)  -- Always 1-indexed
 vim.api.nvim_win_set_cursor(0, { normalized.line, normalized.col - 1 })
 ```
 
-### ❌ Don't: Assume range exists
+### Don't: Assume range exists
 
 ```lua
 -- BAD
@@ -494,7 +494,7 @@ if res.range then
 end
 ```
 
-### ❌ Don't: Parse location multiple times
+### Don't: Parse location multiple times
 
 ```lua
 -- BAD (inefficient)

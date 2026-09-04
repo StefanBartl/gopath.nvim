@@ -11,58 +11,58 @@ This document provides in-depth technical information for developers who want to
 
 ## Table of content
 
-  - [📐 Architecture](#architecture)
+  - [Architecture](#architecture)
     - [Core Components](#core-components)
-  - [🔄 Resolution Flow](#resolution-flow)
+  - [Resolution Flow](#resolution-flow)
     - [High-Level Flow](#high-level-flow)
     - [Detailed Resolution Logic](#detailed-resolution-logic)
-  - [🧩 Provider System](#provider-system)
+  - [Provider System](#provider-system)
     - [Provider Interface](#provider-interface)
     - [Adding a New Provider](#adding-a-new-provider)
-  - [🔍 Resolver System](#resolver-system)
+  - [Resolver System](#resolver-system)
     - [Resolver Interface](#resolver-interface)
     - [Result Schema](#result-schema)
-  - [🎯 Creating Custom Resolvers](#creating-custom-resolvers)
+  - [Creating Custom Resolvers](#creating-custom-resolvers)
     - [Example: Custom Language Resolver](#example-custom-language-resolver)
     - [Registering Custom Resolver](#registering-custom-resolver)
-  - [🧪 Testing Resolvers](#testing-resolvers)
+  - [Testing Resolvers](#testing-resolvers)
     - [Manual Testing](#manual-testing)
     - [Unit Test Example (planned)](#unit-test-example-planned)
-  - [📦 Alternate Resolution Deep Dive](#alternate-resolution-deep-dive)
+  - [Alternate Resolution Deep Dive](#alternate-resolution-deep-dive)
     - [Similarity Algorithm](#similarity-algorithm)
     - [Custom Similarity Functions (planned)](#custom-similarity-functions-planned)
-  - [🖼️ External File Opening](#external-file-opening)
+  - [External File Opening](#external-file-opening)
     - [File Type Detection](#file-type-detection)
     - [Platform-Specific Openers](#platform-specific-openers)
     - [Adding Custom Extensions](#adding-custom-extensions)
-  - [🛠️ Configuration Deep Dive](#configuration-deep-dive)
+  - [Configuration Deep Dive](#configuration-deep-dive)
     - [Language Configuration](#language-configuration)
     - [Resolver Selection](#resolver-selection)
-  - [🐛 Debugging](#debugging)
+  - [Debugging](#debugging)
     - [Debug Output](#debug-output)
     - [Verbose Logging (planned)](#verbose-logging-planned)
-  - [📊 Performance Considerations](#performance-considerations)
+  - [Performance Considerations](#performance-considerations)
     - [Caching](#caching)
     - [LSP Timeout](#lsp-timeout)
     - [Async Operations](#async-operations)
-  - [🔐 Security Considerations](#security-considerations)
+  - [Security Considerations](#security-considerations)
     - [Path Sanitization](#path-sanitization)
     - [External Command Injection](#external-command-injection)
     - [User-Provided Resolvers](#user-provided-resolvers)
-  - [🚀 Performance Benchmarks](#performance-benchmarks)
+  - [Performance Benchmarks](#performance-benchmarks)
     - [Typical Resolution Times](#typical-resolution-times)
-  - [🤝 Contributing Guidelines](#contributing-guidelines)
+  - [Contributing Guidelines](#contributing-guidelines)
     - [Code Style](#code-style)
     - [Pull Request Checklist](#pull-request-checklist)
     - [Testing](#testing)
-  - [📚 Additional Resources](#additional-resources)
+  - [Additional Resources](#additional-resources)
     - [Neovim APIs Used](#neovim-apis-used)
     - [External References](#external-references)
-  - [📝 License](#license)
+  - [License](#license)
 
 ---
 
-## 📐 Architecture
+## Architecture
 
 ### Core Components
 
@@ -129,7 +129,7 @@ gopath.nvim/
 
 ---
 
-## 🔄 Resolution Flow
+## Resolution Flow
 
 ### High-Level Flow
 
@@ -207,7 +207,7 @@ end
 
 ---
 
-## 🧩 Provider System
+## Provider System
 
 ### Provider Interface
 
@@ -235,7 +235,7 @@ end
 
 ---
 
-## 🔍 Resolver System
+## Resolver System
 
 ### Resolver Interface
 
@@ -280,7 +280,7 @@ end
 
 ---
 
-## 🎯 Creating Custom Resolvers
+## Creating Custom Resolvers
 
 ### Example: Custom Language Resolver
 ```lua
@@ -337,7 +337,7 @@ opts = {
 
 ---
 
-## 🧪 Testing Resolvers
+## Testing Resolvers
 
 ### Manual Testing
 ```lua
@@ -364,7 +364,7 @@ end)
 
 ---
 
-## 📦 Alternate Resolution Deep Dive
+## Alternate Resolution Deep Dive
 
 ### Similarity Algorithm
 
@@ -431,7 +431,7 @@ opts = {
 
 ---
 
-## 🖼️ External File Opening
+## External File Opening
 
 ### File Type Detection
 ```lua
@@ -566,7 +566,7 @@ Open: gopath/config.lua:42 (heuristic match)
 
 ---
 
-## 🛠️ Configuration Deep Dive
+## Configuration Deep Dive
 
 ### Language Configuration
 
@@ -620,7 +620,7 @@ languages = {
 
 ---
 
-## 🐛 Debugging
+## Debugging
 
 ### Debug Output
 
@@ -660,7 +660,7 @@ opts = {
 
 ---
 
-## 📊 Performance Considerations
+## Performance Considerations
 
 ### Caching
 
@@ -726,7 +726,7 @@ See [resolution.md](../resolution.md) (fast path vs. async search) and
 
 ---
 
-## 🔐 Security Considerations
+## Security Considerations
 
 ### Path Sanitization
 
@@ -769,7 +769,7 @@ end
 
 ---
 
-## 🚀 Performance Benchmarks
+## Performance Benchmarks
 
 ### Typical Resolution Times
 
@@ -787,7 +787,7 @@ end
 
 ---
 
-## 🤝 Contributing Guidelines
+## Contributing Guidelines
 
 ### Code Style
 
@@ -817,7 +817,7 @@ make test
 
 ---
 
-## 📚 Additional Resources
+## Additional Resources
 
 ### Neovim APIs Used
 
@@ -836,7 +836,7 @@ make test
 
 ---
 
-## 📝 License
+## License
 
 MIT License - see [LICENSE](../../LICENSE) file for details.
 
