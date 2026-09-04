@@ -264,7 +264,7 @@ Create/Cancel.
   opening anything; `require("gopath").commands` exposes the open/copy/debug
   actions for custom keymaps.
 - Mode selection (`mode = "hybrid" | "lsp" | "treesitter" | "builtin"`) and the
-  resolver `order` are documented in the [main README](../README.md#configuration).
+  resolver `order` are documented in the [configuration.md](configuration.md).
 - Per-phase switches: `linepath.enable`, `tailsearch.enable`,
   `env_variable_resolution.enable`, `alternate.enable`, and the `languages`
   table.
