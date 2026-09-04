@@ -40,7 +40,7 @@ false` in the plugin spec is required**, not optional — see
 ### `gP` does nothing (but `:Gopath debug` / `:checkhealth gopath` work)
 1. `:Gopath debug` — shows what the resolver found (or why it failed)
 2. `:checkhealth gopath` — verify external tools and config
-3. Ensure Neovim ≥ 0.9
+3. Ensure Neovim ≥ 0.10
 
 ### Path not found
 - Try `<leader>pp` (probe) — uses suffix search across more roots

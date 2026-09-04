@@ -45,7 +45,7 @@ The location parsing system provides a centralized, consistent way to handle fil
 
 It is **filetype-agnostic**: every resolver (universal and language-specific)
 funnels through `parse_location`, so `:line:col` jumping works in any buffer —
-not just Lua. See the [Resolution Pipeline](../../RESOLUTION.md) for where the
+not just Lua. See the [Resolution Pipeline](../../resolution.md) for where the
 parsed range is consumed, and [DEV-README](../DEV-README.md) for the wider
 architecture.
 

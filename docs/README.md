@@ -4,21 +4,32 @@ Index of the `docs/` folder. Start at the [project README](../README.md) for
 installation, keymaps and configuration; the pages below go deeper on the
 individual subsystems.
 
-## User guides (EN / DE)
-
-Deep dives into the more complex features.
+## Getting it running
 
 | Topic | Page |
 |-------|------|
-| Filesystem cache & truncated-path resolution | [CACHE.md](./CACHE.md) |
-| Resolution pipeline (cursor → opened file) | [RESOLUTION.md](./RESOLUTION.md) |
-| Lua symbol & require resolution | [LUA-SYMBOLS.md](./LUA-SYMBOLS.md) |
+| lazy.nvim and packer snippets, optional dependencies, the CLI tools that speed up a tail search | [installation.md](./installation.md) |
+| Every `setup()` option with its default | [configuration.md](./configuration.md) |
+| `:checkhealth gopath`, and what to do when nothing jumps | [troubleshooting.md](./troubleshooting.md) |
 
-## Reference
+## Using it
 
 | Topic | Page |
 |-------|------|
-| Keymap / user command / autocommand cheatsheet | [BINDINGS.md](./BINDINGS.md) |
+| Day to day: which keymap to reach for, when to trust the cache, and the five places gopath guesses | [WORKFLOW.md](./WORKFLOW.md) |
+| Keymap / user command / autocommand cheatsheet, including the whole `:Gopath` subcommand tree | [BINDINGS.md](./BINDINGS.md) |
+| The feature catalogue, one page per theme | [FEATURES/](./FEATURES/README.md) |
+
+## How it works
+
+Deep dives into the more complex subsystems. Each has a short catalogue entry
+in [`FEATURES/`](./FEATURES/README.md); these are the long versions.
+
+| Topic | Page |
+|-------|------|
+| Filesystem cache & truncated-path resolution | [cache.md](./cache.md) |
+| Resolution pipeline (cursor → opened file) | [resolution.md](./resolution.md) |
+| Lua symbol & require resolution | [lua-symbols.md](./lua-symbols.md) |
 | Plugins that call `resolve_at_cursor` from outside | [FEATURES/INTEGRATIONS.md](./FEATURES/INTEGRATIONS.md) |
 
 ## Developer notes

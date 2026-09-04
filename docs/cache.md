@@ -202,7 +202,7 @@ than `max_depth`), resolution does **not** block. The command layer:
 2. runs `finder.find_async` (async libuv walk, off the main loop),
 3. opens the buffer once a match is found, or reports no match.
 
-See [RESOLUTION.md](./RESOLUTION.md) for how this fits into the full pipeline.
+See [resolution.md](./resolution.md) for how this fits into the full pipeline.
 
 ---
 
@@ -319,13 +319,13 @@ lookups you actually do interactively are effectively instant.
 
 ---
 
-## Design notes & future ideas
+## Design notes
 
 - The cache is intentionally a **flat path list** with string matching rather
   than a trie/DB: it is trivial to serialize, fast enough for tens of thousands
   of entries, and easy to reason about.
 - The two-strategy matcher already realizes the "enough overlap → rebuild the
-  left part" idea. A natural extension is an explicit **overlap score**
-  (e.g. *N consecutive matching segments*, or *1 segment + drive letter*) with a
-  configurable minimum, surfaced as `truncated.min_overlap`. The suffix +
-  sequential strategies are the current approximation of that.
+  left part" idea, and the suffix + sequential strategies are the current
+  approximation of an explicit overlap score. A configurable minimum
+  (`truncated.min_overlap`) would make it a number rather than an
+  approximation. **Not built** — there is no such option today.

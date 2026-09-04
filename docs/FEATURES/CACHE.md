@@ -3,7 +3,7 @@
 The subsystem that powers fast [suffix-based search](NAVIGATION.md) on
 truncated/partial paths — the kind produced by error messages, stack
 traces, and logs — without freezing the editor. Full walkthrough in
-[`../CACHE.md`](../CACHE.md).
+[`../cache.md`](../cache.md).
 
 ## Background filesystem index
 

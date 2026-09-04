@@ -3,7 +3,7 @@
 This document covers gopath's **Lua-specific** resolvers: turning `require(...)`
 calls, bare identifiers that hold a required module, and method/field chains into
 the file (and often the exact symbol) they refer to. It is the language layer of
-the [Resolution Pipeline](./RESOLUTION.md) (phase 4).
+the [Resolution Pipeline](./resolution.md) (phase 4).
 
 Code: [`lua/gopath/resolvers/lua/`](../lua/gopath/resolvers/lua),
 pipeline wiring in [`lua/gopath/registry.lua`](../lua/gopath/registry.lua).
@@ -163,5 +163,5 @@ require("gopath").setup({
 
 Setting `languages.lua.resolvers` to a whitelist (e.g. `{ "require_path" }`)
 restricts which Lua resolvers run; `custom_resolvers` injects your own ahead of
-the built-ins. See the [Resolution Pipeline](./RESOLUTION.md) for how this layer
+the built-ins. See the [Resolution Pipeline](./resolution.md) for how this layer
 sits among the universal resolvers.
