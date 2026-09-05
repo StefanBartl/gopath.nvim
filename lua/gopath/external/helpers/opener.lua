@@ -31,11 +31,11 @@ do
 end
 
 ---@type fun(target: string, opts?: table): boolean, string?  lib.nvim.cross.open_default, or nil when unavailable
-local system_opener
+local lib_opener
 do
   local ok, mod = pcall(require, "lib.nvim.cross.open_default")
   if ok then
-    system_opener = mod
+    lib_opener = mod
   else
     vim.schedule(function()
       LOG.warn(
@@ -91,7 +91,7 @@ local function minimal_fallback_open(path)
   return false
 end
 
----Open `path` with the OS default handler: lib.nvim's system_opener when
+---Open `path` with the OS default handler: lib.nvim's cross.open_default when
 ---available, falling through to the minimal built-in per-OS opener if it
 ---fails to dispatch (e.g. no xdg-open on a bare Linux install) rather than
 ---giving up — the minimal opener covers fewer cases (no vim.ui.open, no WSL
@@ -100,13 +100,13 @@ end
 ---@param path string File path or URL
 ---@return boolean success True if opener was invoked
 local function fallback_open_with_system(path)
-  if system_opener then
-    local ok = system_opener(path)
+  if lib_opener then
+    local ok = lib_opener(path)
     if ok then
       LOG.info(string.format("Opening externally: %s", vim.fn.fnamemodify(path, ":t")))
       return true
     end
-    LOG.warn("lib.nvim system_opener failed to dispatch — trying minimal fallback opener")
+    LOG.warn("lib.nvim's opener failed to dispatch — trying minimal fallback opener")
   end
 
   return minimal_fallback_open(path)
