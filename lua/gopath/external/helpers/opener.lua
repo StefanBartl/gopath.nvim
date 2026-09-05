@@ -4,7 +4,7 @@
 --- open.nvim is a soft dependency: when installed, external files are handed
 --- to its "default" handler (system default app, incl. WSL win-path
 --- translation, shared with `:Open`). Falls back to lib.nvim's
---- fs.open.url.system_opener (declared dependency, same soft-fallback
+--- cross.open_default (declared dependency, same soft-fallback
 --- convention as `gopath.util.cross` / `gopath.util.log`) when open.nvim is
 --- not present, or to a minimal built-in opener if lib.nvim is missing too.
 
@@ -30,10 +30,10 @@ do
   end
 end
 
----@type table|nil  lib.nvim.fs.open.url.system_opener, or nil when unavailable
+---@type fun(target: string, opts?: table): boolean, string?  lib.nvim.cross.open_default, or nil when unavailable
 local system_opener
 do
-  local ok, mod = pcall(require, "lib.nvim.fs.open.url.system_opener")
+  local ok, mod = pcall(require, "lib.nvim.cross.open_default")
   if ok then
     system_opener = mod
   else
@@ -101,7 +101,7 @@ end
 ---@return boolean success True if opener was invoked
 local function fallback_open_with_system(path)
   if system_opener then
-    local ok = system_opener.open(path)
+    local ok = system_opener(path)
     if ok then
       LOG.info(string.format("Opening externally: %s", vim.fn.fnamemodify(path, ":t")))
       return true

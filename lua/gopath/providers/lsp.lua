@@ -30,6 +30,7 @@ local M = {}
 ---the case that was measured.
 ---@return boolean
 local function has_client()
+  ---@diagnostic disable-next-line: deprecated
   local get = vim.lsp.get_clients or vim.lsp.get_active_clients
   if not get then return false end
   local ok, clients = pcall(get, { bufnr = 0 })
