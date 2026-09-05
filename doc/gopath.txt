@@ -191,7 +191,7 @@ gopath.nvim tries each phase in order and returns the first success.
       Lua module names resolve through a three-step chain:
         1. runtimepath
         2. package.path
-        3. the lua/ tree of every *installed* plugin
+        3. the lua/ tree of every installed plugin
       Step 3 covers plugins a manager knows about but has not loaded yet:
       until such a plugin loads, its directory is on neither the runtimepath
       nor package.path, so `require("x.y")` pointing into a lazily-loaded
