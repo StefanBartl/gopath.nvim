@@ -692,6 +692,7 @@ check("lsp provider: no client attached means no request at all", function()
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "hello world" })
   vim.api.nvim_win_set_cursor(0, { 1, 2 })
 
+  ---@diagnostic disable-next-line: deprecated
   local clients = (vim.lsp.get_clients or vim.lsp.get_active_clients)({ bufnr = buf })
   assert_eq(#clients, 0, "the fixture buffer has no client")
 
