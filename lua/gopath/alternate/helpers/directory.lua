@@ -3,7 +3,9 @@
 
 local M = {}
 
-local uv = vim.loop
+-- vim.uv, not vim.loop (DEP-01): this repo's stated floor is Neovim 0.10+,
+-- where vim.loop is deprecated in favor of vim.uv.
+local uv = vim.uv
 
 ---Check if a path exists as a directory.
 ---@param path string
