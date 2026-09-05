@@ -44,7 +44,8 @@ local function check_neovim()
         v.major,
         v.minor,
         v.patch
-      )
+      ),
+      { "Upgrade Neovim to 0.9+" }
     )
   end
   if v.major > 0 or v.minor >= 10 then
@@ -65,8 +66,8 @@ local function check_external_tools()
     ok_s("fdfind found — used by tailsearch + truncated.finder")
   else
     warn_s(
-      "fd / fdfind not found — install fd-find for best performance\n"
-        .. "  tailsearch and truncated.finder will fall back to rg"
+      "fd / fdfind not found — tailsearch and truncated.finder fall back to rg",
+      { "Install fd-find (https://github.com/sharkdp/fd) for best search performance" }
     )
   end
 
@@ -74,15 +75,15 @@ local function check_external_tools()
     ok_s("rg (ripgrep) found — used as fallback search tool")
   else
     warn_s(
-      "rg not found — install ripgrep for fallback search\n"
-        .. "  Without fd AND rg, suffix search and live-search fallback are unavailable"
+      "rg not found — without fd AND rg, suffix search and live-search fallback are unavailable",
+      { "Install ripgrep (https://github.com/BurntSushi/ripgrep)" }
     )
   end
 
   if exe("git") then
     ok_s("git found — used for git-root detection in tailsearch roots")
   else
-    warn_s("git not found — git-root detection will be skipped in tailsearch")
+    warn_s("git not found — git-root detection is skipped in tailsearch roots", { "Install git" })
   end
 end
 
@@ -148,9 +149,9 @@ local function check_lib_nvim()
   if require_ok("lib.nvim.bindings.usercmd.composer") then
     ok_s("lib.nvim detected (:Gopath command layer available)")
   else
-    warn_s(
-      "lib.nvim not found — :Gopath will fail to register\n"
-        .. "  install StefanBartl/lib.nvim as a dependency"
+    err_s(
+      "lib.nvim not found — :Gopath will fail to register",
+      { "Install StefanBartl/lib.nvim as a dependency" }
     )
   end
   if require_ok("lib.nvim.ui.kit") then
@@ -242,7 +243,10 @@ local function check_config()
   start_s("Configuration")
   local ok, cfg_mod = pcall(require, "gopath.config")
   if not ok then
-    err_s("Could not load gopath.config — plugin may not be set up")
+    err_s(
+      "Could not load gopath.config — plugin may not be set up",
+      { "Call require('gopath').setup() in your config" }
+    )
     return
   end
   local cfg = cfg_mod.get()
@@ -253,7 +257,7 @@ local function check_config()
   if cfg.linepath and cfg.linepath.enable then
     ok_s("linepath.enable = true  (whole-line path extraction active)")
   else
-    warn_s("linepath.enable = false — whole-line scanning disabled")
+    info_s("linepath.enable = false — whole-line scanning disabled by configuration")
   end
 
   local ts = cfg.tailsearch or {}
@@ -267,7 +271,7 @@ local function check_config()
       info_s("  roots            = auto (bufdir -> cwd -> git root -> stdpaths)")
     end
   else
-    warn_s("tailsearch.enable = false — suffix search disabled")
+    info_s("tailsearch.enable = false — suffix search disabled by configuration")
   end
 
   local alt = cfg.alternate or {}
@@ -345,12 +349,12 @@ local function check_truncated()
   if require_ok("gopath.truncated.finder") then
     ok_s("gopath.truncated.finder loaded (live search backend)")
   else
-    err_s("gopath.truncated.finder failed to load")
+    err_s("gopath.truncated.finder failed to load", { "Reinstall gopath.nvim" })
   end
 
   local ok_cache, cache = pcall(require, "gopath.truncated.cache")
   if not ok_cache then
-    err_s("gopath.truncated.cache failed to load")
+    err_s("gopath.truncated.cache failed to load", { "Reinstall gopath.nvim" })
     return
   end
 
@@ -370,12 +374,12 @@ local function check_truncated()
         )
       )
     else
-      warn_s("Cache is empty — run :Gopath cache build to index the filesystem")
+      warn_s("Cache is empty", { "Run :Gopath cache build to index the filesystem" })
     end
     info_s("  use_cache  = " .. tostring(cfg.truncated.use_cache ~= false))
     info_s("  max_depth  = " .. tostring(cfg.truncated.max_depth or 6))
   else
-    warn_s("Could not load cache from disk — run :Gopath cache build")
+    warn_s("Could not load cache from disk", { "Run :Gopath cache build" })
   end
 end
 
