@@ -64,6 +64,15 @@ local function legacy_find_symbol(lines, needle)
   -- inverted frontier direction that together made it never match anything
   -- with a dotted/colon prefix (e.g. "function M.setup(...)"). Fixed here;
   -- kept as a comment since it's easy to reintroduce by "simplifying" it back.
+  --
+  -- `needle` is normally a plain identifier (regex/chain extraction restricts
+  -- it to [%w_]), but the treesitter chain path (gopath.resolvers.lua.chain)
+  -- can also hand back a raw string-literal segment (e.g. from `t["a.b%c"]`
+  -- bracket indexing), which may contain Lua-pattern-magic characters. Escape
+  -- it so it is always matched literally — an unescaped needle can otherwise
+  -- turn into a malformed pattern (e.g. trailing "%") and make `s:find(pat)`
+  -- raise a hard error instead of just failing to match.
+  needle = vim.pesc(needle)
   local patterns = {
     ("function%s+[%w_%.:]*%f[%w_]" .. needle .. "%f[^%w_]%s*%("),
     ("[%w_%.]+%s*%.%s*" .. needle .. "%s*=%s*function%s*%("),

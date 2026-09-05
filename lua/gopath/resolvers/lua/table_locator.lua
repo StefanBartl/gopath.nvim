@@ -410,7 +410,13 @@ local function legacy_locate(lines, segs, seek_key, abs_path)
   -- 6) nothing found: final single-line field assignment fallback: ROOT.cfg.highlight.key = ...
   if not found then
     if seek_key then
-      local dotted = table.concat(segs, "%.")
+      -- Escape the whole joined chain as one literal (same convention as
+      -- `find_direct_table_loose`/`find_anyroot_direct_table` above): segments
+      -- can carry Lua-pattern-magic characters when they came from a
+      -- string-literal bracket-index segment (e.g. `t["a.b%c"]`) via the
+      -- treesitter chain extractor, and an unescaped segment here could turn
+      -- into a malformed pattern and make `line:find(pat)` below error out.
+      local dotted = esc(table.concat(segs, "."))
       local ke = esc(seek_key)
       local patterns = {
         "^%s*" .. dotted .. "%." .. ke .. "%s*=",

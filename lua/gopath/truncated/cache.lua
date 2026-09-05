@@ -320,8 +320,21 @@ function M.load_from_disk()
   end
 
   -- === Restore State ===
-  state.paths = data.paths or {}
-  state.last_built = data.last_built
+  -- This file is a persisted snapshot (our own, but possibly stale, from a
+  -- crashed/interrupted write, or from an older/incompatible plugin version)
+  -- — treat it as untrusted and revalidate every field rather than assigning
+  -- it straight into live state. An unvalidated `data.paths` (wrong type, or
+  -- containing non-string entries) would otherwise blow up later in
+  -- `reindex`/`M.search`, which call `:gsub`/`:sub` on each entry assuming it
+  -- is a string.
+  local paths = {}
+  if type(data.paths) == "table" then
+    for _, p in ipairs(data.paths) do
+      if type(p) == "string" then paths[#paths + 1] = p end
+    end
+  end
+  state.paths = paths
+  state.last_built = (type(data.last_built) == "number") and data.last_built or nil
   reindex()
 
   return true
