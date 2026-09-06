@@ -10,7 +10,32 @@ local M = {}
 
 local defaults = require("gopath.config.DEFAULTS")
 
+---True when `t` is a plain array: keys are exactly `1..n` with no holes and
+---no string keys. An empty table counts as a list.
+---@private
+---@param t table
+---@return boolean
+local function is_list(t)
+  local n = 0
+  for _ in pairs(t) do
+    n = n + 1
+  end
+  for i = 1, n do
+    if t[i] == nil then return false end
+  end
+  return true
+end
+
 ---Recursively merge `src` into `dst`, preferring `src` values.
+---
+---Closed, curated array fields (e.g. `order`, `truncated.excluded_dirs`) are
+---replaced wholesale rather than merged index-wise: index-wise merging (the
+---same trap `vim.tbl_deep_extend` has for lists) would otherwise leave
+---trailing default entries behind a shorter user-supplied list. E.g. a user
+---setting `order = { "treesitter" }` to opt out of "lsp" and "builtin" would,
+---under index-wise merging, get back `{ "treesitter", "treesitter", "builtin" }`
+---(index 1 overwritten, indices 2-3 left over from the 3-element default) —
+---"builtin" silently keeps running despite being explicitly left out.
 ---@private
 ---@param dst table
 ---@param src table
@@ -18,7 +43,11 @@ local function deep_merge_into(dst, src)
   assert(type(dst) == "table", "deep_merge_into: dst must be a table")
   for k, v in pairs(src or {}) do
     if type(v) == "table" and type(dst[k]) == "table" then
-      deep_merge_into(dst[k], v)
+      if is_list(v) and is_list(dst[k]) then
+        dst[k] = vim.deepcopy(v)
+      else
+        deep_merge_into(dst[k], v)
+      end
     else
       dst[k] = v
     end

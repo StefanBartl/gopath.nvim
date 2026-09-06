@@ -703,6 +703,47 @@ check("lsp provider: no client attached means no request at all", function()
   assert_eq(asked, 0, "without sending a request nobody could answer")
 end)
 
+-- ========= config: curated array fields are replaced, not index-merged =========
+-- See docs/... : `order` and `truncated.excluded_dirs` are closed, curated
+-- lists. A naive recursive table merge (mirroring `vim.tbl_deep_extend`'s
+-- known list trap) merges arrays index-wise, so a shorter user-supplied list
+-- leaves the default's trailing entries in place instead of fully replacing
+-- it. Asserted on the full sequence (3+ default entries), not just length or
+-- a single index, since a 1-2 element comparison can pass "by accident" even
+-- with the buggy index-wise merge for some inputs.
+
+check("config: order = { one entry } is not padded with leftover defaults", function()
+  local config = require("gopath.config")
+  config.setup({ order = { "treesitter" } })
+  local order = config.get().order
+  assert_eq(#order, 1, "user supplied exactly one entry")
+  assert_eq(
+    table.concat(order, ","),
+    "treesitter",
+    "the default's other two entries ('lsp', 'builtin') must not survive the override"
+  )
+  -- restore for any later check relying on the default order
+  config.setup({ order = { "lsp", "treesitter", "builtin" } })
+end)
+
+check("config: truncated.excluded_dirs replaces the default list wholesale", function()
+  local config = require("gopath.config")
+  config.setup({ truncated = { excluded_dirs = { "vendor" } } })
+  local dirs = config.get().truncated.excluded_dirs
+  assert_eq(#dirs, 1, "user supplied exactly one entry")
+  assert_eq(
+    dirs[1],
+    "vendor",
+    "the default's other exclusions (.git, node_modules, ...) must not survive the override"
+  )
+  -- restore for any later check relying on the default exclusion list
+  config.setup({
+    truncated = {
+      excluded_dirs = { ".git", ".github", "node_modules", "target", "build", ".cache", "venv" },
+    },
+  })
+end)
+
 -- ========= summary =========
 
 if #failures > 0 then
