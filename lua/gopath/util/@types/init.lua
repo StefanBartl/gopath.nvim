@@ -22,16 +22,4 @@
 ---@field root table<string, true>|nil Names directly inside `<dir>/`
 ---@field lua  table<string, true>|nil Names directly inside `<dir>/lua/`
 
--- #####################################################################
--- log.lua
-
---- Namespaced: a bare `LogLevel` collides with the one lib.nvim's notify
---- module publishes, which is a different thing (a number or a string,
---- not this four-value set).
----@alias Gopath.LogLevel
----| "debug"  # Shown only when dev_mode = true
----| "info"   # Always shown
----| "warn"   # Always shown
----| "error"  # Always shown
-
 return {}

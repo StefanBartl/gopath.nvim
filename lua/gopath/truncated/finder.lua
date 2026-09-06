@@ -1,6 +1,6 @@
 ---@module 'gopath.truncated.finder'
 ---@brief Live filesystem search for truncated path tails.
---- Called by gopath.truncated when the in-memory cache misses.
+--- Called by `gopath.resolvers.common.tailsearch` when the in-memory cache misses.
 --- Tries fd/fdfind first, falls back to rg.
 
 local LOG = require("gopath.util.log")

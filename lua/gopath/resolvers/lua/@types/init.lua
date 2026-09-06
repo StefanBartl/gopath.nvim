@@ -32,12 +32,4 @@
 ---@field tick integer               Buffer changetick at which this cache was built
 ---@field map  table<string,LuaAliasEntry>  Map of identifier → alias info
 
--- #####################################################################
--- require_path.lua  /  local_to_module.lua
-
----@class LuaModuleResolution
---- Intermediate result from module-name → file-path conversion.
----@field mod  string      Dotted module name (e.g. "custom.markdown.hl_groups.blockquote")
----@field path string|nil  Resolved absolute file path, or nil if not found on rtp/package.path
-
 return {}

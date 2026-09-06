@@ -3,14 +3,6 @@
 ---@brief Type definitions for the truncated-path resolution subsystem.
 
 -- #####################################################################
--- init.lua
-
----@class TruncatedResolveOpts
---- Options accepted by `truncated.try_resolve`.
----@field use_cache boolean|nil  Whether to consult the in-memory cache first (default true)
----@field open_cmd  string|nil   Ex command for opening the resolved file (default "edit")
-
--- #####################################################################
 -- cache.lua
 
 ---@class TruncatedCacheState

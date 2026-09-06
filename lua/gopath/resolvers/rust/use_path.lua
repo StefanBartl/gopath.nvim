@@ -26,7 +26,7 @@ local function crate_src_dir()
   if PATH.exists(PATH.join(src, "lib.rs")) or PATH.exists(PATH.join(src, "main.rs")) then
     return src
   end
-  return src
+  return nil
 end
 
 ---Turn a `::`-separated module path into candidate files under `base`.

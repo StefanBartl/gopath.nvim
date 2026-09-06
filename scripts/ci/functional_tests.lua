@@ -666,19 +666,9 @@ do
   end)
 end
 
--- ========= summary =========
-
--- ---------------------------------------------------------------------------
--- The LSP provider does not wait for a server that is not there
--- ---------------------------------------------------------------------------
---
--- `vim.lsp.buf_request_sync` does not return early when nothing is attached:
--- measured 2026-09-03 on a buffer with zero clients, it blocked for the whole
--- timeout and answered `nil, "timeout"` -- 219 ms for the 200 ms default. That
--- landed on every resolve reaching the language pipeline in a buffer with no
--- server, which is every `.txt`, every `gitcommit`, every scratch buffer and
--- every machine that runs no LSP at all. Through `resolve_at_cursor` over
--- prose the whole call was 216 ms, of which this was 200.
+-- ========= LSP provider does not wait for a server that is not there =========
+-- See docs/resolution.md#the-lsp-step-does-not-wait-for-a-server-that-is-not-there
+-- for the measurements behind this guard.
 --
 -- Asserted by whether the request is *made*, not by how long it takes: a
 -- timing assertion on a timeout is a flake waiting for a slow runner, and
@@ -712,6 +702,8 @@ check("lsp provider: no client attached means no request at all", function()
   assert_nil(res, "and answers nil")
   assert_eq(asked, 0, "without sending a request nobody could answer")
 end)
+
+-- ========= summary =========
 
 if #failures > 0 then
   print(("\n%d check(s) failed: %s"):format(#failures, table.concat(failures, ", ")))

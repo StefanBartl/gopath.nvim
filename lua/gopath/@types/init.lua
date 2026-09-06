@@ -19,11 +19,17 @@
 
 ---@alias GopathSource
 ---| '"lsp"'              # Resolved via LSP goto-definition
+---| '"lsp-enhanced"'     # LSP result refined with extra (e.g. Treesitter) context
 ---| '"treesitter"'       # Resolved via Treesitter semantic analysis
 ---| '"builtin"'          # Resolved via built-in heuristics / rtp search
 ---| '"builtin-fallback"' # Last-resort cfile fallback
----| '"regex"'            # Resolved via a pattern match (language-specific)
----| '"static"'           # Statically known (e.g. stdlib mapping)
+---| '"alternate"'        # A fuzzy-matched candidate the user picked
+---| '"env-path"'         # Resolved via $VAR/${VAR} expansion
+---| '"linepath-absolute"' # Whole-line scan: absolute path matched as-is
+---| '"linepath-relative"' # Whole-line scan: matched cwd-relative
+---| '"linepath-bufdir"'   # Whole-line scan: matched relative to the buffer's directory
+---| '"linepath-tail"'    # Whole-line scan: resolved via suffix search
+---| '"tailsearch"'       # Suffix-based filesystem search
 ---| '"url"'              # Recognised as a URL under the cursor
 
 ---@class GopathRange

@@ -27,6 +27,9 @@ function M.parse_location(str)
   return result
 end
 
+--- CDX: no caller anywhere in lua/ or TESTS/; kept as it's documented as one
+--- of this module's "Key Functions" in docs/Developer-Notes/util/location.md
+--- -- possibly meant as public utility API, not confirmed dead.
 ---Merge parsed location with existing range, preferring parsed values
 ---@param parsed table From parse_location { path, line, col }
 ---@param existing table|nil Existing range { line: integer, col: integer }

@@ -15,7 +15,7 @@ handles stay bounded regardless of tree size. Every subsequent lookup then
 answers from the in-memory index in well under 10ms instead of walking the
 filesystem live.
 
-- **Module:** `truncated/cache.lua`, `truncated/init.lua`
+- **Module:** `truncated/cache.lua`, `truncated/finder.lua`
 - **Usercmds:** `:Gopath cache build`, `:GopathCacheBuild` (rebuild),
   `:Gopath cache info`, `:GopathCacheInfo` (statistics),
   `:Gopath cache add-root <dir>`, `:GopathCacheAddRoot <dir>` (extend

@@ -235,7 +235,6 @@ end
 ---Non-blocking: runs entirely in the background with bounded concurrency.
 ---@param callback fun(success: boolean) Called when build completes
 function M.build_async(callback)
-  -- === Prevent Concurrent Builds ===
   if state.building then
     callback(false)
     return
@@ -280,7 +279,6 @@ function M._finalize_build(callback)
     state.last_built = os.time()
     state.building = false
 
-    -- === Save to Disk ===
     M._save_to_disk()
 
     -- Build completion is reported by the caller (setup / :GopathCacheBuild);
@@ -319,7 +317,6 @@ function M.load_from_disk()
     return false
   end
 
-  -- === Restore State ===
   -- This file is a persisted snapshot (our own, but possibly stale, from a
   -- crashed/interrupted write, or from an older/incompatible plugin version)
   -- — treat it as untrusted and revalidate every field rather than assigning
@@ -350,7 +347,6 @@ end
 ---@param tail string Tail of truncated path to search for
 ---@return string[] matches List of matching absolute paths
 function M.search(tail)
-  -- === Ensure Cache is Loaded ===
   if #state.paths == 0 and not state.building then
     -- Try to load from disk (might be from previous session)
     M.load_from_disk()
@@ -363,7 +359,6 @@ function M.search(tail)
   -- Self-heal if the mirror ever drifts out of sync with `paths`.
   if #state.norm ~= #state.paths then reindex() end
 
-  -- === Normalize Tail ===
   -- Convert to lowercase and forward slashes for comparison
   local normalized_tail = tail:gsub("\\", "/"):lower()
   local tail_parts = vim.split(normalized_tail, "/", { trimempty = true })
@@ -381,17 +376,14 @@ function M.search(tail)
   local matches = {}
   local paths, norm = state.paths, state.norm
 
-  -- === Search All Cached Paths ===
   for i = 1, #paths do
     local normalized_path = norm[i]
 
-    -- === Strategy 1: Exact Tail Match ===
-    -- Path ends with the exact tail
+    -- Strategy 1: exact tail match (path ends with the exact tail)
     if #normalized_path >= tail_len and normalized_path:sub(-tail_len) == normalized_tail then
       matches[#matches + 1] = paths[i]
 
-    -- === Strategy 2: Sequential Part Match ===
-    -- All tail parts appear in path in order.
+    -- Strategy 2: sequential part match -- all tail parts appear in path in order.
     -- Guarded by a plain-substring pre-check on the tail's LAST segment: the
     -- sequential match requires every tail part to appear as a whole path
     -- segment, so a path that doesn't even contain that segment as a substring
@@ -478,7 +470,6 @@ function M.add_root(dir, rebuild)
     return
   end
 
-  -- Add to roots
   table.insert(config.scan_roots, dir)
 
   LOG.info("Added to cache roots: " .. dir)

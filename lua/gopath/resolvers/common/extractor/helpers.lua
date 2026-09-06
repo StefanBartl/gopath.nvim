@@ -1,7 +1,7 @@
 ---@module 'gopath.resolvers.common.extractor.helpers'
 ---@brief Utilities for the whole-line path extractor: deduplication and boundary expansion.
 ---@description
---- uniq() delegates to lib.nvim.lua.tables.unique_table.unique_by (declared
+--- uniq() delegates to lib.lua.tables.unique_table.unique_by (declared
 --- dependency, same soft-fallback convention as `gopath.util.cross` /
 --- `gopath.util.log`) when lib.nvim is available; falls back to the original
 --- hand-rolled seen-table loop otherwise.

@@ -1,30 +1,9 @@
 ---@module 'gopath.alternate.frecency'
 ---@description Order alternate candidates by what you actually chose before.
 ---
---- The candidate list is ranked by filename similarity, which is the right
---- primary signal and a poor tiebreaker: `config.lua`, `configs.lua` and
---- `config.local.lua` sit within a few points of each other, and which one you
---- meant is not a property of the string. It is a property of your history —
---- and after the first time, this module knows it.
----
---- **A bonus, never an override.** The bonus saturates: `score / (score + K)`
---- scaled by `max_bonus`, so it approaches a ceiling instead of growing with
---- the visit count. That ceiling is the whole design. Similarity runs 0–100
---- and the default threshold admits everything from 75 up, so a bonus capped
---- at 10 can reorder candidates *within* a similarity band and can never push
---- a 95% match below a 76% one. Without the cap, a single visit would score
---- `log(2) × 100 ≈ 69` and bury the similarity signal entirely — which is not
---- a hypothetical, it is what the raw score does.
----
---- `K` is one fresh first visit's worth of score, so choosing a candidate once
---- buys roughly *half* the ceiling and everything after that is diminishing.
---- One choice should be visible; the tenth should not be ten times louder.
----
---- The store is `lib.nvim.frecency`, on its own namespace. It is the same
---- implementation `pickers.nvim` ranks files with, which is why it lives there
---- and not here — but not the same *store*: the two rank different kinds of
---- thing, and a path visited often in the picker says nothing about which
---- alternate you meant.
+--- A saturating bonus (never an override) reorders candidates within their
+--- similarity band without ever inverting a clear winner. Full rationale and
+--- the saturation-curve math: docs/FEATURES/NAVIGATION.md#fuzzy-alternate-resolution.
 
 require("gopath.alternate.@types")
 

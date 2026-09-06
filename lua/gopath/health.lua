@@ -190,7 +190,7 @@ local function check_filetree_nvim()
   end
 end
 
----Report nvim-treesitter availability and parser coverage for the current filetype.
+---Report pdfport.nvim availability and the effective PDF-open mode.
 ---@internal
 local function check_pdfport()
   start_s("pdfport.nvim")
@@ -216,6 +216,8 @@ local function check_pdfport()
   end
 end
 
+---Report nvim-treesitter availability and parser coverage for the current filetype.
+---@internal
 local function check_treesitter()
   start_s("Tree-sitter")
   if require_ok("nvim-treesitter") then
