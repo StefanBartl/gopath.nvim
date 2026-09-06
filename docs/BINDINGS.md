@@ -1,9 +1,7 @@
 # gopath.nvim — Binding Cheatsheet
 
-Machine-readable overview of every keymap, user command, and autocommand
-defined by `gopath.nvim`. This file is documentation only and mirrors the
-source of truth in `lua/gopath/bindings/` (`keymaps.lua`, `usrcmds.lua`,
-`autocmds.lua`, `which_key.lua`). Any change there must be reflected here.
+Every keymap, user command, and autocommand `gopath.nvim` defines. Kept in
+sync with `lua/gopath/bindings/`.
 
 All keymaps and commands are individually configurable (or fully disabled)
 via `require("gopath").setup({ mappings = ..., commands = ... })`. See
@@ -16,7 +14,6 @@ README.md → Configuration for the exact option shapes.
     - [`:Gopath` subcommand tree](#gopath-subcommand-tree)
     - [Individual aliases](#individual-aliases)
   - [Autocommands](#autocommands)
-  - [which-key](#which-key)
 
 ---
 
@@ -139,23 +136,3 @@ created by gopath's own create-on-missing invalidate directly from
 `gopath.create`, and installing a plugin moves the runtimepath, which the caches
 key on. See [Resolution](resolution.md#path-lookup-caching).
 
----
-
-## which-key
-
-which-key.nvim is a soft dependency. Per-key labels need no registration at
-all: which-key reads the mappings itself and labels each from its own `desc`,
-which every gopath mapping carries. gopath used to register the `probe`
-description a second time, which only gave the same string two places to
-drift apart in.
-
-What which-key cannot work out for itself is the *group* label. gopath's keys
-are single `g`-prefixed ones except `probe`, which sits under the user's
-`<leader>` prefix — so that prefix is the one thing handed over, and only when
-`probe` is actually configured. `which_key = false` in config opts out of the
-label while leaving every mapping and its description in place. Declared in
-the keymap spec (`lua/gopath/bindings/keymaps.lua`) and applied by
-`lib.nvim.bindings.keymap`. `:checkhealth gopath` reports whether which-key
-was detected.
-
----
