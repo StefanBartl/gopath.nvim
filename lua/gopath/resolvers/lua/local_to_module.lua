@@ -26,17 +26,15 @@ function M.enhance_lsp_result(lsp_result)
     or line:match("local%s+%w+%s*=%s*require%s*[%(%s]*%[%[([%w%._/%-]+)%]%]")
 
   if not module then
-    return nil -- Not a require line, return original result
+    return nil -- Not a require line; caller falls back to the original LSP result
   end
 
-  -- Resolve module to file path
   local abs = PATH.search_module(module)
 
   if not abs then
-    return nil -- Module not found, return original result
+    return nil -- Module not found; caller falls back to the original LSP result
   end
 
-  -- Return enhanced result pointing to module
   return {
     language = "lua",
     kind = "module",

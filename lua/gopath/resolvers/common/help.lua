@@ -34,7 +34,7 @@ local function build_subjects(tok)
   if tok == "vim" then return { "vim" } end
   if tok == "vim.api" then return { "vim.api" } end
   if tok == "vim.fn" then return { "vim.fn" } end
-  if tok == "vim.loop" then return { "vim.loop", "luv" } end -- fallback zu luv
+  if tok == "vim.loop" then return { "vim.loop", "luv" } end -- fallback to luv
 
   -- vim.api.<fn>  → :h <fn>()
   local api_fn = tok:match("^vim%.api%.([%w_]+)$")
@@ -62,13 +62,12 @@ function M.resolve()
   local subjects = build_subjects(tok)
   if not subjects then return nil end
 
-  -- wir liefern nur Daten; das Öffnen entscheidet der Opener
+  -- We only supply data; the opener decides how to open it
   return {
     language = "help",
     kind = "help",
-    subject = subjects[1], -- Primärkandidat
-    -- kleine Erweiterung: wir übergeben die gesamte Kandidatenliste via Zusatzfeld
-    subjects = subjects, -- (Opener kann versuchen: first match wins)
+    subject = subjects[1], -- primary candidate
+    subjects = subjects, -- full candidate list; opener tries first match wins
     source = "builtin",
     confidence = 1.0,
   }

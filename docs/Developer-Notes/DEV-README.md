@@ -98,7 +98,6 @@ gopath.nvim/
 │   │       └── local_to_module.lua table_locator.lua
 │   │
 │   ├── truncated/            # Truncated-path cache (see cache.md)
-│   │   ├── init.lua          # try_resolve + selection UI
 │   │   ├── cache.lua         # async filesystem index (in-memory + JSON)
 │   │   └── finder.lua        # live search (sync fd/rg + async libuv walk)
 │   │

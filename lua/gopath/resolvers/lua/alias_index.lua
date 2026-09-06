@@ -32,10 +32,6 @@ local function rebuild(bufnr)
       map[id] = { kind = "require", module = mod }
       goto continue
     end
-    if id and mod then
-      map[id] = { kind = "require", module = mod }
-      goto continue
-    end
 
     -- local X = Y.Z or X = Y.Z (simple chain)
     local id2, chain = s:match("^%s*local%s+([%w_]+)%s*=%s*([%w_%.]+)")
@@ -64,7 +60,7 @@ end
 --- Get alias map for current buffer with changedtick cache.
 ---@return table<string,LuaAliasEntry>
 function M.get_map()
-  local buf = 0
+  local buf = vim.api.nvim_get_current_buf()
   local e = cache[buf]
   local tick = cur_tick(buf)
   if e and e.tick == tick then return e.map end

@@ -31,7 +31,9 @@ end
 ---@return integer|nil col Optional column number from comment
 local function find_require_module_at_cursor()
   local row, col = unpack(vim.api.nvim_win_get_cursor(0))
-  col = col -- 1-based
+  -- nvim_win_get_cursor's col is 0-based; ln:find() below returns 1-based
+  -- byte positions, so convert for cursor_in() to compare correctly.
+  col = col + 1
 
   local lines = {
     { row, vim.api.nvim_get_current_line() },

@@ -37,12 +37,6 @@ do
   end
 end
 
----Whether lib.nvim's notifier is in use (for :checkhealth reporting).
----@return boolean
-function M.using_lib()
-  return lib_notify ~= nil
-end
-
 ---Emit a message only when dev_mode is active.
 ---@param msg string
 function M.debug(msg)

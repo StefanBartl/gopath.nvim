@@ -31,7 +31,8 @@ Key capabilities:
   - Whole-line stacktrace and path extraction (Phase 3.5)
   - Suffix-based search: resolves partial / truncated paths
   - Visual-selection probe: select a path token, resolve + open
-  - Nearest-folder fallback when no file is found
+  - Create-on-missing dialog; offers to open the nearest existing ancestor
+    directory in filetree.nvim when installed (never automatic)
   - Env var expansion: $VAR/path/file.md
   - Fuzzy alternate (Levenshtein) when file does not exist
   - External opener for images, PDFs, media
@@ -78,6 +79,7 @@ Default keymaps (all configurable, see |gopath-config-mappings|):
   gM            Reveal target in the system file manager (Explorer/Finder/…)
   gY            Copy path:line:col to clipboard
   g?            Debug resolution under cursor
+  gC            Check path under cursor exists; offer to create if missing
   <leader>pp    (n) Probe path under cursor via suffix search (vsplit)
   <leader>pp    (v) Probe visual selection via suffix search (vsplit)
 
@@ -110,6 +112,10 @@ Unified command with tab-completion at every level:        *:Gopath*
   :Gopath debug
       Print full resolution chain to :messages.
 
+  :Gopath check
+      Check whether the path under cursor exists; offer to create it
+      if missing (does not open on a hit).
+
   :Gopath probe [edit|split|vsplit]
       Suffix-based search using path under cursor or visual selection.
       Default: vsplit.  See |gopath-probe|.
@@ -128,6 +134,7 @@ Individual alias commands (backward compatibility):
   :GopathOpen [mode]          -> :Gopath open [mode]    *:GopathOpen*
   :GopathCopy                 -> :Gopath copy            *:GopathCopy*
   :GopathDebug                -> :Gopath debug           *:GopathDebug*
+  :GopathCheck                -> :Gopath check           *:GopathCheck*
   :GopathResolve              -> :Gopath debug           *:GopathResolve*
   :GopathProbe[!]             -> :Gopath probe  (! = split) *:GopathProbe*
   :GopathCacheBuild           -> :Gopath cache build     *:GopathCacheBuild*
@@ -226,16 +233,21 @@ gopath.nvim tries each phase in order and returns the first success.
 
   Phase 5 - Fallback
       Returns the Phase 3 filetoken result (even if non-existent) so the
-      alternate / nearest-folder fallbacks can handle it; then raw <cfile>.
+      alternate fallback / create-on-missing dialog can handle it; then
+      raw <cfile>.
 
-  After pipeline - Alternate + Nearest folder
+  After pipeline - Alternate + Create-on-missing
       If the resolved file does not exist:
         1. Fuzzy alternate: Levenshtein similarity (with a prefix bonus for
            truncated/abbreviated names) in the same directory.  Each
            candidate shown lists its size and modification recency.  The
            selection UI defers to your configured vim.ui.select backend
            (telescope-ui-select, dressing.nvim, ...) when one is installed.
-        2. Nearest folder: opens the deepest existing ancestor directory
+        2. Create-on-missing: offers to create the file.  A directory can't
+           be opened in a buffer the way a file can, so there is no
+           automatic "open nearest folder" fallback -- if an existing
+           ancestor directory exists and filetree.nvim is installed and set
+           up, the dialog offers a second choice, "Open in filetree", instead.
 
 ==============================================================================
 7. PROBE                                                       *gopath-probe*
@@ -394,6 +406,7 @@ mappings = {
   copy_location = "gY",
   debug         = "g?",
   probe         = "<leader>pp",
+  check         = "gC",
 }
     Set any key to false to disable that mapping.
     String array { "gP", "<2-LeftMouse>" } registers multiple keys.

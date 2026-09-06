@@ -7,27 +7,14 @@ local M = {}
 
 ---Whether any language server is attached to the current buffer.
 ---
----**Asked before the request, because `buf_request_sync` does not ask it.**
----With nobody to send to it does not return early -- measured 2026-09-03 on a
----buffer with zero clients, it blocked for the whole timeout and then
----answered `nil, "timeout"`: 219 ms for the 200 ms default.
----
----That fell on every resolve reaching the language pipeline in a buffer with
----no server: a `.txt`, a `gitcommit`, a scratch buffer, any filetype without
----one, and every machine running no LSP at all. Measured through
----`resolve_at_cursor` over prose, the whole call was 216 ms of which this was
----200 -- against 1.6 ms for an existing relative path, which never reaches
----this far.
+---Asked before the request, because `buf_request_sync` does not return early
+---when nothing is attached -- it blocks for the whole timeout instead. See
+---docs/resolution.md#the-lsp-step-does-not-wait-for-a-server-that-is-not-there
+---for the measurements and why this deliberately does not check
+---`textDocument/definition` support.
 ---
 ---`get_active_clients` is the pre-0.10 name and deprecated since. Same
 ---two-step as `gopath.health`, for the same reason: this plugin supports 0.9.
----
----**What this deliberately does not answer** is whether an attached client
----supports `textDocument/definition`. The capability call changed shape
----across 0.9, 0.10 and 0.11 (`client.supports_method` by dot, then by colon,
----with an options table), and getting that wrong would silently reintroduce
----exactly the wait it removes. "Nobody is attached" is version-proof and is
----the case that was measured.
 ---@return boolean
 local function has_client()
   ---@diagnostic disable-next-line: deprecated

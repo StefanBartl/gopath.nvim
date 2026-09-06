@@ -26,7 +26,7 @@ function M.open(res, opts)
   if not (res and res.kind == "help") then return end
   local target = (opts and opts.target) or "edit"
 
-  -- baue Kandidatenliste
+  -- Build candidate list
   local cands = {}
   if type(res.subjects) == "table" then
     for _, s in ipairs(res.subjects) do
@@ -36,19 +36,19 @@ function M.open(res, opts)
     cands[1] = res.subject
   end
 
-  -- Versuche direkt die Kandidaten
+  -- Try the candidates directly
   for _, subj in ipairs(cands) do
     local ok = try_help(subj, target)
     if ok then return end
   end
 
-  -- Fallback: Klammern-Variante togglen
+  -- Fallback: toggle the trailing-parens variant
   local extra = {}
   for _, s in ipairs(cands) do
     if s:sub(-2) == "()" then
-      table.insert(extra, s:sub(1, -3)) -- ohne ()
+      table.insert(extra, s:sub(1, -3)) -- without ()
     else
-      table.insert(extra, s .. "()") -- mit ()
+      table.insert(extra, s .. "()") -- with ()
     end
   end
   for _, subj in ipairs(extra) do
@@ -56,21 +56,22 @@ function M.open(res, opts)
     if ok then return end
   end
 
-  -- Letzter Fallback: Hilfe-Index durchsuchen (ohne UI-Spam)
+  -- Last resort: search the help index (without UI spam)
   local needle = cands[1] or "help"
   pcall(function()
     vim.cmd("silent! helpgrep " .. vim.fn.escape(needle, " "))
   end)
   local qf = vim.fn.getqflist({ size = true })
   if qf and qf.size and qf.size > 0 then
-    -- öffne erstes Match
+    -- Open the first match
     pcall(function()
       vim.cmd("cfirst")
     end)
     return
   end
 
-  -- nichts gefunden? Dezent auf die API-Übersicht fallen AUDIT; ao lassen?
+  --- CDX: nothing found, falls back to `:help vim.api` as a generic landing
+  --- page; unclear if this silent fallback is desired or should notify instead
   pcall(function()
     vim.cmd("help vim.api")
   end)

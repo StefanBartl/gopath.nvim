@@ -385,7 +385,6 @@ function M.probe(raw, opts, on_done)
   local ask = opts.ask ~= false
   local rng = (line_nr and line_nr > 0) and { line = line_nr, col = col_nr or 1 } or nil
 
-  local _ = max_comp -- suffix expansion handled by cache + tail-suffix match
   local bufnr = vim.api.nvim_get_current_buf()
 
   ---Build a probe GopathResult for `path` at the given confidence, reusing

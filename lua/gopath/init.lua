@@ -4,7 +4,7 @@
 --- Main entry point called by package managers (lazy.nvim, packer, …).
 --- Delegates to focused helpers so that `setup()` itself stays thin:
 ---   • Config merge  → gopath.config
----   • Bindings      → gopath.bindings (keymaps, usrcmds, autocmds, which-key)
+---   • Bindings      → gopath.bindings (keymaps, usrcmds, autocmds)
 ---   • Cache init    → private `_setup_cache()`
 
 local C = require("gopath.config")

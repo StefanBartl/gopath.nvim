@@ -234,14 +234,6 @@ function M.is_loose_url(str, opts)
   return is_known_host(host, tld_set)
 end
 
----Test a complete string for any recognised URL form.
----@param str string
----@param opts GopathUrlOpts|nil
----@return boolean
-function M.is_url(str, opts)
-  return M.is_strict_url(str, opts) or M.is_loose_url(str, opts)
-end
-
 ---Turn a recognised URL into something a browser accepts: adds the implicit
 ---`https://`, and rewrites scp-style git remotes to their web equivalent.
 ---@param url string

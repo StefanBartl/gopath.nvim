@@ -120,7 +120,7 @@
 ---@class GopathOptions
 ---@field dev_mode? boolean # Print debug notifies
 ---@field mode? "builtin"|"treesitter"|"lsp"|"hybrid" Default: "hybrid"
----@field order? string[] Default: { "treesitter", "lsp", "builtin" }
+---@field order? string[] Default: { "lsp", "treesitter", "builtin" }
 ---@field lsp_timeout_ms? integer Default: 200
 ---@field languages? table<string, GopathLanguageOptions> Language-specific configuration
 ---@field alternate? GopathAlternateOptions Fuzzy alternate resolution

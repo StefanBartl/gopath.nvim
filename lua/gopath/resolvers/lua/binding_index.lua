@@ -56,7 +56,7 @@ end
 --- Get identifier->module map for the current buffer with changedtick cache.
 ---@return table<string,string>
 function M.get_map()
-  local buf = 0
+  local buf = vim.api.nvim_get_current_buf()
   local entry = cache[buf]
   local tick = cur_tick(buf)
   if entry and entry.tick == tick then return entry.map end

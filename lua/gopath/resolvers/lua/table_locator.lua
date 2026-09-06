@@ -211,7 +211,7 @@ local function find_child_table(lines, s, e, key)
     "^%s*" .. ke .. "%s*=%s*{", -- key = {
     '^%s*%["' .. ke .. '"%]%s*=%s*{', -- ["key"] = {
     "^%s*%['" .. ke .. "'%]%s*=%s*{", -- ['key'] = {
-    "[%[{,]%s*" .. ke .. "%s*=%s*{", -- , key = {  (auch nach Komma/Blockstart)
+    "[%[{,]%s*" .. ke .. "%s*=%s*{", -- , key = {  (also after a comma/block start)
     '%[{"%s*%["' .. ke .. '"%]%s*=%s*{', -- , ["key"] = {
     "[%[{,]%s*%['" .. ke .. "'%]%s*=%s*{", -- , ['key'] = {
   }

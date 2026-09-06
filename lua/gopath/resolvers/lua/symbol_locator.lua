@@ -36,8 +36,7 @@ function M.via_lsp(opts)
     confidence = 1.0,
   }
 
-  -- ENHANCEMENT: Check if LSP points to local require()
-  -- If so, resolve to the actual module instead
+  -- If LSP points to a local require() binding, resolve to the actual module instead.
   local enhancer = require("gopath.resolvers.lua.local_to_module")
   local enhanced = enhancer.enhance_lsp_result(base_result)
 

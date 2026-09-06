@@ -15,8 +15,7 @@ to?" **without freezing the editor**, by scanning the filesystem once in the
 background and reconstructing the full absolute path from the visible tail.
 
 - Code: [`lua/gopath/truncated/cache.lua`](../lua/gopath/truncated/cache.lua),
-  [`lua/gopath/truncated/finder.lua`](../lua/gopath/truncated/finder.lua),
-  [`lua/gopath/truncated/init.lua`](../lua/gopath/truncated/init.lua)
+  [`lua/gopath/truncated/finder.lua`](../lua/gopath/truncated/finder.lua)
 - Lookup glue: [`lua/gopath/resolvers/common/tailsearch.lua`](../lua/gopath/resolvers/common/tailsearch.lua)
 
 ---

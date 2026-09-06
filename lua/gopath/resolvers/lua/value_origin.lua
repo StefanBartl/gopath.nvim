@@ -146,7 +146,6 @@ local function try_locate_with_roots(abs, extra_chain, last_key)
 end
 
 ---@return GopathResult|nil
-
 function M.resolve()
   local chain = CHN.get_chain_at_cursor()
   if not chain then return nil end
