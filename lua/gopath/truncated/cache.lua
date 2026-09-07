@@ -419,6 +419,18 @@ function M.needs_refresh(max_age_seconds)
   return age > max_age_seconds
 end
 
+---Background refresh timer, tracked at module scope so a second call to
+---`M.start_periodic_refresh` (gopath.setup() runs again -- a config reload,
+---`:Lazy reload`, or any repeated `require("gopath").setup()`) can stop the
+---previous handle instead of orphaning it. Without this, `timer` used to be
+---a plain local that vanished the moment the function returned, discarding
+---the only reference able to stop it: every reload left the old timer
+---running forever alongside the new one, compounding one more background
+---rebuild-check (and, once the interval elapsed, one more full filesystem
+---scan) per reload for the rest of the session.
+---@type uv.uv_timer_t|nil
+local refresh_timer = nil
+
 ---Start periodic cache refresh in background
 ---This ensures cache stays reasonably up-to-date during long Neovim sessions
 ---
@@ -426,8 +438,15 @@ end
 function M.start_periodic_refresh(interval_seconds)
   interval_seconds = interval_seconds or 600
 
+  if refresh_timer then
+    pcall(refresh_timer.stop, refresh_timer)
+    pcall(refresh_timer.close, refresh_timer)
+    refresh_timer = nil
+  end
+
   ---@diagnostic disable-next-line lib.uv
   local timer = assert(uv.new_timer())
+  refresh_timer = timer
 
   -- Start timer: check every interval, refresh if needed.
   -- The timer callback is a fast event context, but `build_async` calls
