@@ -59,3 +59,9 @@ Manual / scratch test scripts exercising individual resolvers
 - [`03_gopath_cmd.lua`](../TESTS/03_gopath_cmd.lua) — `:Gopath` command
 - [`04_stack_traces.lua`](../TESTS/04_stack_traces.lua) — stacktrace patterns
 - [`05_direct_symbol_jump.lua`](../TESTS/05_direct_symbol_jump.lua) — direct symbol/definition jumps
+
+## Working on it
+
+| Page | Answers |
+| --- | --- |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Ground rules, project layout, and how to add a resolver |
