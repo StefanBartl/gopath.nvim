@@ -1,9 +1,19 @@
 ---@module 'gopath.resolvers.lua.alias_index'
 ---@brief Build alias graph: id -> { kind="require"/"chain"/"id", ... } with changedtick cache.
+---@description
+--- The cache used to be `setmetatable({}, { __mode = "k" })` on the
+--- assumption that a weak-keyed table would drop entries for deleted
+--- buffers on its own. `bufnr` is a plain Lua number, though, and numbers
+--- are not a collectible type -- `{__mode = "k"}` only ever applies to
+--- table/function/userdata/thread keys, so that never actually happened:
+--- every buffer this module ever saw stayed cached for the life of the
+--- session. A `BufDelete`/`BufWipeout` autocmd now does the real cleanup.
+
+local autocmd = require("lib.nvim.bindings.autocmd")
 
 local M = {}
 
-local cache = setmetatable({}, { __mode = "k" }) -- bufnr -> _AliasCache
+local cache = {} -- bufnr -> _AliasCache, cleared per-entry on BufDelete/BufWipeout below
 
 ---Current changedtick of `bufnr`, used to invalidate the alias cache.
 ---@internal
@@ -68,5 +78,9 @@ function M.get_map()
   cache[buf] = { tick = tick, map = map }
   return map
 end
+
+autocmd.create({ "BufDelete", "BufWipeout" }, function(args)
+  cache[args.buf] = nil
+end, { desc = "gopath.resolvers.lua.alias_index: drop the cached alias map for a deleted buffer" })
 
 return M
