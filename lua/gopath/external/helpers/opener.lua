@@ -82,13 +82,55 @@ local function minimal_fallback_open(path)
     return false
   end
 
-  local job_id = vim.fn.jobstart(cmd, { detach = true })
-  if job_id > 0 then
-    LOG.info(string.format("Opening externally: %s", vim.fn.fnamemodify(path, ":t")))
-    return true
+  local name = vim.fn.fnamemodify(path, ":t")
+
+  ---@type vim.SystemCompleted|nil  set once the process exits; read nowhere
+  --- but here, purely so the success message below has something real to
+  --- point at instead of a job id.
+  local finished
+
+  -- Not `jobstart(..., { detach = true })`. On Windows that flag stops a
+  -- *console* program from running at all: libuv sets `DETACHED_PROCESS`,
+  -- the child gets no standard handles, and an interpreter exits before its
+  -- first statement — while `jobstart` still hands back a valid job id, so
+  -- `job_id > 0` reported success for a process that never did anything.
+  -- media.nvim's `media/core/play.lua` documents the exact same failure
+  -- mode. `vim.system(cmd, {})`, not detached, is the form that actually
+  -- starts both console and GUI programs on every platform this touches.
+  local ok, proc = pcall(vim.system, cmd, { text = true }, function(result)
+    finished = result
+  end)
+  if not ok then
+    LOG.error("Failed to start external opener: " .. tostring(proc))
+    return false
   end
-  LOG.error("Failed to start external opener")
-  return false
+
+  -- Not awaited, and not `proc:wait(timeout)` either — that call kills the
+  -- process on a timeout, which would shoot down the very app this is
+  -- trying to confirm opened. `explorer.exe`, `open` and `xdg-open` are all
+  -- short-lived dispatchers that hand off to the real application and exit
+  -- within well under a second, so the `on_exit` callback above almost
+  -- always has `finished` set by the time this runs — an exit code, not a
+  -- job id, is what the message now hangs on.
+  vim.defer_fn(function()
+    if finished and finished.code ~= 0 then
+      local err = (finished.stderr or ""):gsub("%s+$", "")
+      LOG.error(
+        ("External opener for %s exited with %d%s"):format(
+          name,
+          finished.code,
+          err ~= "" and (": " .. err) or ""
+        )
+      )
+      return
+    end
+    -- `finished == nil` here means the dispatcher is still running past the
+    -- window below — itself the success this was asked to prove, since a
+    -- process that silently died (the original bug) would already be gone.
+    LOG.info(string.format("Opening externally: %s", name))
+  end, 300)
+
+  return true
 end
 
 ---Open `path` with the OS default handler: lib.nvim's cross.open_default when
