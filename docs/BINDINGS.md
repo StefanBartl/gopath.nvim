@@ -5,7 +5,7 @@ sync with `lua/gopath/bindings/`.
 
 All keymaps and commands are individually configurable (or fully disabled)
 via `require("gopath").setup({ mappings = ..., commands = ... })`. See
-README.md → Configuration for the exact option shapes.
+[configuration.md](configuration.md) for the exact option shapes.
 
 ## Table of content
 
