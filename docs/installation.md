@@ -1,17 +1,40 @@
 # Installation
 
-Full installation reference for gopath.nvim: plugin-manager snippets, optional
-dependencies, and recommended CLI tools. For a minimal quickstart, see the
-[project README](../README.md).
+Full installation reference for gopath.nvim: requirements, plugin-manager
+snippets, and optional integrations. For a minimal quickstart, see
+[quickstart.md](quickstart.md).
 
 ## Contents
 
+- [Requirements](#requirements)
 - [lazy.nvim](#lazynvim)
 - [packer](#packer)
-- [Dependencies](#dependencies)
-- [Recommended CLI tools](#recommended-cli-tools)
+- [Optional integrations](#optional-integrations)
 
 ---
+
+## Requirements
+
+| | |
+| --- | --- |
+| Neovim | **0.10+** |
+| [lib.nvim](https://github.com/StefanBartl/lib.nvim) | required — the `:Gopath` command tree, the keymaps, the autocommands and the path helpers |
+
+Optional, each detected at runtime and degrading to nothing when absent:
+
+| | |
+| --- | --- |
+| [nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter) | Strongly recommended — the Treesitter phase reads the node under the cursor instead of guessing at the line |
+| An LSP client | The first and most certain phase of the pipeline |
+| `fd` / `fdfind` / `rg` | Speed up resolving a truncated path tail; without them the cache is built by walking |
+
+The CLI tools are declared in [docs/install.json](install.json) and read
+by lib.nvim's
+[deps module](https://github.com/StefanBartl/lib.nvim/blob/main/lua/lib/nvim/deps/README.md).
+A popup explains what is missing the first time `setup()` runs after installing;
+`:Lib deps show gopath.nvim` repeats it any time. Turn the popup off in this
+plugin's own spec with `deps_popup = false`, or globally with
+`vim.g.lib_nvim_deps_disable_first_run = true`.
 
 ## lazy.nvim
 
@@ -64,13 +87,14 @@ use {
 }
 ```
 
-## Dependencies
+## Optional integrations
 
-- **Required**: [lib.nvim](https://github.com/StefanBartl/lib.nvim) — the
-  `:Gopath` command layer (`lib.nvim.bindings.usercmd.composer`); also used for
-  cross-platform path separators, notify styling, and the `ui.kit.confirm`
-  create-on-missing dialog (those specific integrations still fall back to
-  built-ins / `vim.ui.select` if lib.nvim is somehow missing)
+`lib.nvim` is also used for cross-platform path separators, notify styling,
+and the `ui.kit.confirm` create-on-missing dialog — those specific
+integrations still fall back to built-ins / `vim.ui.select` if lib.nvim is
+somehow missing, even though the `:Gopath` command layer itself will not
+register without it (see [Requirements](#requirements)).
+
 - *(optional)* [open.nvim](https://github.com/StefanBartl/open.nvim) — external
   files (images, PDFs, URLs, …) are routed through its `default` handler
   (WSL-aware); falls back to gopath's built-in per-OS opener when absent
@@ -83,11 +107,5 @@ use {
   opening a PDF offers a chooser (System app / Buffer / Float / Terminal)
   instead of always handing it to the system viewer; see
   `external.pdf` in [configuration.md](./configuration.md)
-
-## Recommended CLI tools
-
-| Tool | Purpose |
-|------|---------|
-| `fd` / `fdfind` | Fast file search for tailsearch and truncated.finder |
-| `rg` (ripgrep)  | Fallback search when fd is unavailable |
-| `git`           | Git-root detection for search roots |
+- *(optional)* `git` — git-root detection for tailsearch search roots; skipped
+  without it, no other behaviour changes
