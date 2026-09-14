@@ -48,8 +48,8 @@ falling back to a minimal built-in per-OS reveal
 When `open_here`/`open_split`/`open_vsplit`/`open_tab` resolve to a path that
 does not exist (and the fuzzy-alternate fallback in
 `gopath.commands.finish_open` also comes up empty), `gopath.open` calls
-`gopath.create.offer()`: a button dialog (lib.nvim's `ui.kit.confirm`,
-falling back to `vim.ui.select` when lib.nvim is absent) asking to create the
+`gopath.create.offer()`: a button dialog (ui.nvim's `ui.kit.confirm`,
+falling back to `vim.ui.select` when ui.nvim is absent) asking to create the
 file. "Create file" creates it (+ parent dirs via `mkdir -p`) and re-opens it
 in the originally requested window mode, jumping to `res.range` if present.
 

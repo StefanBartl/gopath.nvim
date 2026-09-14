@@ -48,8 +48,8 @@ local _path = "resolvers/common/tailsearch.lua:55" -- cursor here, then :Gopath 
 --   Expected: "[gopath] exists: <path>" info notification, buffer unchanged.
 --
 -- Case 2 — path does not exist, no existing ancestor dir / no filetree.nvim:
---   Expected: confirm dialog (lib.nvim ui.kit.confirm, or vim.ui.select
---   fallback if lib.nvim is absent) "gopath: '<path>' not found" with
+--   Expected: confirm dialog (ui.nvim ui.kit.confirm, or vim.ui.select
+--   fallback if ui.nvim is absent) "gopath: '<path>' not found" with
 --   choices [Create file] [Cancel].
 --     Create file → file (+ parent dirs) created, opened in current window,
 --                   cursor jumps to res.range if the resolver produced one.
