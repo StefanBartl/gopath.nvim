@@ -49,7 +49,7 @@ function M.present_selection(matches, original_path, opts)
   local title =
     string.format("File not found: %s - Select alternate:", vim.fn.fnamemodify(original_path, ":t"))
 
-  local ok_kit, kit = pcall(require, "lib.nvim.ui.kit")
+  local ok_kit, kit = pcall(require, "ui.kit")
   if ok_kit and type(kit.select) == "function" then
     kit.select({
       items = matches,

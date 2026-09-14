@@ -94,9 +94,9 @@ function M.try_open(path)
     return true
   end
 
-  local ok_kit, kit = pcall(require, "lib.nvim.ui.kit")
+  local ok_kit, kit = pcall(require, "ui.kit")
   if not ok_kit or type(kit.select) ~= "function" then
-    -- lib.nvim missing: don't silently pick a mode for the user, just keep the
+    -- ui.nvim missing: don't silently pick a mode for the user, just keep the
     -- pre-pdfport behaviour.
     return false
   end

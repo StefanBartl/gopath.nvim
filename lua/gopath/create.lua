@@ -12,9 +12,9 @@
 --- instead of silently `:edit`-ing the directory (which used to dump you into
 --- netrw with no warning).
 ---
---- The confirm dialog itself prefers lib.nvim's `ui.kit.confirm` (declared
+--- The confirm dialog itself prefers ui.nvim's `ui.kit.confirm` (declared
 --- dependency, same soft-fallback convention as `gopath.util.cross` /
---- `gopath.util.log`); when lib.nvim is missing it falls back to `vim.ui.select`.
+--- `gopath.util.log`); when ui.nvim is missing it falls back to `vim.ui.select`.
 
 local LOG = require("gopath.util.log")
 local CROSS = require("gopath.util.cross")
@@ -139,28 +139,28 @@ local function open_in_filetree(dir)
   end
 end
 
--- ── Confirm dialog (lib.nvim.ui.kit, soft dependency) ────────────────────────
+-- ── Confirm dialog (ui.kit, soft dependency) ────────────────────────
 
----@type table|nil  lib.nvim.ui.kit module, or nil when unavailable
+---@type table|nil  ui.kit module, or nil when unavailable
 local kit
 do
-  local ok, mod = pcall(require, "lib.nvim.ui.kit")
+  local ok, mod = pcall(require, "ui.kit")
   if ok and type(mod) == "table" and type(mod.confirm) == "function" then
     kit = mod
   else
     kit = nil
     vim.schedule(function()
       LOG.debug(
-        "optional dependency 'lib.nvim' not found — using vim.ui.select "
+        "optional dependency 'ui.nvim' not found — using vim.ui.select "
           .. "fallback for the create-on-missing prompt. Add it to your plugin "
-          .. "spec (dependencies = { 'StefanBartl/lib.nvim' }) for the themed dialog."
+          .. "spec (dependencies = { 'StefanBartl/ui.nvim' }) for the themed dialog."
       )
     end)
   end
 end
 
----Ask the user to pick one of `choices` (button dialog via lib.nvim, or
----vim.ui.select when lib.nvim is unavailable).
+---Ask the user to pick one of `choices` (button dialog via ui.kit, or
+---vim.ui.select when ui.kit is unavailable).
 ---@internal
 ---@param question string
 ---@param choices string[]

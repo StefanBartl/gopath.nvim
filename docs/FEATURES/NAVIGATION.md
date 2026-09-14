@@ -74,7 +74,7 @@ long common prefix with the target (`confi` vs `config.lua`) scores at
 least as high as its prefix-length ratio. Each candidate in the picker
 shows size and modification recency (`filename (85%) — 2.3 KB, modified
 5m ago`); the picker itself defers to your configured `vim.ui.select`
-backend via lib.nvim's `ui.kit.select`.
+backend via ui.nvim's `ui.kit.select`.
 
 Candidates you have picked from this dialog before rise within their
 similarity band, so the second time `config.lua` / `configs.lua` /
@@ -101,7 +101,7 @@ nothing about which alternate was meant here.
 ## Create on missing
 
 If no exact file and no fuzzy alternate is found, offers to create the
-file (a button dialog via lib.nvim's `ui.kit.confirm`, falling back to
+file (a button dialog via ui.nvim's `ui.kit.confirm`, falling back to
 `vim.ui.select`) and jumps straight into it, creating parent directories as
 needed. If the unresolved path has an existing ancestor directory and
 [filetree.nvim](https://github.com/StefanBartl/filetree.nvim) is installed,

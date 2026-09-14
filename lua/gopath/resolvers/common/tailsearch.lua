@@ -414,7 +414,7 @@ function M.probe(raw, opts, on_done)
     -- finished", including when the user dismisses the picker -- hence
     -- on_cancel, which kit.select guarantees fires exactly once for a
     -- dismissal, an empty list, or a float that could not open.
-    require("lib.nvim.ui.kit").select({
+    require("ui.kit").select({
       items = matches,
       title = "gopath: multiple matches — pick one",
       format_item = function(item)

@@ -154,15 +154,12 @@ local function check_lib_nvim()
       { "Install StefanBartl/lib.nvim as a dependency" }
     )
   end
-  if require_ok("lib.nvim.ui.kit") then
-    ok_s(
-      "lib.nvim installed — create-on-missing dialog uses ui.kit.confirm, notify styling active"
-    )
+  if require_ok("ui.kit") then
+    ok_s("ui.nvim installed — create-on-missing dialog uses ui.kit.confirm")
   else
     info_s(
-      "lib.nvim not installed — create-on-missing dialog falls back to vim.ui.select,\n"
-        .. "  notify/cross-path helpers use built-in fallbacks\n"
-        .. "  install StefanBartl/lib.nvim for the themed dialog and consistent styling"
+      "ui.nvim not installed — create-on-missing dialog falls back to vim.ui.select\n"
+        .. "  install StefanBartl/ui.nvim for the themed dialog"
     )
   end
 end
@@ -307,7 +304,7 @@ local function check_config()
     info_s(
       "  confirm = "
         .. tostring(com.confirm ~= false)
-        .. "  (dialog: lib.nvim ui.kit.confirm / vim.ui.select — see below)"
+        .. "  (dialog: ui.nvim ui.kit.confirm / vim.ui.select — see below)"
     )
   else
     info_s("create_on_missing.enable = false — 'gC'/:GopathCheck still offers to create")
