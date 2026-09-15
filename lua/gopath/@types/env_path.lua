@@ -6,11 +6,13 @@
 --- Whether to resolve environment variables in paths (default: true).
 --- When enabled, tokens like $REPOS_DIR/foo.md or ${REPOS_DIR}/foo.md
 --- are expanded before file resolution.
----@field shorten_vars string[]
---- Env vars tried, in order, by :GopathToReposDir / :Gopath to-repos-dir —
---- the reverse direction: an absolute path on the current line matching one
---- of these variables' values is rewritten back to `$VAR`.
---- Default: { "REPOS_DIR" }.
+---@field shorten_dirs table<string, string>
+--- Segment-name -> env-var-name map used by :GopathToReposDir /
+--- :Gopath to-repos-dir — the reverse direction. Structural, not literal: a
+--- path whose root segment is the key (e.g. "repos") -- under any drive
+--- letter/OS, and regardless of what the named var actually resolves to on
+--- this machine -- is rewritten to `$<value>`.
+--- Default: { repos = "REPOS_DIR" }.
 
 ---@class EnvPathResult
 ---@field raw string    The original token before expansion (e.g., "$REPOS_DIR/foo.md")

@@ -79,11 +79,13 @@ require("gopath").setup({
   env_variable_resolution = {
     enable = true,
 
-    -- Env vars tried, in order, by the REVERSE direction:
+    -- Segment-name -> env-var-name map for the REVERSE direction:
     -- :GopathToReposDir / :Gopath to-repos-dir rewrite an absolute path on
-    -- the current line back into `$VAR` when it matches one of these
-    -- variables' values (case-insensitive, either slash style).
-    shorten_vars = { "REPOS_DIR" },
+    -- the current line whose root segment matches a key here (any drive
+    -- letter, any OS -- E:\repos\.., /repos/.., ~/repos/.., bare repos/..)
+    -- into `$<value>`. Structural, not literal: it does NOT check what the
+    -- named var actually resolves to on this machine.
+    shorten_dirs = { repos = "REPOS_DIR" },
   },
 
   -- Offer to create a resolved-but-missing file instead of just erroring

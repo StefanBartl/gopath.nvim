@@ -88,7 +88,7 @@ tab-completion works at every level. `cache *` subcommands only appear when
 | `cache build` | — | Rebuild filesystem index |
 | `cache info` | — | Show cache statistics |
 | `cache add-root` | `<dir>` | Add directory to cache search roots |
-| `to-repos-dir` | — | Rewrite an absolute path on the current line back to `$VAR` (reverse of `env_variable_resolution`) |
+| `to-repos-dir` | — | Rewrite a repos-root path (any drive/OS) on the current line back to `$VAR` (reverse of `env_variable_resolution`) |
 
 `<Tab>` completes subcommands throughout, and `cache add-root`'s `<dir>`
 completes directories — it is declared as a `DIR` argument, so the composer

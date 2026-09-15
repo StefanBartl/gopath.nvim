@@ -404,8 +404,9 @@ function M.debug_under_cursor()
   LOG.info(table.concat(lines, "\n"))
 end
 
----Rewrite an absolute directory prefix on the current line (matching a
----configured env var's value, e.g. `$REPOS_DIR`) back into `$VAR` form.
+---Rewrite an absolute path on the current line whose root segment is a
+---configured directory name (e.g. "repos") back into `$VAR` form -- any
+---drive letter, any OS.
 ---@see gopath.env_shorten
 function M.shorten_to_env()
   require("gopath.env_shorten").shorten_current_line()
