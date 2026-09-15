@@ -24,6 +24,7 @@
 ---@field copy boolean Default: true (creates :GopathCopy)
 ---@field debug boolean Default: true (creates :GopathDebug)
 ---@field check boolean Default: true (creates :GopathCheck)
+---@field to_repos_dir boolean Default: true (creates :GopathToReposDir)
 
 ---@class GopathAlternateOptions
 ---@field enable boolean Default: true
