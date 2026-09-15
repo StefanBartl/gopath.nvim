@@ -10,6 +10,7 @@
 ---   :Gopath cache build                    rebuild fs cache
 ---   :Gopath cache info                     show cache stats
 ---   :Gopath cache add-root <dir>           add cache root
+---   :Gopath to-repos-dir                   shorten line's abs. path to $VAR
 ---
 --- Individual aliases kept alongside as an explicit backward-compat layer
 --- (same "keep alongside" call as pickers.nvim's compat flat aliases —
@@ -17,6 +18,7 @@
 --- design, not accidental duplication):
 ---   :GopathOpen [mode]  :GopathCopy  :GopathDebug  :GopathResolve
 ---   :GopathCacheBuild   :GopathCacheInfo  :GopathCacheAddRoot
+---   :GopathToReposDir
 
 local composer = require("lib.nvim.bindings.usercmd.composer")
 local usercmd = require("lib.nvim.bindings.usercmd")
@@ -151,6 +153,14 @@ local function register_gopath_cmd(config, commands)
         })
       end,
     },
+
+    {
+      path = { "to-repos-dir" },
+      desc = "Rewrite the current line's absolute path to $VAR (see env_variable_resolution.shorten_vars)",
+      run = function()
+        commands.shorten_to_env()
+      end,
+    },
   }
 
   if truncated_enabled then
@@ -226,6 +236,12 @@ local function register_individual(config, commands)
     usercmd.create("GopathCheck", function()
       commands.check_under_cursor()
     end, { desc = "Gopath: check existence / offer create (alias for :Gopath check)" })
+  end
+
+  if cmds.to_repos_dir ~= false then
+    usercmd.create("GopathToReposDir", function()
+      commands.shorten_to_env()
+    end, { desc = "Gopath: shorten line's abs. path to $VAR (alias for :Gopath to-repos-dir)" })
   end
 
   -- Probe command (absorbed from pathprobe)

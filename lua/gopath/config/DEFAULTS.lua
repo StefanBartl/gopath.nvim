@@ -65,6 +65,11 @@ return {
 
   env_variable_resolution = {
     enable = true,
+
+    -- Env vars tried by :GopathToReposDir / :Gopath to-repos-dir, in order.
+    -- Each variable's directory value is looked for (case-insensitively,
+    -- either slash style) on the current line and rewritten to `$VAR`.
+    shorten_vars = { "REPOS_DIR" },
   },
 
   create_on_missing = {
@@ -129,6 +134,7 @@ return {
     copy = true,
     debug = true,
     check = true,
+    to_repos_dir = true,
   },
 
   -- which-key.nvim is a soft dependency: label registration for the
