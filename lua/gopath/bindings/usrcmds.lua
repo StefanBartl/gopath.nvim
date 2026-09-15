@@ -239,9 +239,13 @@ local function register_individual(config, commands)
   end
 
   if cmds.to_repos_dir ~= false then
-    usercmd.create("GopathToReposDir", function()
-      commands.shorten_to_env()
-    end, { desc = "Gopath: shorten line's repos-root path to $VAR (alias for :Gopath to-repos-dir)" })
+    usercmd.create(
+      "GopathToReposDir",
+      function()
+        commands.shorten_to_env()
+      end,
+      { desc = "Gopath: shorten line's repos-root path to $VAR (alias for :Gopath to-repos-dir)" }
+    )
   end
 
   -- Probe command (absorbed from pathprobe)
