@@ -88,6 +88,7 @@ tab-completion works at every level. `cache *` subcommands only appear when
 | `cache build` | — | Rebuild filesystem index |
 | `cache info` | — | Show cache statistics |
 | `cache add-root` | `<dir>` | Add directory to cache search roots |
+| `to-repos-dir` | — | Rewrite an absolute path on the current line back to `$VAR` (reverse of `env_variable_resolution`) |
 
 `<Tab>` completes subcommands throughout, and `cache add-root`'s `<dir>`
 completes directories — it is declared as a `DIR` argument, so the composer
@@ -111,6 +112,7 @@ Kept for backward compatibility; each is a thin wrapper around the
 | `:GopathCacheBuild` | `:Gopath cache build` | requires `truncated.enable` |
 | `:GopathCacheInfo` | `:Gopath cache info` | requires `truncated.enable` |
 | `:GopathCacheAddRoot <dir>` | `:Gopath cache add-root <dir>` | requires `truncated.enable` |
+| `:GopathToReposDir` | `:Gopath to-repos-dir` | `to_repos_dir` |
 
 `commands = false` disables every user command, including the `:Gopath`
 dispatcher itself.
