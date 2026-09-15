@@ -78,6 +78,12 @@ require("gopath").setup({
   -- $VAR / ${VAR} prefix expansion
   env_variable_resolution = {
     enable = true,
+
+    -- Env vars tried, in order, by the REVERSE direction:
+    -- :GopathToReposDir / :Gopath to-repos-dir rewrite an absolute path on
+    -- the current line back into `$VAR` when it matches one of these
+    -- variables' values (case-insensitive, either slash style).
+    shorten_vars = { "REPOS_DIR" },
   },
 
   -- Offer to create a resolved-but-missing file instead of just erroring
