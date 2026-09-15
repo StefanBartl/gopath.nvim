@@ -156,7 +156,7 @@ local function register_gopath_cmd(config, commands)
 
     {
       path = { "to-repos-dir" },
-      desc = "Rewrite the current line's absolute path to $VAR (see env_variable_resolution.shorten_vars)",
+      desc = "Rewrite the current line's repos-root path to $VAR (see env_variable_resolution.shorten_dirs)",
       run = function()
         commands.shorten_to_env()
       end,
@@ -241,7 +241,7 @@ local function register_individual(config, commands)
   if cmds.to_repos_dir ~= false then
     usercmd.create("GopathToReposDir", function()
       commands.shorten_to_env()
-    end, { desc = "Gopath: shorten line's abs. path to $VAR (alias for :Gopath to-repos-dir)" })
+    end, { desc = "Gopath: shorten line's repos-root path to $VAR (alias for :Gopath to-repos-dir)" })
   end
 
   -- Probe command (absorbed from pathprobe)

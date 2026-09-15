@@ -66,10 +66,13 @@ return {
   env_variable_resolution = {
     enable = true,
 
-    -- Env vars tried by :GopathToReposDir / :Gopath to-repos-dir, in order.
-    -- Each variable's directory value is looked for (case-insensitively,
-    -- either slash style) on the current line and rewritten to `$VAR`.
-    shorten_vars = { "REPOS_DIR" },
+    -- Segment-name -> env-var-name map used by :GopathToReposDir /
+    -- :Gopath to-repos-dir (the reverse direction). Structural, not literal:
+    -- a path whose root segment is "repos" -- E:\repos\.., C:/repos/..,
+    -- /repos/.., ~/repos/.., or bare repos/.. -- is rewritten to `$REPOS_DIR`
+    -- regardless of drive letter/OS and regardless of what $REPOS_DIR
+    -- actually resolves to on this machine.
+    shorten_dirs = { repos = "REPOS_DIR" },
   },
 
   create_on_missing = {
