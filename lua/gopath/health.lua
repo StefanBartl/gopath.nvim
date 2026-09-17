@@ -432,7 +432,12 @@ function M.check()
     deps_health.report_for("gopath.nvim")
   end
 
-  require("lib.nvim.bindings.usercmd.composer").checkhealth("Gopath")
+  -- Guarded like the deps report above it: without lib.nvim this require
+  -- throws, and `:checkhealth gopath` would abort right here -- on exactly the
+  -- machine whose report says lib.nvim is missing, so the user would never get
+  -- to read the diagnosis they came for.
+  local ok_composer, composer = pcall(require, "lib.nvim.bindings.usercmd.composer")
+  if ok_composer then composer.checkhealth("Gopath") end
 end
 
 return M

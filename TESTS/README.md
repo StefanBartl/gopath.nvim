@@ -223,6 +223,14 @@ behaviour change, and none of them blocked the specs.
    offer dies with a raw "module not found" instead of gopath's own
    "Could not create file: …".
 
+A ninth defect, of the same family as #8 above but in `health.lua` itself, has
+since been **fixed**: `check_lib_nvim()`'s last line ended the whole check with
+`require("lib.nvim.bindings.usercmd.composer").checkhealth("Gopath")`,
+unguarded — so on the one machine the "lib.nvim not found" branch above it
+diagnoses, that require threw and `:checkhealth gopath` aborted right after
+giving the diagnosis the user came for. It is guarded now, the same way
+`check()`'s own `lib.nvim.deps.health` probe already was.
+
 Four further quirks are pinned as *documented behaviour* rather than defects,
 so a future change to any of them fails loudly: `config.get()` hands back the
 live state table (as its docstring says); `extractor/find.lua`'s second
