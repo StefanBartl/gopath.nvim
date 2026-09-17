@@ -15,12 +15,17 @@ local uv = vim.uv or vim.loop
 -- ── Internal helpers ─────────────────────────────────────────────────────────
 
 ---Normalize a path via `vim.fs.normalize`, falling back to the raw input on error.
+---
+---`vim.fs.normalize` only rewrites backslash separators to "/" on Windows
+---itself -- on Linux it leaves them as literal characters, so a
+---backslash-spelled and a forward-slash-spelled cache entry for the same
+---file would otherwise survive deduplication as two distinct strings.
 ---@internal
 ---@param p any
 ---@return string
 local function normalize(p)
   if type(p) ~= "string" then return "" end
-  local ok, r = pcall(vim.fs.normalize, p)
+  local ok, r = pcall(vim.fs.normalize, (p:gsub("\\", "/")))
   return (ok and r) or p
 end
 

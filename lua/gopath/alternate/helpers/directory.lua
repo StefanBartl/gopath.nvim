@@ -22,6 +22,11 @@ end
 function M.extract_directory(filepath)
   if not filepath or filepath == "" then return nil end
 
+  -- `fnamemodify`'s `:h`/`:t` only recognise "/" as a separator, on every
+  -- platform -- a backslash-spelled path survives unmangled on Linux, where
+  -- it is just an ordinary filename character, not a directory boundary.
+  filepath = (filepath:gsub("\\", "/"))
+
   -- Normalize to absolute path first
   local abs = vim.fn.fnamemodify(filepath, ":p")
 
@@ -39,7 +44,7 @@ end
 function M.extract_filename(filepath)
   if not filepath or filepath == "" then return nil end
 
-  return vim.fn.fnamemodify(filepath, ":t")
+  return vim.fn.fnamemodify((filepath:gsub("\\", "/")), ":t")
 end
 
 ---Human-readable byte size, e.g. 512 -> "512 B", 2048 -> "2.0 KB".

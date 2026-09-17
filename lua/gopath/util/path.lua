@@ -96,7 +96,11 @@ end
 ---@return boolean
 function M.exists(p)
   if not p or p == "" then return false end
-  local st = vim.uv.fs_stat(p)
+  -- `fs_stat` hits the OS directly, unlike `M.join`'s callers: a
+  -- backslash-spelled path (Windows' native separator) is just an ordinary,
+  -- nonexistent filename component on Linux, so it has to be normalised
+  -- here too, not only where paths get built.
+  local st = vim.uv.fs_stat((p:gsub("[/\\]+", "/")))
   return st ~= nil and st.type == "file"
 end
 
