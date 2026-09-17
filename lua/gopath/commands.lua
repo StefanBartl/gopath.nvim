@@ -165,8 +165,14 @@ function M.resolve_and_copy()
 
   -- A URL has no line/col to append -- copy it verbatim so the clipboard
   -- content stays pasteable into a browser.
+  --
+  -- Both branches go through lib.nvim's verified writer rather than a bare
+  -- vim.fn.setreg("+", ...): that call does not raise when there is no
+  -- clipboard provider (or the build itself reports has("clipboard") == 0)
+  -- -- it silently does nothing -- so a bare call was never proof anything
+  -- actually reached the clipboard.
   if res.kind == "url" then
-    vim.fn.setreg("+", tostring(res.path or "?"))
+    require("lib.nvim.cross.copy_to_clipboard")(tostring(res.path or "?"))
     LOG.info("copied to clipboard")
     return
   end
@@ -178,7 +184,7 @@ function M.resolve_and_copy()
     left = tostring(res.path or "?")
   end
 
-  vim.fn.setreg("+", ("%s:%d:%d"):format(left, l, c))
+  require("lib.nvim.cross.copy_to_clipboard")(("%s:%d:%d"):format(left, l, c))
   LOG.info("copied to clipboard")
 end
 

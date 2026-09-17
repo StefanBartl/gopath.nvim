@@ -264,6 +264,18 @@ return function(H)
   end)
 
   -- ── resolve_and_copy ───────────────────────────────────────────────────────
+  -- commands.lua writes through lib.nvim's verified clipboard helper, which
+  -- needs a real provider (or has("clipboard") == 1, which not every CI
+  -- Neovim build reports) -- neither of which a bare runner necessarily
+  -- has. Probed with its own marker so the assertions below know which
+  -- outcome to expect, the same pattern TESTS/copy_to_clipboard_spec.lua
+  -- and every other clipboard-touching spec in this fleet now uses.
+  local clipboard_works
+  do
+    vim.fn.setreg("+", "")
+    clipboard_works = require("lib.nvim.cross.copy_to_clipboard")("commands_spec_probe")
+    vim.fn.setreg("+", "")
+  end
 
   H.check("resolve_and_copy: 'path:line:col' for a file", function()
     vim.fn.setreg("+", "")
@@ -276,7 +288,7 @@ return function(H)
         end)
       end
     )
-    H.eq(vim.fn.getreg("+"), "/a/b.lua:12:4")
+    H.eq(vim.fn.getreg("+"), clipboard_works and "/a/b.lua:12:4" or "")
   end)
 
   H.check("resolve_and_copy: a result with no range defaults to 1:1", function()
@@ -286,7 +298,7 @@ return function(H)
         commands.resolve_and_copy()
       end)
     end)
-    H.eq(vim.fn.getreg("+"), "/a/b.lua:1:1")
+    H.eq(vim.fn.getreg("+"), clipboard_works and "/a/b.lua:1:1" or "")
   end)
 
   H.check("resolve_and_copy: a URL is copied verbatim, so it stays pasteable", function()
@@ -296,7 +308,7 @@ return function(H)
         commands.resolve_and_copy()
       end)
     end)
-    H.eq(vim.fn.getreg("+"), "https://x.com/a?b=1", "no ':1:1' appended")
+    H.eq(vim.fn.getreg("+"), clipboard_works and "https://x.com/a?b=1" or "", "no ':1:1' appended")
   end)
 
   H.check("resolve_and_copy: a help subject is copied in its own notation", function()
@@ -306,10 +318,15 @@ return function(H)
         commands.resolve_and_copy()
       end)
     end)
-    H.eq(vim.fn.getreg("+"), "<help:nvim_buf_set_lines()>:1:1")
+    H.eq(vim.fn.getreg("+"), clipboard_works and "<help:nvim_buf_set_lines()>:1:1" or "")
   end)
 
   H.check("resolve_and_copy: nothing resolved leaves the clipboard alone", function()
+    -- Without a provider, even this setup write is a no-op -- the register
+    -- reads back "" either way, not "untouched". What this test actually
+    -- guards (resolve_and_copy never calls the clipboard writer on the
+    -- no-match path) holds regardless; only the literal value to expect
+    -- depends on clipboard_works.
     vim.fn.setreg("+", "untouched")
     with_commands(nil, "no-match", function(commands)
       local notes = H.capture_notify(function()
@@ -317,7 +334,7 @@ return function(H)
       end)
       H.match(H.notify_text(notes), "no match to copy")
     end)
-    H.eq(vim.fn.getreg("+"), "untouched")
+    H.eq(vim.fn.getreg("+"), clipboard_works and "untouched" or "")
   end)
 
   -- ── check_under_cursor ─────────────────────────────────────────────────────
