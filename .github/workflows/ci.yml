@@ -66,3 +66,22 @@ jobs:
           nvim --headless --noplugin -u NONE \
             --cmd "set runtimepath+=${{ github.workspace }}/deps/lib.nvim" \
             -c "lua dofile('scripts/ci/functional_tests.lua')"
+
+  unit-tests:
+    name: headless unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          repository: StefanBartl/lib.nvim
+          path: deps/lib.nvim
+          ref: ci-verified
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+      - run: |
+          nvim --headless --noplugin -u NONE \
+            --cmd "set runtimepath+=${{ github.workspace }}/deps/lib.nvim" \
+            -c "lua dofile('scripts/ci/unit_tests.lua')"

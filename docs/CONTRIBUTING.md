@@ -56,15 +56,17 @@ require("gopath").setup({ mode = "hybrid" })
 | `lua/gopath/util/` | Shared path helpers |
 | `lua/gopath/health.lua` | `:checkhealth gopath` |
 | `docs/` | Everything the README links to |
-| `TESTS/` | The spec suite |
+| `TESTS/` | Manual test guides: fixture lines to put the cursor on |
+| `scripts/ci/` | The automated suites CI runs — see [`TESTS/README.md`](../TESTS/README.md) |
 
 ## Adding a resolver or a language
 
 1. Decide which phase it belongs to, and justify its position in the order.
 2. Implement it as a pure function from a cursor context to a candidate. It must
    not open, notify, or touch a window.
-3. Add a spec under `TESTS/` with real reference shapes — the ones that break
-   resolvers are the ambiguous ones, not the clean ones.
+3. Add a spec under `scripts/ci/specs/` with real reference shapes — the ones
+   that break resolvers are the ambiguous ones, not the clean ones. A manual
+   guide under `TESTS/` on top of that is welcome, not a substitute.
 4. Teach `g?` / `:Gopath debug` to name your phase in the resolution chain. A
    phase that does not show up there is undebuggable in the field.
 5. Document it in [`resolution.md`](resolution.md) and the matching page under
@@ -72,10 +74,20 @@ require("gopath").setup({ mode = "hybrid" })
 
 ## Tests
 
-`TESTS/` is a [plenary.nvim](https://github.com/nvim-lua/plenary.nvim)
-busted-style suite over fixture trees, so no LSP server has to be running.
-[GitHub Actions](../.github/workflows/ci.yml) runs it on every push and PR to
-`main`.
+There is no plenary/busted dependency: the suites are plain Lua run by headless
+Neovim, with their own `check()` + assertion helpers
+(`scripts/ci/harness.lua`). Nothing they do needs an LSP server, a build tool,
+a subprocess or the network.
+
+| Runner | What it covers |
+| --- | --- |
+| `scripts/ci/headless_tests.lua` | The plugin loads, `setup({})` runs, and every guide under `TESTS/` is still valid Lua |
+| `scripts/ci/functional_tests.lua` | End-to-end resolution: the Lua resolvers, URLs, alternate frecency, the config merge |
+| `scripts/ci/unit_tests.lua` | Every spec in `scripts/ci/specs/` — per-module behaviour for the rest of the plugin |
+
+[GitHub Actions](../.github/workflows/ci.yml) runs all three on every push and
+PR to `main`. [`TESTS/README.md`](../TESTS/README.md) documents how to run them
+locally, what is covered and what is deliberately left out.
 
 ## Workflow
 
