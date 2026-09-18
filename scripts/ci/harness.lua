@@ -155,11 +155,24 @@ end
 
 ---A fresh, empty temporary directory. Real disk, not a mock: the path helpers
 ---under test call `fs_stat`/`fs_scandir` and would be untested against a fake.
----@return string dir  absolute, forward slashes
+---
+---The directory is returned in its *physical* spelling, with symlinks in the
+---prefix already followed. On macOS `vim.fn.tempname()` answers below `/var`,
+---which is a symlink to `/private/var`, and Neovim canonicalises a buffer's
+---name when it is set (`fix_fname` chdirs into the directory and reads
+---`getcwd`, which is always physical). So a fixture handed to
+---`nvim_buf_set_name` comes back out of `nvim_buf_get_name` spelled
+---`/private/var/...`. Resolving here means a fixture path and the buffer name
+---derived from it are the same string on every platform, and a spec comparing
+---the two is testing the code under test rather than the tmpdir layout.
+---
+---A no-op on Linux and Windows, where the temp prefix holds no symlink.
+---@return string dir  absolute, forward slashes, symlinks resolved
 function H.tmpdir()
   local dir = (vim.fn.tempname()):gsub("\\", "/") .. "_gopath_spec"
   vim.fn.mkdir(dir, "p")
-  return dir
+  local real = vim.uv.fs_realpath(dir)
+  return real and (real:gsub("\\", "/")) or dir
 end
 
 ---Write `lines` to `path`, creating parent directories as needed.

@@ -113,6 +113,16 @@ Everything else runs against the real filesystem, real buffers and a real
 cursor. The path helpers exist to `fs_stat` and `fs_scandir`; a mocked
 filesystem would only test the mock.
 
+`H.tmpdir()` (and `functional_tests.lua`'s scratch dir) hands back the
+*physical* path, with symlinks in the prefix already followed. On macOS
+`vim.fn.tempname()` answers below `/var`, which is a symlink to `/private/var`,
+and Neovim canonicalises a buffer's name when it is set — so a fixture written
+to `/var/folders/…` comes back out of `nvim_buf_get_name` spelled
+`/private/var/folders/…`. Resolving at the source means a fixture path and a
+buffer name derived from it are the same string, so a spec comparing the two is
+testing the resolver rather than the tmpdir layout. On Linux and Windows it
+changes nothing.
+
 ## Writing a spec
 
 ```lua

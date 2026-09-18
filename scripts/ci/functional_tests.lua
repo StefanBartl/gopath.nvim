@@ -78,6 +78,15 @@ end
 
 local scratch_dir = vim.fn.tempname() .. "_gopath_fntest"
 vim.fn.mkdir(scratch_dir, "p")
+-- Resolved to its physical spelling, symlinks in the prefix followed. On macOS
+-- tempname() answers below /var, a symlink to /private/var, and Neovim
+-- canonicalises a buffer name when it is set (fix_fname chdirs into the
+-- directory and reads getcwd, which is always physical). A resolver that
+-- reports the path of the buffer it was invoked on therefore answers
+-- /private/var/..., and comparing that against the raw fixture path compares
+-- two spellings of one file. Resolving at the source keeps both sides equal on
+-- every platform; a no-op on Linux and Windows, which have no symlink there.
+scratch_dir = vim.uv.fs_realpath(scratch_dir) or scratch_dir
 -- Fixture modules live directly under scratch_dir so `search_in_rtp`'s
 -- root-level candidate check (`<rtp>/<name>.lua`) resolves them.
 vim.opt.runtimepath:append(scratch_dir)
