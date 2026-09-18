@@ -145,8 +145,8 @@ Two house rules:
 
 ## Coverage
 
-77 files under `lua/`. 17 spec files under `scripts/ci/specs/`, 435 checks and
-about 1600 executed assertions, plus the 38 checks in `functional_tests.lua`
+77 files under `lua/`. 17 spec files under `scripts/ci/specs/`, 439 checks and
+about 1610 executed assertions, plus the 38 checks in `functional_tests.lua`
 and the 8 in `headless_tests.lua`.
 
 | Spec | Covers |
@@ -222,14 +222,46 @@ behaviour change, and none of them blocked the specs.
    dependency just found missing. With lib.nvim genuinely absent the create
    offer dies with a raw "module not found" instead of gopath's own
    "Could not create file: …".
+9. **`resolvers/go/import_path.lua`'s `parse_import` is not anchored to an
+   actual `import` statement.** Every sibling language resolver in this file
+   anchors its pattern to the language's own import syntax — Python's
+   `^%s*from`/`^%s*import`, Rust's `^%s*use`, C#/Java's `^%s*using`/
+   `^%s*import`, Zig's `@import%(`, C's `#%s*include`. Go's is a bare
+   `line:match('"([^"]+)"')`: any quoted string on the line that contains a
+   "/" and happens to name a real package directory is resolved as an
+   import, even a plain string literal on a line that has nothing to do
+   with one.
 
-A ninth defect, of the same family as #8 above but in `health.lua` itself, has
+A tenth defect, of the same family as #8 above but in `health.lua` itself, has
 since been **fixed**: `check_lib_nvim()`'s last line ended the whole check with
 `require("lib.nvim.bindings.usercmd.composer").checkhealth("Gopath")`,
 unguarded — so on the one machine the "lib.nvim not found" branch above it
 diagnoses, that require threw and `:checkhealth gopath` aborted right after
 giving the diagnosis the user came for. It is guarded now, the same way
 `check()`'s own `lib.nvim.deps.health` probe already was.
+
+Three more, found and fixed in the same pass: `util/path.lua`'s `exists()`,
+`alternate/helpers/directory.lua`'s `extract_filename`/`extract_directory`,
+and `tailsearch.lua`'s own `normalize()` each handed a raw path straight to a
+"/"-only function (`fs_stat`, `fnamemodify`, `vim.fs.normalize`) — fine on
+Windows, where `vim.fs.normalize` itself rewrites "\" to "/", but not on
+Linux/macOS, where a backslash-spelled candidate survived unmangled and never
+matched. Fixed by normalising separators before each call. Separately,
+`commands.resolve_and_copy()` trusted a bare `vim.fn.setreg("+", ...)` as
+proof the clipboard was written; that call is a silent no-op without a
+provider (which this repo's own CI Neovim reports), so a failed copy still
+told the user "copied to clipboard". Both branches now go through lib.nvim's
+verified `copy_to_clipboard`, and the notify only claims success when that
+returns `true`.
+
+This re-audit found and fixed one sibling instance of that same
+backslash-vs-Linux defect, missed by the pass above: `linepath.lua`'s three
+direct `fs_stat` probes (absolute-as-is, cwd-relative, buffer-relative) all
+ran `vim.fs.normalize()` on the raw candidate text before separators were
+normalised — only its fourth step, the tailsearch-tail fallback, already
+converted first. Fixed the same way; pinned by
+`common_resolvers_spec`'s "a backslash-spelled relative path resolves on
+Linux too".
 
 Four further quirks are pinned as *documented behaviour* rather than defects,
 so a future change to any of them fails loudly: `config.get()` hands back the

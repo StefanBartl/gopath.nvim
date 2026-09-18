@@ -271,6 +271,30 @@ return function(H)
     H.is_nil(resolve_in(go, root .. "/main.go", 3, "go"), "a package directory with no .go file")
   end)
 
+  H.check(
+    "BUG: a plain string literal that looks like a package path is treated as an import",
+    function()
+      -- Every other language resolver in this file anchors its pattern to the
+      -- actual import keyword (Python's "^%s*from"/"^%s*import", Rust's
+      -- "^%s*use", C#/Java's "^%s*using"/"^%s*import", Zig's "@import%(",
+      -- C's "#%s*include"). Go's parse_import() does not: it is a bare
+      -- line:match('"([^"]+)"'), so it fires on ANY quoted string on the
+      -- line that contains a "/" and happens to point at a real package --
+      -- not just ones actually inside an `import` statement.
+      local root = H.tmpdir()
+      H.write(root .. "/go.mod", { "module example.com/proj" })
+      H.write(root .. "/pkg/util/doc.go", { "package util" })
+      H.write(root .. "/main.go", {
+        'var s = "example.com/proj/pkg/util" // just a string, not an import',
+      })
+      resolved_to(
+        resolve_in(go, root .. "/main.go", 1, "go"),
+        "pkg/util/doc%.go",
+        "BUG: a non-import string literal resolves as if it were a Go import"
+      )
+    end
+  )
+
   -- ── Rust ───────────────────────────────────────────────────────────────────
 
   local rust = require("gopath.resolvers.rust.use_path")
