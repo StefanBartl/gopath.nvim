@@ -30,8 +30,19 @@ jobs:
       - run: luacheck lua plugin
 
   headless-tests:
-    name: headless smoke tests
-    runs-on: ubuntu-latest
+    name: headless smoke tests (${{ matrix.os }})
+    runs-on: ${{{{ matrix.os }}}}
+    strategy:
+      # One platform failing must not cancel the others: which of the three
+      # broke is the whole information content of this job.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    defaults:
+      run:
+        # Windows runners default to PowerShell; one shell on all three keeps
+        # the run step itself from being what differs between platforms.
+        shell: bash
     steps:
       - uses: actions/checkout@v5
       - uses: actions/checkout@v5
@@ -49,8 +60,19 @@ jobs:
             -c "lua dofile('scripts/ci/headless_tests.lua')"
 
   functional-tests:
-    name: headless functional tests
-    runs-on: ubuntu-latest
+    name: headless functional tests (${{ matrix.os }})
+    runs-on: ${{{{ matrix.os }}}}
+    strategy:
+      # One platform failing must not cancel the others: which of the three
+      # broke is the whole information content of this job.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    defaults:
+      run:
+        # Windows runners default to PowerShell; one shell on all three keeps
+        # the run step itself from being what differs between platforms.
+        shell: bash
     steps:
       - uses: actions/checkout@v5
       - uses: actions/checkout@v5
@@ -68,8 +90,19 @@ jobs:
             -c "lua dofile('scripts/ci/functional_tests.lua')"
 
   unit-tests:
-    name: headless unit tests
-    runs-on: ubuntu-latest
+    name: headless unit tests (${{ matrix.os }})
+    runs-on: ${{{{ matrix.os }}}}
+    strategy:
+      # One platform failing must not cancel the others: which of the three
+      # broke is the whole information content of this job.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    defaults:
+      run:
+        # Windows runners default to PowerShell; one shell on all three keeps
+        # the run step itself from being what differs between platforms.
+        shell: bash
     steps:
       - uses: actions/checkout@v5
       - uses: actions/checkout@v5
