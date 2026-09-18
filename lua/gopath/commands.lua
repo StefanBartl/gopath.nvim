@@ -170,22 +170,28 @@ function M.resolve_and_copy()
   -- vim.fn.setreg("+", ...): that call does not raise when there is no
   -- clipboard provider (or the build itself reports has("clipboard") == 0)
   -- -- it silently does nothing -- so a bare call was never proof anything
-  -- actually reached the clipboard.
+  -- actually reached the clipboard. Its own return value is checked here
+  -- for the same reason: claiming "copied to clipboard" regardless of it
+  -- would just move the same lie up one level.
+  local copy = require("lib.nvim.cross.copy_to_clipboard")
+  local text
   if res.kind == "url" then
-    require("lib.nvim.cross.copy_to_clipboard")(tostring(res.path or "?"))
-    LOG.info("copied to clipboard")
-    return
-  end
-
-  local left
-  if res.kind == "help" then
-    left = ("<help:%s>"):format(res.subject or "?")
+    text = tostring(res.path or "?")
   else
-    left = tostring(res.path or "?")
+    local left
+    if res.kind == "help" then
+      left = ("<help:%s>"):format(res.subject or "?")
+    else
+      left = tostring(res.path or "?")
+    end
+    text = ("%s:%d:%d"):format(left, l, c)
   end
 
-  require("lib.nvim.cross.copy_to_clipboard")(("%s:%d:%d"):format(left, l, c))
-  LOG.info("copied to clipboard")
+  if copy(text) then
+    LOG.info("copied to clipboard")
+  else
+    LOG.warn("could not copy to clipboard: no provider and no external tool found")
+  end
 end
 
 -- ── Visual selection helpers ─────────────────────────────────────────────────
