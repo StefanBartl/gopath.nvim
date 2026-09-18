@@ -71,6 +71,14 @@ function M.resolve()
     local path = cand.path or ""
     if path == "" then goto continue end
 
+    -- `vim.fs.normalize` only rewrites "\" to "/" on Windows itself -- on
+    -- Linux a backslash-spelled candidate (extracted verbatim from the
+    -- line's raw text by extractor/find.lua) survives untouched, so every
+    -- fs_stat below would silently miss a file that exists under its
+    -- forward-slash spelling. Same defect and same fix as
+    -- util.path.exists() and tailsearch.normalize().
+    path = (path:gsub("\\", "/"))
+
     local lineno = cand.lineno
     local col = cand.col
 

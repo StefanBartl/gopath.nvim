@@ -645,6 +645,66 @@ return function(H)
     end
   )
 
+  H.check("setup: use_cache = false skips the periodic refresh even with the feature on", function()
+    H.config_sandbox(function()
+      local seen = {}
+      H.with_modules({
+        ["gopath.bindings"] = { setup = function() end },
+        ["gopath.truncated.cache"] = {
+          setup = function() end,
+          load_from_disk = function() end,
+          start_periodic_refresh = function(interval)
+            seen.interval = interval
+          end,
+          needs_refresh = function()
+            return false
+          end,
+          build_async = function() end,
+        },
+        ["lib.nvim.deps"] = { show_once = function() end },
+      }, function()
+        local gopath = require("gopath")
+        gopath.setup({ truncated = { enable = true, use_cache = false } })
+        H.is_nil(seen.interval, "use_cache = false means no periodic refresh is scheduled")
+      end, { unload = { "gopath" } })
+      H.fresh("gopath")
+    end)
+  end)
+
+  H.check("setup: a stale cache schedules exactly one deferred async rebuild", function()
+    H.config_sandbox(function()
+      local deferred_ms, built
+      H.with_modules({
+        ["gopath.bindings"] = { setup = function() end },
+        ["gopath.truncated.cache"] = {
+          setup = function() end,
+          load_from_disk = function() end,
+          start_periodic_refresh = function() end,
+          needs_refresh = function(max_age)
+            H.eq(max_age, 3600, "the default max_cache_age")
+            return true
+          end,
+          build_async = function(cb)
+            built = true
+            cb(true)
+          end,
+        },
+        ["lib.nvim.deps"] = { show_once = function() end },
+      }, function()
+        H.with_field(vim, "defer_fn", function(fn, ms)
+          deferred_ms = ms
+          fn()
+        end, function()
+          local gopath = require("gopath")
+          gopath.setup({ truncated = { enable = true, use_cache = true } })
+        end)
+      end, { unload = { "gopath" } })
+      H.fresh("gopath")
+      H.eq(deferred_ms, 2000, "the initial build is scheduled 2s out, not run inline")
+      H.truthy(built, "build_async ran once the deferred timer fired")
+    end)
+  end)
+
   H.check("setup: the one-time deps popup is skipped when deps_popup = false", function()
     H.config_sandbox(function()
       local shown = 0

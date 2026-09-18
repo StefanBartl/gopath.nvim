@@ -281,6 +281,29 @@ return function(H)
     end)
   end)
 
+  H.check("linepath: a backslash-spelled relative path resolves on Linux too", function()
+    H.with_modules(EMPTY_CACHE, function()
+      local dir = H.tmpdir()
+      H.write(dir .. "/rel/here.lua", { "" })
+      local saved = vim.fn.getcwd()
+      vim.cmd.cd(vim.fn.fnameescape(dir))
+      -- `vim.fs.normalize` only rewrites "\" to "/" on Windows itself -- a
+      -- backslash-spelled candidate extracted verbatim from the line's raw
+      -- text (extractor/find.lua's by_extension accepts either separator)
+      -- must still resolve on Linux/macOS. Same defect class, and same fix,
+      -- as util.path.exists() and tailsearch.normalize() (see commit
+      -- 20b3132; linepath.lua was the one direct fs_stat site that commit
+      -- missed).
+      H.line_at("see rel\\here.lua", "see", { filetype = "text" })
+      local r = linepath.resolve()
+      vim.cmd.cd(vim.fn.fnameescape(saved))
+
+      H.truthy(r, "expected a result even though the line spelled the path with a backslash")
+      H.eq(r.source, "linepath-absolute", "same step-1 shortcut as the forward-slash spelling")
+      H.eq(r.path, "rel/here.lua", "normalised to forward slashes")
+    end)
+  end)
+
   H.check("linepath: a document-relative link resolves against the buffer's directory", function()
     H.with_modules(EMPTY_CACHE, function()
       local dir = H.tmpdir()
