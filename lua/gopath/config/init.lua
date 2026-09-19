@@ -26,39 +26,76 @@ local function is_list(t)
   return true
 end
 
----Top-level keys `setup()` recognizes and, for the fixed-schema tables among
----them, their own direct keys (one level, not recursive).
+---Keys `setup()` recognizes, recursively: a nested table's own value may
+---itself be one of these tags (see `alternate.frecency`/`external.pdf`
+---below), and `validate_value` walks the whole thing by full dotted path
+---(ERR-50) -- not just one or two levels, which is the shape this fleet's
+---audit keeps finding half-fixed elsewhere. The levenshtein did-you-mean
+---candidates in `describe_unknown` are always drawn from the correct
+---sibling set for whatever depth is being checked, never a flat/bare-name
+---match across the whole schema.
 ---
 ---  * `"list"` — a curated array (see `deep_merge_into`'s docstring); a
 ---    non-list value is a type error, not an override.
 ---  * `"open"` — a table whose own keys are not a closed set (`languages` is
 ---    keyed by filetype, including ones gopath has no built-in resolver for)
----    and are therefore never flagged as unknown.
----  * a nested table — validated one level deep the same way as the top
----    level, but only for unknown *keys*; leaf value types are polymorphic
----    enough (`string|string[]|false` keymaps, `boolean` command toggles)
----    that checking them here would duplicate what each consumer already
----    guards for itself. `mappings`/`commands` additionally accept a bare
+---    and are therefore never flagged as unknown, nor recursed into.
+---  * a nested table — recursed into, the same way as the top level: an
+---    unknown key is flagged (by its full dotted path) but kept (extension
+---    point), a `"list"`/`"open"`/`"number"` leaf is type-checked, and a
+---    further nested table is validated the same way again, to whatever
+---    depth the schema actually has. Leaf value types this fleet's consumers
+---    already guard well enough for themselves (`string|string[]|false`
+---    keymaps, `boolean` toggles) stay tagged `true` rather than duplicating
+---    that guard here. `mappings`/`commands` additionally accept a bare
 ---    `false` in place of the table (see `ALLOW_FALSE`) — the documented way
----    to disable the whole preset (docs/configuration.md).
+---    to disable the whole preset (docs/configuration.md); that shorthand is
+---    only recognized at the top level, since nothing nested currently uses it.
 ---  * `true` — any value goes unchecked (scalars, and `languages`' sibling
----    `dev_mode`/`mode`/`lsp_timeout_ms`/`which_key`/`deps_popup`).
----@type table<string, true|"list"|"open"|table<string, true>>
+---    `dev_mode`/`mode`/`which_key`/`deps_popup`).
+---  * `"number"` — value must be a Lua number or it is dropped so the default
+---    survives (ERR-22). Reserved for fields a downstream consumer feeds
+---    straight into arithmetic or a relational comparison without its own
+---    type guard: `lsp_timeout_ms` (`vim.wait` inside LSP resolution),
+---    `alternate.similarity_threshold` (`similarity >= threshold`),
+---    `truncated.max_depth` (`item.depth < config.max_depth` during the async
+---    scan), `truncated.cache_refresh_interval`/`truncated.max_cache_age`
+---    (both reached synchronously from `setup()` itself, so a wrong type here
+---    used to crash the whole plugin init, not just degrade one feature), and
+---    `tailsearch.max_components`/`tailsearch.limit` (`math.min`/`math.max`
+---    on the resolve fast path). Zero and negative values are left alone —
+---    every one of those consumers already tolerates them.
+---@alias GopathConfigSpec true|"list"|"open"|"number"|table<string, GopathConfigSpec>
+---@type table<string, GopathConfigSpec>
 local KNOWN = {
   dev_mode = true,
   mode = true,
   order = "list",
-  lsp_timeout_ms = true,
+  lsp_timeout_ms = "number",
   languages = "open",
   alternate = {
     enable = true,
-    similarity_threshold = true,
-    frecency = true,
+    similarity_threshold = "number",
+    -- Itself a nested table (enable/max_bonus/dir), not a scalar -- a typo
+    -- here (e.g. `max_bnus`) used to be invisible: the old schema stopped
+    -- recursing at `alternate`'s own keys and marked this whole sub-table
+    -- `true` ("any value unchecked"), so nothing below it was ever looked
+    -- at (ERR-50: recursion that stops 1-2 levels deep).
+    frecency = {
+      enable = true,
+      max_bonus = true, -- already tonumber()-coerced at its consumer
+      dir = true,
+    },
   },
   external = {
     enable = true,
     extensions = true,
-    pdf = true,
+    -- Same fix as `alternate.frecency` above: `pdf` is a nested
+    -- {picker, default} table, not a scalar.
+    pdf = {
+      picker = true,
+      default = true,
+    },
   },
   url = {
     enable = true,
@@ -77,13 +114,13 @@ local KNOWN = {
   truncated = {
     enable = true,
     use_cache = true,
-    cache_refresh_interval = true,
+    cache_refresh_interval = "number",
     rtp_index_ttl_ms = true,
-    max_cache_age = true,
+    max_cache_age = "number",
     live_search_fallback = true,
     similarity_threshold = true,
     cache_roots = true,
-    max_depth = true,
+    max_depth = "number",
     excluded_dirs = true,
     watch_patterns = true,
     auto_rebuild_on_save = true,
@@ -94,10 +131,10 @@ local KNOWN = {
   },
   tailsearch = {
     enable = true,
-    max_components = true,
+    max_components = "number",
     ask_on_ambiguous = true,
     roots = true,
-    limit = true,
+    limit = "number",
   },
   mappings = {
     open_here = true,
@@ -155,17 +192,102 @@ local function describe_unknown(key, known, prefix)
   return ("unknown option '%s%s'"):format(prefix, name)
 end
 
----Validate `opts` against `KNOWN` before the merge (ERR-50), and drop values
----whose shape does not fit their option (ERR-22) so the default survives
----instead of a crash three modules downstream: `order = "lsp"` (a string,
----not a list) used to throw "table expected, got string" out of
----`resolve.lua`'s `ipairs(cfg.order)`, and `languages = false` used to throw
----"attempt to index a boolean value" the same way.
+---Validate one `value` against one `spec` node (a `KNOWN` entry or one of its
+---descendants), recording any issue against its full dotted `path`.
 ---
----A key gopath does not recognize is still merged in (an established
----extension point — see the "unknown keys are kept" spec) but is reported
----here, so a typo like `truncted` for `truncated` is at least visible instead
----of silently leaving the real option at its default forever.
+---This is the ERR-50/ERR-22 workhorse, and it recurses: when `spec` is
+---itself a table, every one of `value`'s keys is checked against it, and a
+---sub-key whose own spec is *also* a table recurses again through this same
+---function -- to whatever depth the schema actually has, not just one or two
+---levels (the self-inflicted bug this fleet's audit keeps finding: a
+---validator that stops recursing before the config actually does).
+---
+---An unknown key is flagged but kept in the returned copy (an established
+---extension point -- see the "unknown keys are kept" spec) so a typo like
+---`truncted` for `truncated`, or `alternate.frecency.max_bnus` for
+---`max_bonus`, is at least visible instead of silently leaving the real
+---option at its default forever. A `"list"`/`"open"`/`"number"` leaf whose
+---value does not fit is dropped instead -- one field falls back to its
+---default rather than a crash three modules downstream: `order = "lsp"` (a
+---string, not a list) used to throw "table expected, got string" out of
+---`resolve.lua`'s `ipairs(cfg.order)`, `languages = false` used to throw
+---"attempt to index a boolean value" the same way, and a wrong-type
+---`"number"` leaf (e.g. `truncated.max_depth = "6"`,
+---`tailsearch.max_components = "abc"`) used to throw a
+---"compare"/"arithmetic on a string/table/boolean value" error out of
+---whichever consumer used the raw value without its own guard -- for
+---`truncated.cache_refresh_interval`/`max_cache_age` that consumer is
+---`setup()` itself (`gopath.init._setup_cache`), so the crash took the whole
+---plugin init down rather than just degrading the one feature. Dropping only
+---the one bad leaf (not its whole parent table) means `deep_merge_into`
+---leaves every other, valid sibling of e.g. `truncated` or
+---`alternate.frecency` exactly as the caller supplied it.
+---
+---`false` in place of a table is accepted only when `allow_false` is true
+---(top-level `mappings`/`commands` -- see `ALLOW_FALSE`); nothing nested
+---currently has that shorthand, so recursive calls never pass it.
+---@internal
+---@param value any
+---@param spec GopathConfigSpec
+---@param path string  full dotted path for messages, e.g. "alternate.frecency.max_bonus"
+---@param allow_false boolean
+---@param found_issues string[]  appended to in place
+---@return any cleaned  the value to keep (a filtered copy, for a table spec)
+---@return boolean keep  false means the caller must not merge this in at all
+local function validate_value(value, spec, path, allow_false, found_issues)
+  if spec == true then
+    return value, true
+  elseif spec == "list" then
+    if type(value) == "table" and is_list(value) then return value, true end
+    found_issues[#found_issues + 1] = ("option '%s' must be a list, got %s -- using the default"):format(
+      path,
+      type(value)
+    )
+    return nil, false
+  elseif spec == "open" then
+    if type(value) == "table" then return value, true end
+    found_issues[#found_issues + 1] = ("option '%s' must be a table, got %s -- using the default"):format(
+      path,
+      type(value)
+    )
+    return nil, false
+  elseif spec == "number" then
+    if type(value) == "number" then return value, true end
+    found_issues[#found_issues + 1] = ("option '%s' must be a number, got %s -- using the default"):format(
+      path,
+      type(value)
+    )
+    return nil, false
+  elseif type(spec) == "table" then
+    if value == false and allow_false then return value, true end
+    if type(value) ~= "table" then
+      local shape = allow_false and "a table or false" or "a table"
+      found_issues[#found_issues + 1] = ("option '%s' must be %s, got %s -- using the default"):format(
+        path,
+        shape,
+        type(value)
+      )
+      return nil, false
+    end
+    local clean_value = {}
+    for sub_key, sub_value in pairs(value) do
+      local sub_spec = spec[sub_key]
+      local sub_path = path .. "." .. tostring(sub_key)
+      if sub_spec == nil then
+        found_issues[#found_issues + 1] = describe_unknown(sub_key, spec, path .. ".")
+        clean_value[sub_key] = sub_value
+      else
+        local cleaned, keep = validate_value(sub_value, sub_spec, sub_path, false, found_issues)
+        if keep then clean_value[sub_key] = cleaned end
+      end
+    end
+    return clean_value, true
+  end
+  return value, true
+end
+
+---Validate `opts` against `KNOWN` before the merge (ERR-50/ERR-22, see
+---`validate_value`).
 ---
 ---Does not mutate `opts` — a type-invalid entry is left out of the returned
 ---copy rather than stripped from the caller's own table.
@@ -177,49 +299,13 @@ local function validate(opts)
   local clean, found_issues = {}, {}
   for key, value in pairs(opts) do
     local known = KNOWN[key]
-    local drop = false
     if known == nil then
       found_issues[#found_issues + 1] = describe_unknown(key, KNOWN, "")
-    elseif known == "list" then
-      if type(value) ~= "table" or not is_list(value) then
-        found_issues[#found_issues + 1] = ("option '%s' must be a list, got %s -- using the default"):format(
-          key,
-          type(value)
-        )
-        drop = true
-      end
-    elseif known == "open" then
-      if type(value) ~= "table" then
-        found_issues[#found_issues + 1] = ("option '%s' must be a table, got %s -- using the default"):format(
-          key,
-          type(value)
-        )
-        drop = true
-      end
-    elseif type(known) == "table" then
-      -- `mappings`/`commands` additionally accept a bare `false` (the
-      -- documented "disable the whole preset" shape) -- nothing to validate
-      -- below it in that case.
-      local whole_preset_off = value == false and ALLOW_FALSE[key]
-      if not whole_preset_off then
-        if type(value) ~= "table" then
-          local shape = ALLOW_FALSE[key] and "a table or false" or "a table"
-          found_issues[#found_issues + 1] = ("option '%s' must be %s, got %s -- using the default"):format(
-            key,
-            shape,
-            type(value)
-          )
-          drop = true
-        else
-          for sub_key in pairs(value) do
-            if known[sub_key] == nil then
-              found_issues[#found_issues + 1] = describe_unknown(sub_key, known, key .. ".")
-            end
-          end
-        end
-      end
+      clean[key] = value
+    else
+      local cleaned, keep = validate_value(value, known, key, ALLOW_FALSE[key], found_issues)
+      if keep then clean[key] = cleaned end
     end
-    if not drop then clean[key] = value end
   end
   table.sort(found_issues)
   return clean, found_issues
