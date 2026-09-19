@@ -116,7 +116,16 @@ function M.resolve_at_cursor(opts)
           timeout_ms = (opts and opts.timeout_ms) or cfg.lsp_timeout_ms,
         })
       end)
-      if ok and result then return result, nil end
+      if ok and result then
+        return result, nil
+      elseif not ok then
+        -- `safe.call` catching something here always means a resolver threw
+        -- (a normal "no match" returns ok=true, result=nil) -- discarding the
+        -- traceback would make that indistinguishable from "no match" at
+        -- every log level, including dev_mode.
+        local message = (type(result) == "table" and result.message) or tostring(result)
+        LOG.debug(("%s resolver failed for filetype '%s': %s"):format(provider, ft, message))
+      end
     end
   end
 

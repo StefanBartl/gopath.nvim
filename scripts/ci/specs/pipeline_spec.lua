@@ -366,24 +366,39 @@ return function(H)
     H.contains(asked, "lang:builtin", "the language pipeline had its chance first")
   end)
 
-  H.check("resolve: a throwing provider does not abort the pipeline", function()
-    H.line_at("x", "x", { filetype = "lua" })
-    local replacements, asked = phases({})
-    replacements["gopath.registry"].run_language_pipeline = function(_, provider)
-      asked[#asked + 1] = "lang:" .. provider
-      error("provider " .. provider .. " exploded")
+  H.check(
+    "resolve: a throwing provider does not abort the pipeline, and is logged (LLS-31)",
+    function()
+      H.config_sandbox(function(c)
+        c.setup({ dev_mode = true })
+        H.line_at("x", "x", { filetype = "lua" })
+        local replacements, asked = phases({})
+        replacements["gopath.registry"].run_language_pipeline = function(_, provider)
+          asked[#asked + 1] = "lang:" .. provider
+          error("provider " .. provider .. " exploded")
+        end
+        local result
+        local notes = H.capture_notify(function()
+          H.with_modules(replacements, function()
+            local resolve = require("gopath.resolve")
+            result = resolve.resolve_at_cursor({})
+          end, { unload = { "gopath.resolve" } })
+        end)
+        H.fresh("gopath.resolve")
+        H.contains(asked, "lang:builtin", "all three were still tried")
+        H.contains(asked, "url-loose", "and the phases after them too")
+        H.truthy(result, "and the run still ended in the <cfile> fallback rather than an error")
+        H.eq(result.source, "builtin-fallback")
+
+        -- `safe.call` used to discard the traceback entirely -- not even
+        -- dev_mode surfaced it, so a resolver could stay broken indefinitely
+        -- with the pipeline quietly degrading to a weaker guess every time.
+        local text = H.notify_text(notes)
+        H.match(text, "lsp resolver failed for filetype 'lua'", "the crash is no longer silent")
+        H.match(text, "exploded", "the original error survives, not just a generic message")
+      end)
     end
-    local result
-    H.with_modules(replacements, function()
-      local resolve = require("gopath.resolve")
-      result = resolve.resolve_at_cursor({})
-    end, { unload = { "gopath.resolve" } })
-    H.fresh("gopath.resolve")
-    H.contains(asked, "lang:builtin", "all three were still tried")
-    H.contains(asked, "url-loose", "and the phases after them too")
-    H.truthy(result, "and the run still ended in the <cfile> fallback rather than an error")
-    H.eq(result.source, "builtin-fallback")
-  end)
+  )
 
   H.check("resolve: <cfile> is the last resort, and answers 'no-match' when empty", function()
     H.line_at("see some/token.xyz here", "some", { filetype = "lua" })
