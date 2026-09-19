@@ -10,6 +10,7 @@ local PATH = require("gopath.util.path")
 local LOC = require("gopath.util.location")
 local LSP = require("gopath.providers.lsp")
 local AST = require("gopath.resolvers.lua.ts_lua_ast")
+local CROSS = require("gopath.util.cross")
 
 local M = {}
 
@@ -211,6 +212,12 @@ function M.via_treesitter(chain, bind)
   local abs = PATH.search_module(mod)
 
   if not abs then return nil end
+  -- GopathResult.path is forward-slash canonical across the pipeline
+  -- (gopath.util.cross, resolvers/common/filetoken.lua) -- search_module can
+  -- fall through to search_with_package_path, backslash-spelled on Windows,
+  -- the same class of bug value_origin.lua had (5d91fc9). One canonicalize
+  -- covers all three `path = abs` returns below.
+  abs = CROSS.to_forward(abs)
 
   -- If no chain (just module reference), return module path
   if not chain.chain or #chain.chain == 0 then

@@ -4,6 +4,7 @@
 ---Cursor on 'config' → resolve to gopath/config.lua
 
 local PATH = require("gopath.util.path")
+local CROSS = require("gopath.util.cross")
 local TS = require("gopath.providers.treesitter")
 
 local M = {}
@@ -57,6 +58,11 @@ function M.resolve()
   local abs = PATH.search_module(mod)
 
   if not abs then return nil end
+  -- GopathResult.path is forward-slash canonical across the pipeline
+  -- (gopath.util.cross, resolvers/common/filetoken.lua) -- search_module can
+  -- fall through to search_with_package_path, backslash-spelled on Windows,
+  -- the same class of bug value_origin.lua had (5d91fc9).
+  abs = CROSS.to_forward(abs)
 
   return {
     language = "lua",

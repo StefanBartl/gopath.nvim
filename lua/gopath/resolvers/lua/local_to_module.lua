@@ -2,6 +2,7 @@
 ---@brief When LSP points to a local variable that's a require(), resolve to the module instead.
 
 local PATH = require("gopath.util.path")
+local CROSS = require("gopath.util.cross")
 
 local M = {}
 
@@ -37,6 +38,11 @@ function M.enhance_lsp_result(lsp_result)
   if not abs then
     return nil -- Module not found; caller falls back to the original LSP result
   end
+  -- GopathResult.path is forward-slash canonical across the pipeline
+  -- (gopath.util.cross, resolvers/common/filetoken.lua) -- search_module can
+  -- fall through to search_with_package_path, backslash-spelled on Windows,
+  -- the same class of bug value_origin.lua had (5d91fc9).
+  abs = CROSS.to_forward(abs)
 
   return {
     language = "lua",
