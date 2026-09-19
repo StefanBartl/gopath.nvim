@@ -2,10 +2,10 @@
 -- gopath.resolvers.common.tailsearch: turn a partial/truncated path token into
 -- a real file by matching path tails.
 --
--- `git_root` shells out to `git rev-parse` and the live walk lives in
--- `gopath.truncated.finder`; both are cut at a seam here and the argv /
--- arguments they would have used are asserted instead. Everything else runs
--- against real directories under vim.fn.tempname().
+-- `git_root` walks up for a `.git` marker via `lib.nvim.fs.find_root` and the
+-- live walk lives in `gopath.truncated.finder`; both are cut at a seam here
+-- and the arguments they would have used are asserted instead. Everything
+-- else runs against real directories under vim.fn.tempname().
 
 ---@param H table
 return function(H)
@@ -143,11 +143,13 @@ return function(H)
     H.buf({ "x" }, { name = file })
 
     local roots
-    H.with_field(vim, "system", function()
-      error("guess_roots must not spawn git when the seam is cut")
-    end, function()
-      -- pcall'd inside git_root, so a throwing vim.system simply means "no git
-      -- root", which is the branch under test here.
+    H.with_modules({
+      ["lib.nvim.fs.find_root"] = function()
+        error("no marker found (harness stub)")
+      end,
+    }, function()
+      -- pcall'd inside git_root, so a throwing finder factory simply means
+      -- "no git root", which is the branch under test here.
       roots = TS.guess_roots()
     end)
 
@@ -161,29 +163,33 @@ return function(H)
     H.match(vim.fs.normalize(roots[1]), vim.pesc(vim.fs.normalize(dir)) .. "$", "buffer dir first")
   end)
 
-  H.check("guess_roots: the git probe is `git -C <dir> rev-parse --show-toplevel`", function()
-    local dir = H.tmpdir()
-    H.buf({ "x" }, { name = H.write(dir .. "/a.md", { "" }) })
+  H.check(
+    "guess_roots: the git-root probe uses lib.nvim.fs.find_root with a `.git` marker (LUA-02)",
+    function()
+      local dir = H.tmpdir()
+      H.buf({ "x" }, { name = H.write(dir .. "/a.md", { "" }) })
 
-    local argvs = {}
-    H.with_field(vim, "system", function(cmd)
-      argvs[#argvs + 1] = cmd
-      return {
-        wait = function()
-          return { code = 1, stdout = "" }
+      local calls = {}
+      H.with_modules({
+        ["lib.nvim.fs.find_root"] = function(opts)
+          local call = { opts = opts }
+          calls[#calls + 1] = call
+          return {
+            find = function(d)
+              call.dir = d
+              return nil
+            end,
+          }
         end,
-      }
-    end, function()
-      TS.guess_roots()
-    end)
+      }, function()
+        TS.guess_roots()
+      end)
 
-    H.truthy(#argvs >= 1, "git was consulted")
-    H.same(
-      argvs[1],
-      { "git", "-C", vim.fs.dirname(dir .. "/a.md"), "rev-parse", "--show-toplevel" },
-      "the exact argv, with -C instead of a shell cd"
-    )
-  end)
+      H.truthy(#calls >= 1, "find_root was consulted")
+      H.same(calls[1].opts.markers, { ".git" }, "no unbounded subprocess -- a marker walk instead")
+      H.eq(calls[1].dir, vim.fs.dirname(dir .. "/a.md"))
+    end
+  )
 
   H.check("guess_roots: a git root that exists is added, one that does not is ignored", function()
     local dir = H.tmpdir()
@@ -191,13 +197,15 @@ return function(H)
     H.buf({ "x" }, { name = H.write(dir .. "/a.md", { "" }) })
 
     local roots
-    H.with_field(vim, "system", function()
-      return {
-        wait = function()
-          return { code = 0, stdout = repo .. "\n" }
-        end,
-      }
-    end, function()
+    H.with_modules({
+      ["lib.nvim.fs.find_root"] = function()
+        return {
+          find = function()
+            return repo
+          end,
+        }
+      end,
+    }, function()
       roots = TS.guess_roots()
     end)
     H.contains(
@@ -208,18 +216,20 @@ return function(H)
       "a real directory is taken as a root"
     )
 
-    H.with_field(vim, "system", function()
-      return {
-        wait = function()
-          return { code = 0, stdout = "/definitely/not/a/directory\n" }
-        end,
-      }
-    end, function()
+    H.with_modules({
+      ["lib.nvim.fs.find_root"] = function()
+        return {
+          find = function()
+            return "/definitely/not/a/directory"
+          end,
+        }
+      end,
+    }, function()
       roots = TS.guess_roots()
     end)
     H.falsy(
       vim.tbl_contains(roots, "/definitely/not/a/directory"),
-      "git's answer is still checked against the filesystem"
+      "find_root's answer is still checked against the filesystem"
     )
   end)
 
@@ -533,6 +543,42 @@ return function(H)
       H.eq(got.path, "/y/z/c.lua", "the user's choice, not the shortest")
       H.eq(got.confidence, 0.85)
     end)
+  end)
+
+  H.check("probe: without ui.nvim, ambiguity falls back to vim.ui.select (LUA-01)", function()
+    H.with_modules({
+      ["gopath.truncated.cache"] = fake_cache({ ["c.lua"] = { "/x/c.lua", "/y/z/c.lua" } }),
+      ["ui.kit"] = false,
+    }, function()
+      local got
+      local calls = H.with_ui_select("/y/z/c.lua", function()
+        TS.probe("c.lua", { ask = true }, function(r)
+          got = r
+        end)
+      end)
+      H.eq(#calls, 1, "vim.ui.select was offered the matches")
+      H.same(calls[1].items, { "/x/c.lua", "/y/z/c.lua" })
+      H.eq(got.path, "/y/z/c.lua")
+      H.eq(got.confidence, 0.85)
+    end)
+  end)
+
+  H.check("probe: dismissing the vim.ui.select fallback still calls back once, with nil", function()
+    local calls = 0
+    H.with_modules({
+      ["gopath.truncated.cache"] = fake_cache({ ["c.lua"] = { "/x/c.lua", "/y/c.lua" } }),
+      ["ui.kit"] = false,
+    }, function()
+      local got = "unset"
+      H.with_ui_select(nil, function()
+        TS.probe("c.lua", { ask = true }, function(r)
+          calls = calls + 1
+          got = r
+        end)
+      end)
+      H.is_nil(got)
+    end)
+    H.eq(calls, 1, "on_done fires exactly once")
   end)
 
   H.check("probe: dismissing the picker still calls back exactly once, with nil", function()
