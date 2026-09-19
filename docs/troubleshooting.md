@@ -22,6 +22,9 @@ Checks:
 - Tree-sitter parsers
 - which-key.nvim availability
 - Configuration (linepath, tailsearch, alternate, keymaps)
+- `setup()` options: unrecognized keys (with a "did you mean" hint) and
+  values that did not fit their option — each falls back to its default
+  instead of being silently ignored or breaking gopath at some later call
 - Truncated path cache status
 
 ---

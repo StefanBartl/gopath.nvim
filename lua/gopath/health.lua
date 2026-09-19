@@ -250,6 +250,17 @@ local function check_config()
   end
   local cfg = cfg_mod.get()
 
+  if type(cfg_mod.issues) == "function" then
+    local setup_issues = cfg_mod.issues()
+    if #setup_issues > 0 then
+      for _, msg in ipairs(setup_issues) do
+        warn_s(msg)
+      end
+    else
+      ok_s("setup() options: no unknown keys, nothing invalid")
+    end
+  end
+
   info_s("mode = " .. (cfg.mode or "hybrid"))
   info_s("order = " .. vim.inspect(cfg.order or { "lsp", "treesitter", "builtin" }))
 
