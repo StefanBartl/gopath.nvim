@@ -38,7 +38,18 @@ check("gopath.setup({})", function()
 end)
 
 local tests_dir = root .. "/TESTS"
-local fixtures = vim.fn.globpath(tests_dir, "*.lua", false, true)
+
+-- `vim.fn.globpath` reads its directory argument as a glob PATTERN, not a
+-- path -- fatal on Windows when the checkout sits under an 8.3 short name,
+-- which glob tries to resolve as a home-directory reference and answers an
+-- empty list for, no error (XP-01). `vim.fs.dir` takes `tests_dir` as an
+-- actual path, so no directory spelling can be misread as pattern syntax.
+local fixtures = {}
+for name, typ in vim.fs.dir(tests_dir) do
+  if typ == "file" and name:sub(-4) == ".lua" then
+    fixtures[#fixtures + 1] = tests_dir .. "/" .. name
+  end
+end
 table.sort(fixtures)
 
 if #fixtures == 0 then
