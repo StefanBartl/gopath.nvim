@@ -20,6 +20,34 @@ local safe = require("gopath.util.safe_notify")
 local LOG = require("gopath.util.log")
 local uv = vim.loop
 
+---Deterministic, filesystem-safe short key for `s`. Not cryptographic --
+---only used to tell one project's scan-roots set apart from another's on
+---disk (same convention as lib.nvim's store/project module, which cannot be
+---required directly here since it is a private local there).
+---@internal
+---@param s string
+---@return string
+local function short_hash(s)
+  local h = 5381
+  for i = 1, #s do
+    h = (h * 33 + s:byte(i)) % 4294967296
+  end
+  return string.format("%08x", h)
+end
+
+---Order-independent, separator/case-normalized fingerprint of a roots list.
+---@internal
+---@param roots string[]
+---@return string
+local function roots_fingerprint(roots)
+  local normalized = {}
+  for i, r in ipairs(roots) do
+    normalized[i] = (r:gsub("\\", "/")):lower()
+  end
+  table.sort(normalized)
+  return table.concat(normalized, "\n")
+end
+
 ---@class CacheConfig
 ---@field max_depth? integer Maximum directory depth to scan
 ---@field max_concurrency? integer Max directories scanned concurrently (bounds open handles)
@@ -59,7 +87,8 @@ local config = {
     "vendor", -- Temp/deps
   },
 
-  -- Persistent cache location
+  -- Persistent cache location. Recomputed in M.setup() once scan_roots is
+  -- known -- see the PERF-46 comment there for why a fixed path is wrong.
   cache_file = vim.fn.stdpath("cache") .. "/gopath_fs_cache.json",
 
   -- Default scan roots (will be set in M.setup())
@@ -100,8 +129,13 @@ function M.setup(opts)
 
   -- === Configure Scan Roots ===
   if opts.roots and #opts.roots > 0 then
-    -- User explicitly specified roots
-    config.scan_roots = opts.roots
+    -- User explicitly specified roots. Copied, not aliased: `opts.roots` is
+    -- `config.get().truncated.cache_roots` (gopath.init._setup_cache), the
+    -- live, shared config table documented as a "read-only reference" --
+    -- M.add_root mutates `config.scan_roots` in place, and without this copy
+    -- that mutation would leak into the user's own options table for the
+    -- rest of the session (ERR-54).
+    config.scan_roots = vim.deepcopy(opts.roots)
   else
     -- === Auto-detect Default Roots ===
     -- Deliberately conservative: indexing a whole drive (C:\) or the entire
@@ -139,6 +173,18 @@ function M.setup(opts)
     end
     config.scan_roots = require("lib.lua.tables").dedup_list(config.scan_roots)
   end
+
+  -- The persisted cache file is keyed by the scan roots it indexes (PERF-46):
+  -- a single fixed path shared by every project meant that project B's
+  -- startup could silently load project A's file list (stale until the next
+  -- refresh interval), and that every project's build overwrote every
+  -- other's on disk. `load_from_disk` revalidates the `scan_roots` field
+  -- against this too, as a second line of defense against a hash collision
+  -- or a hand-copied file.
+  config.cache_file = vim.fn.stdpath("cache")
+    .. "/gopath_fs_cache_"
+    .. short_hash(roots_fingerprint(config.scan_roots))
+    .. ".json"
 
   -- === Apply Other Config Options ===
   if opts.max_depth then config.max_depth = opts.max_depth end
@@ -314,6 +360,21 @@ function M.load_from_disk()
   local data, err = require("lib.nvim.fs.json").read(config.cache_file)
   if not data then
     LOG.warn("Failed to parse cache file: " .. tostring(err))
+    return false
+  end
+
+  -- PERF-46: the cache key must include every parameter that changes the
+  -- result. `config.cache_file`'s name already encodes a hash of scan_roots,
+  -- but a hash collision or a hand-copied/corrupted file could still land
+  -- here with a mismatching set -- reject it rather than populate `state`
+  -- with another project's file list.
+  local persisted_roots = {}
+  if type(data.scan_roots) == "table" then
+    for _, r in ipairs(data.scan_roots) do
+      if type(r) == "string" then persisted_roots[#persisted_roots + 1] = r end
+    end
+  end
+  if roots_fingerprint(persisted_roots) ~= roots_fingerprint(config.scan_roots) then
     return false
   end
 
@@ -502,6 +563,13 @@ end
 ---@private
 function M._get_state()
   return state
+end
+
+---Get cache config (for debugging/tests).
+---@return CacheConfig config Current cache config
+---@private
+function M._get_config()
+  return config
 end
 
 return M

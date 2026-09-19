@@ -3,9 +3,8 @@
 -- gopath.truncated.finder (the live search behind it).
 --
 -- Two things are cut at a seam on purpose:
---   * the cache's persistence, because `config.cache_file` is fixed to
---     stdpath("cache")/gopath_fs_cache.json and a spec must not overwrite the
---     user's real index;
+--   * the cache's persistence, because `config.cache_file` lives under
+--     stdpath("cache") and a spec must not overwrite the user's real index;
 --   * the finder's `fd`/`rg` invocation, which is the only subprocess in this
 --     file's reach. Its argv is asserted instead of run.
 -- The scans themselves are real: both walk actual directories built under
@@ -230,16 +229,19 @@ return function(H)
   end)
 
   H.check("load_from_disk: a persisted snapshot is revalidated, not trusted", function()
+    local root = H.tmpdir()
     H.with_modules(
       fake_persistence({
         readable = true,
         data = {
           paths = { "/real/a.lua", 42, false, { "nested" }, "/real/b.lua" },
           last_built = "not a number",
+          scan_roots = { root },
           version = 1,
         },
       }),
       function()
+        cache.setup({ roots = { root } })
         H.eq(cache.load_from_disk(), true)
         local state = cache._get_state()
         H.same(state.paths, { "/real/a.lua", "/real/b.lua" }, "non-string entries dropped")
@@ -250,14 +252,59 @@ return function(H)
   end)
 
   H.check("load_from_disk: a wrong-typed paths field yields an empty index", function()
+    local root = H.tmpdir()
     H.with_modules(
-      fake_persistence({ readable = true, data = { paths = "not a list", last_built = 123 } }),
+      fake_persistence({
+        readable = true,
+        data = { paths = "not a list", last_built = 123, scan_roots = { root } },
+      }),
       function()
+        cache.setup({ roots = { root } })
         H.eq(cache.load_from_disk(), true)
         H.same(cache._get_state().paths, {})
         H.eq(cache._get_state().last_built, 123, "a valid timestamp is kept")
       end
     )
+  end)
+
+  H.check(
+    "load_from_disk: a snapshot built for different scan_roots is rejected (PERF-46)",
+    function()
+      local mine = H.tmpdir()
+      local foreign = H.tmpdir()
+      H.with_modules(
+        fake_persistence({
+          readable = true,
+          data = {
+            paths = { foreign .. "/other.lua" },
+            last_built = os.time(),
+            scan_roots = { foreign },
+            version = 1,
+          },
+        }),
+        function()
+          cache.setup({ roots = { mine } })
+          H.eq(
+            cache.load_from_disk(),
+            false,
+            "a cache built for a different project's roots is not trusted"
+          )
+          H.same(cache._get_state().paths, {}, "nothing from the other project leaked in")
+        end
+      )
+    end
+  )
+
+  H.check("setup: the cache file is keyed by scan_roots, not fixed (PERF-46)", function()
+    cache.setup({ roots = { "/project/a" } })
+    local file_a = cache._get_config().cache_file
+
+    cache.setup({ roots = { "/project/b" } })
+    local file_b = cache._get_config().cache_file
+    H.truthy(file_a ~= file_b, "two projects with different roots never share a cache file")
+
+    cache.setup({ roots = { "/project/a" } })
+    H.eq(cache._get_config().cache_file, file_a, "the same roots always produce the same file")
   end)
 
   H.check("_save_to_disk: an unwritable cache file is reported, not raised", function()
@@ -350,6 +397,19 @@ return function(H)
         "/fresh%.lua",
         "the added root was scanned"
       )
+    end)
+  end)
+
+  H.check("add_root: does not mutate the caller's own roots table (ERR-54)", function()
+    local mine = H.tmpdir()
+    local extra = H.tmpdir()
+    -- Stands in for config.get().truncated.cache_roots, which cache.setup()
+    -- receives by reference from gopath.init._setup_cache.
+    local caller_roots = { mine }
+    H.with_modules(fake_persistence({ readable = false, write_ok = true }), function()
+      cache.setup({ roots = caller_roots })
+      cache.add_root(extra, false)
+      H.same(caller_roots, { mine }, "the caller's table is untouched by add_root's mutation")
     end)
   end)
 
