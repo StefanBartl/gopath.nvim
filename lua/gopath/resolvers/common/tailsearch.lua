@@ -49,22 +49,24 @@ local function join(a, b)
   return a:gsub("/+$", "") .. "/" .. b:gsub("^/+", "")
 end
 
----Resolve the git repository root for `dir` by invoking `git rev-parse --show-toplevel`.
+---Resolve the git repository root for `dir` by walking up for a `.git`
+---marker (`lib.nvim.fs.find_root`), NOT by shelling out to `git rev-parse`.
+---
+---The old call was a synchronous subprocess spawn on the main loop, up to
+---twice per `guess_roots()`, with no timeout -- a stalled git (network
+---drive, lock contention) froze Neovim with no way out. `truncated/cache.lua`
+---made the same swap first, for the same reason; see its comment there.
 ---@internal
 ---@param dir string
 ---@return string|nil
 local function git_root(dir)
   if not is_dir(dir) then return nil end
-  local ok, proc = pcall(
-    vim.system,
-    { "git", "-C", dir, "rev-parse", "--show-toplevel" },
-    { text = true }
-  )
-  if not ok or not proc then return nil end
-  local res = proc:wait()
-  if not res or res.code ~= 0 or not res.stdout or res.stdout == "" then return nil end
-  local root = res.stdout:gsub("%s+$", "")
-  return is_dir(root) and root or nil
+  local ok, find_root = pcall(require, "lib.nvim.fs.find_root")
+  if not ok then return nil end
+  local ok_find, root = pcall(function()
+    return find_root({ markers = { ".git" } }).find(dir)
+  end)
+  return (ok_find and root) or nil
 end
 
 ---Return true when `abs` ends with `tail` on a path-separator boundary.
@@ -415,27 +417,43 @@ function M.probe(raw, opts, on_done)
       on_done(probe_result(M.pick_best(matches), base_conf))
       return
     end
+    ---@param item string
+    ---@return string
+    local function format_item(item)
+      local r0 = roots[1]
+      if type(r0) == "string" and #r0 > 1 and item:sub(1, #r0) == r0 then
+        return "./" .. item:sub(#r0 + 2)
+      end
+      return item
+    end
+
     -- M.probe's contract promises on_done fires exactly once "when
     -- finished", including when the user dismisses the picker -- hence
-    -- on_cancel, which kit.select guarantees fires exactly once for a
-    -- dismissal, an empty list, or a float that could not open.
-    require("ui.kit").select({
-      items = matches,
-      title = "gopath: multiple matches — pick one",
-      format_item = function(item)
-        local r0 = roots[1]
-        if type(r0) == "string" and #r0 > 1 and item:sub(1, #r0) == r0 then
-          return "./" .. item:sub(#r0 + 2)
-        end
-        return item
-      end,
-      on_select = function(choice)
-        on_done(probe_result(choice, 0.85))
-      end,
-      on_cancel = function()
-        on_done(nil)
-      end,
-    })
+    -- on_cancel/the vim.ui.select nil-choice branch below, which both fire
+    -- exactly once for a dismissal, an empty list, or a float that could not
+    -- open.
+    local ok_kit, kit = pcall(require, "ui.kit")
+    if ok_kit and type(kit.select) == "function" then
+      kit.select({
+        items = matches,
+        title = "gopath: multiple matches — pick one",
+        format_item = format_item,
+        on_select = function(choice)
+          on_done(probe_result(choice, 0.85))
+        end,
+        on_cancel = function()
+          on_done(nil)
+        end,
+      })
+      return
+    end
+
+    vim.ui.select(matches, {
+      prompt = "gopath: multiple matches — pick one",
+      format_item = format_item,
+    }, function(choice)
+      on_done(choice and probe_result(choice, 0.85) or nil)
+    end)
   end
 
   -- 1) Cache fast path (instant).
