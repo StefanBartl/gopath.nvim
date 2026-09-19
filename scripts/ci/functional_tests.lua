@@ -74,6 +74,23 @@ local function assert_nil(v, msg)
   if v ~= nil then error((msg or "expected nil") .. ", got " .. vim.inspect(v), 2) end
 end
 
+---Canonical spelling of a path, for comparing a resolver's answer against a
+---fixture path.
+---
+---`fnamemodify(p, ":p")` makes a path absolute but never touches separators, so
+---on Windows it is not a canonicaliser at all: a fixture path built as
+---`tempname() .. "/" .. name` is mixed ("C:\\...\\dir/x.lua") while a resolver
+---reporting a buffer name answers in whatever spelling Neovim stored. Both are
+---the same file; only the strings differ. Putting both sides through the same
+---canonicaliser the plugin promises for `GopathResult.path`
+---(`gopath.util.cross.to_forward`, forward slashes everywhere) compares one file
+---against one file, instead of pinning one platform's accidental spelling.
+---@param p string
+---@return string
+local function canon_path(p)
+  return require("gopath.util.cross").to_forward(vim.fn.fnamemodify(p, ":p"))
+end
+
 -- ========= fixtures =========
 
 local scratch_dir = vim.fn.tempname() .. "_gopath_fntest"
@@ -331,7 +348,12 @@ check("value_origin: cursor on a nested chain resolves through a real buffer+cur
   local r = value_origin.resolve()
   assert_truthy(r, "expected a resolve() result")
   assert_eq(r.range.line, 4, "range.line (initializer line, not the usage line)")
-  assert_eq(vim.fn.fnamemodify(r.path, ":p"), vim.fn.fnamemodify(path, ":p"), "path")
+  assert_eq(canon_path(r.path), canon_path(path), "path")
+  -- The comparison above canonicalises BOTH sides, so on its own it would keep
+  -- passing if the resolver went back to reporting a native backslash spelling.
+  -- Pin the contract separately, so the canonicalisation stays a way to compare
+  -- two spellings of the fixture path and not a way to hide a regression.
+  assert_eq(r.path:find("\\", 1, true), nil, "path is reported with forward slashes only")
 end)
 
 check(

@@ -5,6 +5,7 @@ local CHN = require("gopath.resolvers.lua.chain")
 local BIX = require("gopath.resolvers.lua.binding_index")
 local ALX = require("gopath.resolvers.lua.alias_index")
 local PATH = require("gopath.util.path")
+local CROSS = require("gopath.util.cross")
 
 local M = {}
 
@@ -121,6 +122,28 @@ local function resolve_base(base_id, initial_chain, bind_map, alias_map)
   return nil
 end
 
+---Canonical spelling of a path this module is about to key on and report.
+---
+---`GopathResult.path` is forward-slash canonical across the pipeline (see
+---`gopath.util.cross`, and the same `to_forward` call in
+---`resolvers/common/filetoken.lua`). The two sources this resolver draws an
+---absolute path from do not honour that on Windows by themselves:
+---`nvim_buf_get_name` returns whatever spelling Neovim stored for the buffer
+---(backslashes when it was opened by a native path), and
+---`PATH.search_with_package_path` hands back a `package.searchpath` result,
+---which is backslash-spelled there too. Left alone they make one file arrive
+---under two names, and the name is not just decoration: `roots_cache` below is
+---keyed on it, and `gopath.commands` feeds it to `tailsearch.sanitize`, whose
+---drive strip is anchored to "<drive>:/" and so turns "C:\dir\x.lua" into the
+---bogus tail "C/dir/x.lua" while "C:/dir/x.lua" correctly yields "dir/x.lua".
+---Normalising at the two sources keeps every return below on one spelling.
+---@internal
+---@param abs string
+---@return string
+local function canonical(abs)
+  return CROSS.to_forward(abs)
+end
+
 ---Try to locate `extra_chain`/`last_key` inside `abs`, trying every plausible
 ---root identifier inferred from the file (see `infer_roots_from_lines`).
 ---@internal
@@ -170,6 +193,7 @@ function M.resolve()
   if base_res.kind == "module" then
     local abs = PATH.search_module(base_res.module)
     if not abs then return nil end
+    abs = canonical(abs)
 
     local hit = try_locate_with_roots(abs, base_res.extra_chain or "", last_key)
     if hit then
@@ -198,6 +222,7 @@ function M.resolve()
   if base_res.kind == "current" then
     local abs = vim.api.nvim_buf_get_name(0)
     if type(abs) ~= "string" or abs == "" then return nil end
+    abs = canonical(abs)
 
     -- Do NOT hard-code "M" here -- try the roots as well, or a module using a
     -- different local name for its table resolves to nothing.

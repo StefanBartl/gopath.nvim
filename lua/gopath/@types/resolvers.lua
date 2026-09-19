@@ -10,7 +10,12 @@
 ---@class GopathResult
 --- Canonical output produced by every resolver and consumed by openers.
 ---@field kind       GopathKind   What was resolved (module, file, help, …)
----@field path       string|nil   Absolute file path; nil only for "help" results
+---@field path       string|nil   Absolute file path, forward-slash canonical on every
+---                               platform (see `gopath.util.cross`); nil only for "help"
+---                               results. Resolvers normalise at their source: on Windows a
+---                               buffer name and a `package.searchpath` answer are
+---                               backslash-spelled, and two spellings of one file defeat the
+---                               caches and tail searches that key on this field.
 ---@field subject    string|nil   Help subject string (only for kind = "help")
 ---@field language   string       Filetype of the buffer where resolution occurred
 ---@field range      GopathRange|nil  Target cursor position inside the opened file; nil = top of file
