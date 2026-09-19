@@ -372,9 +372,11 @@ end
 ---Run `fn` with the gopath config restored afterwards, whatever it did to it.
 ---
 ---`config.get()` hands back the live state table (documented as a "read-only
----reference"), and `config.setup()` merges cumulatively rather than resetting —
----so a spec that calls `setup()` would otherwise leak its options into every
----later spec in the run.
+---reference"), so a direct mutation of it survives past `fn` unless undone
+---here. `config.setup()` itself resets to the defaults on every call, but
+---that is not enough on its own: the state a spec started from may not be
+---the plain defaults (an earlier, non-sandboxed spec may have left its own
+---options behind), and this restores exactly that starting point.
 ---@param fn fun(config: table)
 ---@return nil
 function H.config_sandbox(fn)
