@@ -220,6 +220,38 @@ return function(H)
     H.match(out[1].path:gsub("\\", "/"), "good%.lua$")
   end)
 
+  H.check(
+    "definition_at_cursor: a vim.NIL (or missing) range.start is skipped, not thrown on (LUA-16)",
+    function()
+      -- `range` itself surviving the nil/vim.NIL check does not mean
+      -- `range.start` did too -- it is an independent JSON field that can
+      -- just as easily decode to vim.NIL, or be omitted entirely (decoding
+      -- to Lua nil). Either used to throw on `rng.start.line` one level
+      -- below the check that LUA-16 originally added.
+      local good_uri = vim.uri_from_fname(vim.fn.fnamemodify("/tmp/good.lua", ":p"))
+      H.is_nil(
+        definition_from({
+          { uri = good_uri, range = { start = vim.NIL, ["end"] = { line = 2, character = 0 } } },
+        }),
+        "a NIL range.start"
+      )
+      H.is_nil(
+        definition_from({ { uri = good_uri, range = { ["end"] = { line = 2, character = 0 } } } }),
+        "a missing range.start"
+      )
+
+      -- one bad entry does not take an earlier, already-collected good
+      -- sibling down with it
+      local good_uri2 = vim.uri_from_fname(vim.fn.fnamemodify("/tmp/good2.lua", ":p"))
+      local out = definition_from({
+        { uri = good_uri, range = { start = { line = 0, character = 0 } } },
+        { uri = good_uri2, range = { start = vim.NIL, ["end"] = { line = 2, character = 0 } } },
+      })
+      H.eq(#out, 1, "only the valid entry survives")
+      H.match(out[1].path:gsub("\\", "/"), "good%.lua$")
+    end
+  )
+
   H.check("definition_at_cursor: no attached client means no request is even made", function()
     local asked = 0
     H.with_field(vim.lsp, "buf_request_sync", function()
