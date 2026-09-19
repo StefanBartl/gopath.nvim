@@ -5,6 +5,18 @@ local LOC = require("gopath.util.location")
 
 local M = {}
 
+---True when `v` is a real value of `expected_type` -- rejects both Lua `nil`
+---and `vim.NIL` (what JSON/LSP `null` decodes to). `vim.NIL` is truthy in
+---Lua, so a bare `if v then` admits it and the next use throws instead of
+---treating the field as absent.
+---@internal
+---@param v any
+---@param expected_type type
+---@return boolean
+local function present(v, expected_type)
+  return v ~= nil and v ~= vim.NIL and type(v) == expected_type
+end
+
 ---Whether any language server is attached to the current buffer.
 ---
 ---Asked before the request, because `buf_request_sync` does not return early
@@ -45,7 +57,12 @@ function M.definition_at_cursor(timeout_ms)
         local uri = loc.uri or loc.targetUri
         local rng = loc.range or loc.targetRange
 
-        if uri and rng then
+        -- A spec-conforming server never sends `null` here (both fields are
+        -- non-nullable in Location/LocationLink), but a `uri`/`rng` of
+        -- vim.NIL must not sail through a bare truthiness check and throw
+        -- three lines down -- one bad entry should be skipped, not take the
+        -- whole response down with it.
+        if present(uri, "string") and present(rng, "table") then
           local p = vim.uri_to_fname(uri)
 
           -- LSP ranges are 0-indexed, convert to 1-indexed

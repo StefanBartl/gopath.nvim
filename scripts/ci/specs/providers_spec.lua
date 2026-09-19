@@ -200,6 +200,26 @@ return function(H)
     H.is_nil(none, "a nil response (every server timed out)")
   end)
 
+  H.check("definition_at_cursor: a vim.NIL uri/range is skipped, not thrown on (LUA-16)", function()
+    -- JSON/LSP `null` decodes to vim.NIL, not Lua nil -- and vim.NIL is
+    -- truthy, so `loc.uri or loc.targetUri` and a bare `if uri and rng`
+    -- would both let it through undetected.
+    local good_uri = vim.uri_from_fname(vim.fn.fnamemodify("/tmp/good.lua", ":p"))
+    H.is_nil(
+      definition_from({ { uri = vim.NIL, range = { start = { line = 0, character = 0 } } } }),
+      "a NIL uri alone"
+    )
+    H.is_nil(definition_from({ { uri = good_uri, range = vim.NIL } }), "a NIL range alone")
+
+    -- one bad entry does not take a good sibling down with it
+    local out = definition_from({
+      { uri = vim.NIL, range = { start = { line = 0, character = 0 } } },
+      { uri = good_uri, range = { start = { line = 2, character = 0 } } },
+    })
+    H.eq(#out, 1, "only the valid entry survives")
+    H.match(out[1].path:gsub("\\", "/"), "good%.lua$")
+  end)
+
   H.check("definition_at_cursor: no attached client means no request is even made", function()
     local asked = 0
     H.with_field(vim.lsp, "buf_request_sync", function()
