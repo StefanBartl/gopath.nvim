@@ -225,14 +225,7 @@ behaviour change, and none of them blocked the specs.
    plugin-directory list.** It clears `_rtpidx` and `_pidx_*` but not
    `_pdir_*`, which sit in the same block of module locals, so a plugin set
    that changed without the runtimepath moving stays invisible.
-8. **`create.lua`'s "built-in fallback" still requires lib.nvim.** When
-   `lib.nvim.fs.create_entry` is missing the module logs "using a built-in
-   mkdir+open fallback", but that fallback is
-   `require("lib.nvim.fs.write.to_file")(...)` — an unguarded require of the
-   dependency just found missing. With lib.nvim genuinely absent the create
-   offer dies with a raw "module not found" instead of gopath's own
-   "Could not create file: …".
-9. **`resolvers/go/import_path.lua`'s `parse_import` is not anchored to an
+8. **`resolvers/go/import_path.lua`'s `parse_import` is not anchored to an
    actual `import` statement.** Every sibling language resolver in this file
    anchors its pattern to the language's own import syntax — Python's
    `^%s*from`/`^%s*import`, Rust's `^%s*use`, C#/Java's `^%s*using`/
@@ -242,13 +235,23 @@ behaviour change, and none of them blocked the specs.
    import, even a plain string literal on a line that has nothing to do
    with one.
 
-A tenth defect, of the same family as #8 above but in `health.lua` itself, has
-since been **fixed**: `check_lib_nvim()`'s last line ended the whole check with
-`require("lib.nvim.bindings.usercmd.composer").checkhealth("Gopath")`,
-unguarded — so on the one machine the "lib.nvim not found" branch above it
-diagnoses, that require threw and `:checkhealth gopath` aborted right after
-giving the diagnosis the user came for. It is guarded now, the same way
-`check()`'s own `lib.nvim.deps.health` probe already was.
+Two more of the same family — a fallback presented as available when it
+silently depends on the very thing it is a fallback for — have since been
+**fixed** rather than left pinned:
+
+* `create.lua`'s "built-in fallback" line was
+  `require("lib.nvim.fs.write.to_file")(...)`, an unguarded require of the
+  dependency `create_entry`'s own absence had just diagnosed. It is pcall'd
+  now, at load time, right next to `create_entry`; a checkout missing both
+  submodules gets `touch()`'s normal `(false, err)` return — and gopath's own
+  "Could not create file: …" wording — instead of a raw "module not found"
+  escaping the ui.select callback.
+* `health.lua`'s `check_lib_nvim()`'s last line ended the whole check with
+  `require("lib.nvim.bindings.usercmd.composer").checkhealth("Gopath")`,
+  unguarded — so on the one machine the "lib.nvim not found" branch above it
+  diagnoses, that require threw and `:checkhealth gopath` aborted right after
+  giving the diagnosis the user came for. It is guarded now, the same way
+  `check()`'s own `lib.nvim.deps.health` probe already was.
 
 Three more, found and fixed in the same pass: `util/path.lua`'s `exists()`,
 `alternate/helpers/directory.lua`'s `extract_filename`/`extract_directory`,

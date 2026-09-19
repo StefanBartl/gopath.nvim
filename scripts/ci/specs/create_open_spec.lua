@@ -269,29 +269,35 @@ return function(H)
     end
   )
 
-  H.check("BUG: without lib.nvim the 'built-in fallback' still requires lib.nvim", function()
-    -- `create_entry` is pcall'd and its absence only logs "using a built-in
-    -- mkdir+open fallback for file creation" — but that fallback line is
-    -- `require("lib.nvim.fs.write.to_file")(native, "")`, an unguarded require
-    -- of the very dependency that was just found missing. With lib.nvim truly
-    -- absent the create offer dies with a raw "module not found" instead of
-    -- gopath's own "Could not create file: ..." message.
-    H.config_sandbox(function(c)
-      local dir = H.tmpdir()
-      c.setup({ create_on_missing = { enable = true, confirm = false } })
-      H.with_modules({
-        ["lib.nvim.fs.create_entry"] = false,
-        ["lib.nvim.fs.write.to_file"] = false,
-      }, function()
-        local fresh = require("gopath.create")
-        local msg = H.raises(function()
-          fresh.offer({ path = dir .. "/nolib.lua", exists = false }, function() end)
-        end, "not found", "BUG: raised instead of reported")
-        H.no_match(msg, "Could not create file", "BUG: gopath's own wording never appears")
-      end, { unload = { "gopath.create" } })
-      H.fresh("gopath.create")
-    end)
-  end)
+  H.check(
+    "offer: reports gopath's own error when lib.nvim has neither creation submodule (LUA-01)",
+    function()
+      -- `create_entry` and its `fs.write.to_file` fallback are both pcall'd at
+      -- load time now, so a checkout missing both degrades to touch()'s normal
+      -- (false, err) return instead of an unguarded require throwing out of the
+      -- ui.select callback.
+      H.config_sandbox(function(c)
+        local dir = H.tmpdir()
+        c.setup({ create_on_missing = { enable = true, confirm = false } })
+        H.with_modules({
+          ["lib.nvim.fs.create_entry"] = false,
+          ["lib.nvim.fs.write.to_file"] = false,
+        }, function()
+          local fresh = require("gopath.create")
+          local notes = H.capture_notify(function()
+            fresh.offer({ path = dir .. "/nolib.lua", exists = false }, function() end)
+          end)
+          H.match(
+            H.notify_text(notes),
+            "Could not create file",
+            "gopath's own wording, not a raw error"
+          )
+          H.eq(vim.fn.filereadable(dir .. "/nolib.lua"), 0, "nothing was created")
+        end, { unload = { "gopath.create" } })
+        H.fresh("gopath.create")
+      end)
+    end
+  )
 
   H.check("offer: the write-to_file fallback path works when lib.nvim IS present", function()
     H.config_sandbox(function(c)
