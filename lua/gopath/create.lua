@@ -25,19 +25,44 @@ local M = {}
 local uv = vim.uv or vim.loop
 
 ---@type fun(parent_dir: string, name: string): boolean, ("file"|"directory")?, string?
----the lib.nvim.fs.create_entry function, or nil when lib.nvim is unavailable
+---the lib.nvim.fs.create_entry function, or nil when this lib.nvim checkout
+---predates it
 local create_entry
+
+---@type fun(path: string, content: string): boolean, string?
+---the lib.nvim.fs.write.to_file function, used when `create_entry` is
+---missing from an older lib.nvim checkout; nil only when lib.nvim itself (or
+---both of these submodules) is unavailable
+local write_to_file
+
+-- lib.nvim is gopath's hard dependency (see bindings/keymaps.lua) -- if it
+-- were genuinely absent, setup() would already have failed before this
+-- module is ever reached. What CAN legitimately be missing is a single
+-- submodule on an older checkout (LUA-05): `fs.create_entry` is preferred,
+-- `fs.write.to_file` is the fallback for a checkout that predates it, and
+-- only a checkout missing *both* leaves file creation unavailable.
 do
   local ok, mod = pcall(require, "lib.nvim.fs.create_entry")
   if ok then
     create_entry = mod
   else
-    vim.schedule(function()
-      LOG.warn(
-        "optional dependency 'lib.nvim' not found — using a built-in "
-          .. "mkdir+open fallback for file creation."
-      )
-    end)
+    local ok2, mod2 = pcall(require, "lib.nvim.fs.write.to_file")
+    if ok2 then
+      write_to_file = mod2
+      vim.schedule(function()
+        LOG.warn(
+          "lib.nvim is missing 'fs.create_entry' (older checkout?) — "
+            .. "falling back to 'fs.write.to_file' for file creation."
+        )
+      end)
+    else
+      vim.schedule(function()
+        LOG.error(
+          "lib.nvim not found, or too old to provide 'fs.create_entry' / "
+            .. "'fs.write.to_file' — file creation is unavailable."
+        )
+      end)
+    end
   end
 end
 
@@ -62,7 +87,9 @@ local function touch(path)
     return true, nil
   end
 
-  local ok_write, err = require("lib.nvim.fs.write.to_file")(native, "")
+  if not write_to_file then return false, "lib.nvim not available — cannot create files" end
+
+  local ok_write, err = write_to_file(native, "")
   if not ok_write then return false, err or ("could not open " .. native) end
   PATH.invalidate_caches()
   return true, nil
