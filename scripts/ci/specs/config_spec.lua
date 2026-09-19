@@ -322,6 +322,56 @@ return function(H)
   end)
 
   H.check(
+    "setup: a wrong-type string_list field degrades to its default instead of the "
+      .. "crash it used to cause downstream (ERR-22)",
+    function()
+      H.config_sandbox(function(c)
+        H.capture_notify(function()
+          ---@diagnostic disable-next-line: assign-type-mismatch
+          c.setup({ truncated = { excluded_dirs = "not-a-table" } })
+        end)
+        H.eq(
+          #c.get().truncated.excluded_dirs,
+          7,
+          "excluded_dirs -- cache.lua's is_excluded() vim.tbl_contains() during the async scan"
+        )
+        H.match(
+          table.concat(c.issues(), "\n"),
+          "option 'truncated%.excluded_dirs' must be a list of strings, got string"
+        )
+      end)
+    end
+  )
+
+  H.check(
+    "setup: a string_list with a non-string element also degrades to the default (ERR-22)",
+    function()
+      H.config_sandbox(function(c)
+        H.capture_notify(function()
+          ---@diagnostic disable-next-line: assign-type-mismatch
+          c.setup({ truncated = { excluded_dirs = { "node_modules", 42 } } })
+        end)
+        H.eq(#c.get().truncated.excluded_dirs, 7, "stayed the default list")
+        H.match(
+          table.concat(c.issues(), "\n"),
+          "option 'truncated%.excluded_dirs' must be a list of strings, got a list with a non%-string element"
+        )
+      end)
+    end
+  )
+
+  H.check("setup: a valid string_list is used as-is, not dropped (ERR-22)", function()
+    H.config_sandbox(function(c)
+      local notes = H.capture_notify(function()
+        c.setup({ truncated = { excluded_dirs = { "node_modules", ".git" } } })
+      end)
+      H.same(c.get().truncated.excluded_dirs, { "node_modules", ".git" })
+      H.eq(#c.issues(), 0, "a well-typed list is not an issue")
+      H.eq(#notes, 0, "and nothing was warned")
+    end)
+  end)
+
+  H.check(
     "setup: mappings/commands still accept `false` (the documented whole-preset toggle)",
     function()
       H.config_sandbox(function(c)
