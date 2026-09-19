@@ -95,6 +95,23 @@ local config = {
   scan_roots = {},
 }
 
+---Recompute `config.cache_file` from the current `config.scan_roots` (PERF-46).
+---Must be called after ANY mutation of `config.scan_roots` -- not just from
+---`M.setup()` -- otherwise the persisted file keeps living at the filename
+---hashed from the stale roots set while its `scan_roots` field (written by
+---`M._save_to_disk`) reflects the new one. `load_from_disk`'s revalidation
+---then rejects that same file on every later session (persisted roots !=
+---freshly-recomputed roots), forcing a full rescan forever even though the
+---cache was a valid superset. See `M.add_root`.
+---@internal
+---@return nil
+local function refresh_cache_file()
+  config.cache_file = vim.fn.stdpath("cache")
+    .. "/gopath_fs_cache_"
+    .. short_hash(roots_fingerprint(config.scan_roots))
+    .. ".json"
+end
+
 ---Cache state
 ---Stored in memory for fast access during Neovim session
 ---`norm[i]` is the lowercased, forward-slash form of `paths[i]`, precomputed
@@ -181,10 +198,7 @@ function M.setup(opts)
   -- other's on disk. `load_from_disk` revalidates the `scan_roots` field
   -- against this too, as a second line of defense against a hash collision
   -- or a hand-copied file.
-  config.cache_file = vim.fn.stdpath("cache")
-    .. "/gopath_fs_cache_"
-    .. short_hash(roots_fingerprint(config.scan_roots))
-    .. ".json"
+  refresh_cache_file()
 
   -- === Apply Other Config Options ===
   if opts.max_depth then config.max_depth = opts.max_depth end
@@ -551,6 +565,16 @@ function M.add_root(dir, rebuild)
   end
 
   table.insert(config.scan_roots, dir)
+
+  -- Re-key the persisted filename to the new roots set (PERF-46). Without
+  -- this, `_save_to_disk` below would write the augmented `scan_roots` under
+  -- the OLD (still hashed-from-the-old-roots) `config.cache_file`, and the
+  -- very next `load_from_disk` -- next session or even this one, if a
+  -- non-rebuild caller reads before rebuilding -- would reject that file:
+  -- its persisted `scan_roots` no longer fingerprint-matches a freshly
+  -- recomputed `config.scan_roots` (see `M.setup`'s revalidation), forcing a
+  -- full rescan forever even though the cache is a valid superset.
+  refresh_cache_file()
 
   LOG.info("Added to cache roots: " .. dir)
 
