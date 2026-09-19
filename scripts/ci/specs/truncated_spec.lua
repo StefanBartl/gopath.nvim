@@ -413,6 +413,85 @@ return function(H)
     end)
   end)
 
+  H.check(
+    "add_root: re-keys cache_file so the augmented roots are saved under a new name (PERF-46)",
+    function()
+      local root = H.tmpdir()
+      local extra = H.tmpdir()
+      H.with_modules(fake_persistence({ readable = false, write_ok = true }), function()
+        cache.setup({ roots = { root } })
+        local file_before = cache._get_config().cache_file
+
+        cache.add_root(extra, false)
+        local file_after = cache._get_config().cache_file
+
+        H.truthy(
+          file_before ~= file_after,
+          "cache_file must be re-hashed once scan_roots grows, or the augmented "
+            .. "scan_roots list gets saved under the OLD (now-mismatched) filename"
+        )
+      end)
+    end
+  )
+
+  H.check(
+    "add_root: a later session with the original roots still loads its own untouched cache (PERF-46)",
+    function()
+      local root = H.tmpdir()
+      local extra = H.tmpdir()
+      H.write(root .. "/x.lua", { "" })
+      -- A real filesystem-backed store, unlike the other checks here: the bug
+      -- this guards against is specifically about which *filename* content
+      -- ends up under, so the fake in-memory single-slot store (which cannot
+      -- tell two filenames apart) would hide it.
+      local files = {}
+      local store_fs = {
+        ["lib.nvim.fs.is_readable_file"] = function(path)
+          return files[path] ~= nil
+        end,
+        ["lib.nvim.fs.json"] = {
+          read = function(path)
+            if files[path] == nil then return nil, "no such file" end
+            return files[path], nil
+          end,
+          write = function(path, data)
+            -- Deep-copy, not aliased: a real `json.write` serializes to disk,
+            -- so later in-memory mutations of `config.scan_roots` (e.g. by a
+            -- subsequent `add_root`) must NOT retroactively change what an
+            -- earlier write already persisted under a different filename.
+            files[path] = vim.deepcopy(data)
+            return true, nil
+          end,
+        },
+      }
+      H.with_modules(store_fs, function()
+        -- Session 1: build for `root` alone, then add `extra` on the fly.
+        cache.setup({ roots = { root } })
+        local done = false
+        cache.build_async(function()
+          done = true
+        end)
+        H.truthy(H.wait(function()
+          return done
+        end))
+
+        cache.add_root(extra, false) -- rebuild = false: only re-keys + mutates scan_roots
+        cache._save_to_disk() -- persist the augmented roots under the re-keyed name
+
+        -- Session 2: a fresh `setup()` call with the ORIGINAL roots only,
+        -- exactly like a Neovim restart that never persisted `extra` anywhere.
+        cache.setup({ roots = { root } })
+        H.eq(
+          cache.load_from_disk(),
+          true,
+          "the untouched root-only cache must still be found and trusted -- "
+            .. "add_root's mutation must not have clobbered it"
+        )
+        H.eq(#cache._get_state().paths, 1, "loaded from disk, not rescanned")
+      end)
+    end
+  )
+
   H.check("setup: with no roots given, the auto-detected set is all real directories", function()
     H.with_modules(fake_persistence({ readable = false, write_ok = true }), function()
       cache.setup({})
