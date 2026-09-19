@@ -1,0 +1,3 @@
+{
+  "DEP-01": "the three findings are lua/gopath/resolvers/common/help.lua:2,50 (doc comments naming vim.loop as an example, not a call) and scripts/ci/specs/common_resolvers_spec.lua:604 (a test-fixture string, 'vim.loop.new_timer()' as literal data verifying the resolver's tag-lookup fallback) -- no real vim.loop call site in production code"
+}
