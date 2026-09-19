@@ -720,7 +720,11 @@ return function(H)
         local gopath = require("gopath")
         gopath.setup({ deps_popup = false, truncated = { enable = false } })
         H.eq(shown, 0, "opted out right in the spec")
-        gopath.setup({ deps_popup = true })
+        -- `truncated.enable` repeated: setup() resets to defaults on every
+        -- call (LUA-87), so leaving it out here would flip the cache
+        -- subsystem back on and pull in cache-double methods this test
+        -- never stubbed.
+        gopath.setup({ deps_popup = true, truncated = { enable = false } })
         H.eq(shown, 1, "and shown otherwise")
       end, { unload = { "gopath" } })
       H.fresh("gopath")

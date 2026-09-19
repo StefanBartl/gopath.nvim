@@ -253,11 +253,40 @@ local function deep_merge_into(dst, src)
   end
 end
 
+---Reset `dst` in place to match `src` (the defaults), mutating rather than
+---replacing every table it descends into (ERR-53) — a consumer that stashed
+---a reference to one of `dst`'s sub-tables (e.g. `gopath.init._setup_cache`'s
+---`tcfg`, or a test's `config.get().truncated`) must still see the reset
+---values through that same reference, not a detached copy.
+---@private
+---@param dst table
+---@param src table
+local function reset_into(dst, src)
+  for k in pairs(dst) do
+    if src[k] == nil then dst[k] = nil end
+  end
+  for k, v in pairs(src) do
+    if type(v) == "table" then
+      if type(dst[k]) ~= "table" then dst[k] = {} end
+      reset_into(dst[k], v)
+    else
+      dst[k] = v
+    end
+  end
+end
+
 ---@type GopathOptions
 local state = vim.deepcopy(defaults)
 
 ---Merge `opts` on top of the built-in defaults.
----Calling setup() more than once re-merges on top of the previous state.
+---
+---`state` is reset to a fresh copy of the defaults first, so every call
+---starts from the same baseline instead of re-merging on top of whatever an
+---earlier call left behind — `setup({ truncated = { enable = false } })`
+---followed by `setup({})` leaves `truncated.enable` back at its default
+---(`true`), not stuck at `false` (LUA-87). `setup(nil)`/a non-table argument
+---stays a true no-op and skips the reset entirely, since there is nothing to
+---apply on top of it.
 ---
 ---`opts` is validated first (ERR-50/ERR-22): a value whose shape does not fit
 ---its option is dropped so the built-in default is what actually takes
@@ -266,6 +295,7 @@ local state = vim.deepcopy(defaults)
 ---@param opts GopathOptions|nil
 function M.setup(opts)
   if not opts or type(opts) ~= "table" then return end
+  reset_into(state, defaults)
   local clean, found_issues = validate(opts)
   issues = found_issues
   if #issues > 0 then

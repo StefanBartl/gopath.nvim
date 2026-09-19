@@ -3,9 +3,9 @@
 --
 -- scripts/ci/functional_tests.lua already pins the two curated-array cases
 -- (`order`, `truncated.excluded_dirs`) end-to-end. This spec covers the merge
--- function itself: what counts as a list, how deep nesting behaves, what
--- `setup()` accumulating rather than resetting actually means for a caller,
--- and the shape of the defaults the rest of the plugin reads.
+-- function itself: what counts as a list, how deep nesting behaves, that a
+-- second `setup()` call resets to defaults rather than accumulating, and the
+-- shape of the defaults the rest of the plugin reads.
 
 ---@param H table
 return function(H)
@@ -240,14 +240,36 @@ return function(H)
     end)
   end)
 
-  H.check("setup accumulates across calls — a second call does not reset to defaults", function()
+  H.check("setup: a second call resets to defaults, it does not accumulate (LUA-87)", function()
     H.config_sandbox(function(c)
       c.setup({ lsp_timeout_ms = 999 })
       c.setup({ dev_mode = true })
-      H.eq(c.get().lsp_timeout_ms, 999, "the first call's value is still there")
-      H.eq(c.get().dev_mode, true, "alongside the second call's")
+      H.eq(c.get().lsp_timeout_ms, 200, "the first call's value did not survive")
+      H.eq(c.get().dev_mode, true, "only the second call's own option applies")
     end)
   end)
+
+  H.check("setup: a second call resets a table option, not just merges over it (LUA-87)", function()
+    H.config_sandbox(function(c)
+      c.setup({ truncated = { enable = false } })
+      H.eq(c.get().truncated.enable, false)
+      c.setup({})
+      H.eq(c.get().truncated.enable, true, "an empty second call resets to the default")
+    end)
+  end)
+
+  H.check(
+    "setup: table identity across resets, so a held sub-table sees the reset (ERR-53)",
+    function()
+      H.config_sandbox(function(c)
+        local truncated = c.get().truncated
+        c.setup({ truncated = { enable = false } })
+        c.setup({})
+        H.eq(truncated, c.get().truncated, "the same table object, not a replacement")
+        H.eq(truncated.enable, true, "and the held reference sees the reset value")
+      end)
+    end
+  )
 
   H.check("get() hands back the live state, exactly as documented", function()
     -- Not a defect: the docstring says "read-only reference", and nothing in
