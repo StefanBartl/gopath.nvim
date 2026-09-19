@@ -210,7 +210,6 @@ function M.find_async(tail, opts, on_done)
   ---@internal
   ---@param item { dir:string, depth:integer }
   local function scan_one(item)
-    ---@diagnostic disable-next-line lib.uv
     uv.fs_scandir(item.dir, function(err, handle)
       if done then return end
       if err or not handle then
@@ -220,7 +219,6 @@ function M.find_async(tail, opts, on_done)
       end
 
       while true do
-        ---@diagnostic disable-next-line lib.uv
         local name, typ = uv.fs_scandir_next(handle)
         if not name then break end
 
