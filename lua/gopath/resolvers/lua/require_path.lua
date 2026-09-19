@@ -11,6 +11,7 @@
 
 local PATH = require("gopath.util.path")
 local LOC = require("gopath.util.location")
+local CROSS = require("gopath.util.cross")
 
 local M = {}
 
@@ -104,6 +105,12 @@ function M.resolve()
   local abs = module_to_path(mod)
 
   if not abs then return nil end
+  -- GopathResult.path is forward-slash canonical across the pipeline
+  -- (gopath.util.cross, resolvers/common/filetoken.lua) -- module_to_path
+  -- wraps search_module, which can fall through to search_with_package_path,
+  -- backslash-spelled on Windows, the same class of bug value_origin.lua
+  -- had (5d91fc9).
+  abs = CROSS.to_forward(abs)
 
   return {
     language = "lua",
