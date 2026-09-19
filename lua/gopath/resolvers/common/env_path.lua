@@ -107,7 +107,7 @@ end
 --- slashes introduced by trailing separators in the variable value.
 ---@internal
 ---@param base string  resolved variable value, e.g. "E:\repos\" or "/home/user/repos"
----@param rest string  remainder after the variable, e.g. "WKDBooks/foo.md"
+---@param rest string  remainder after the variable, e.g. "myproject/foo.md"
 ---@return string      absolute path with forward slashes, no trailing slash
 local function join_env_path(base, rest)
   -- Normalize both parts: backslash -> forward slash, strip trailing slash.
