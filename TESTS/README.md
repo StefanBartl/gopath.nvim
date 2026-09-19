@@ -150,8 +150,10 @@ Two house rules:
   turns a raw `E739` into "Could not create file: …" is the whole point of the
   guard; `pcall(...) == false` would pass either way.
 * **Leave the editor as you found it.** `H.config_sandbox` restores the config
-  (`setup()` accumulates and `get()` hands back the live table), and the specs
-  that move the runtimepath, register commands or bind keys put them back.
+  to what it was before `fn` ran, not just to the defaults (`get()` hands back
+  the live table, and `setup()` resets to defaults rather than an earlier
+  spec's own options), and the specs that move the runtimepath, register
+  commands or bind keys put them back.
 
 ## Coverage
 
@@ -163,7 +165,7 @@ and the 8 in `headless_tests.lua`.
 | --- | --- |
 | `util_path_spec` | `util/path.lua`: separator-normalising `join`, `exists`, and all four search strategies (runtimepath + its name index and TTL, `&path`/`suffixesadd`, `package.path`, the install dirs of installed-but-unloaded plugins) plus the composed `search_module` |
 | `util_misc_spec` | `util/cross.lua` (with and without lib.nvim), `util/location.lua` (all five suffix forms, Windows drives, range clamping), `util/log.lua` (both notifier paths, the `dev_mode` gate), `util/safe.lua`, `util/safe_notify.lua` |
-| `config_spec` | `config/DEFAULTS.lua`'s shape and `config/init.lua`'s recursive merge: nested overrides, list-replacement, scalars over tables, accumulation across calls |
+| `config_spec` | `config/DEFAULTS.lua`'s shape and `config/init.lua`'s recursive merge: nested overrides, list-replacement, scalars over tables, resetting to defaults across calls |
 | `url_spec` | `util/url.lua` (strict vs. loose detection, the drive-letter guard, normalisation, cursor extraction) and `resolvers/common/url.lua` (both passes, the `enable`/`bare_hosts` gates, configured schemes/TLDs) |
 | `env_shorten_spec` | `env_shorten.lua`: all four root forms, every negative case from `TESTS/06`, multi-pair ordering, and the buffer-facing `:GopathToReposDir` |
 | `external_spec` | `external/`: the extension/URL detector, `should_open_externally`, the opener and revealer argv chains through all their fallback layers, and the PDF mode chooser |
