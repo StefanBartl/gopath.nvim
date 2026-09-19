@@ -11,9 +11,12 @@ local M = {}
 function M.enhance_lsp_result(lsp_result)
   if not lsp_result or not lsp_result.path or not lsp_result.range then return nil end
 
-  -- Read the file at LSP result location
-  local lines = vim.fn.readfile(lsp_result.path)
-  if not lines or #lines == 0 then return nil end
+  -- Read the file at LSP result location. The path comes straight out of a
+  -- decoded LSP response (vim.uri_to_fname), which throws E484 for a URI
+  -- that does not name a readable file -- an unsaved buffer, a non-file
+  -- scheme, or a file deleted since the server indexed it.
+  local ok, lines = pcall(vim.fn.readfile, lsp_result.path)
+  if not ok or not lines or #lines == 0 then return nil end
 
   local line_num = lsp_result.range.line
   if line_num < 1 or line_num > #lines then return nil end

@@ -175,6 +175,27 @@ return function(H)
     end)
   end)
 
+  H.check(
+    "shorten_current_line warns instead of raising in a non-modifiable buffer (ERR-01)",
+    function()
+      H.config_sandbox(function()
+        H.buf({ "see E:/repos/a.md" })
+        vim.api.nvim_win_set_cursor(0, { 1, 0 })
+        vim.bo.modifiable = false
+        local notes = H.capture_notify(function()
+          ES.shorten_current_line()
+        end)
+        vim.bo.modifiable = true
+        H.eq(
+          vim.api.nvim_get_current_line(),
+          "see E:/repos/a.md",
+          "unchanged -- the write never landed"
+        )
+        H.match(H.notify_text(notes), "not modifiable")
+      end)
+    end
+  )
+
   H.check("shorten_current_line honours a user-configured shorten_dirs map", function()
     H.config_sandbox(function(c)
       c.setup({ env_variable_resolution = { shorten_dirs = { projects = "PROJ_DIR" } } })

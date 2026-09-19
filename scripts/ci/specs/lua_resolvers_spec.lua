@@ -348,6 +348,20 @@ return function(H)
     )
   end)
 
+  H.check(
+    "local_to_module: a path readfile cannot open answers nil instead of E484 (ERR-01)",
+    function()
+      -- `path` comes straight out of a decoded LSP response (vim.uri_to_fname);
+      -- a directory stands in here for "not a readable file" (unsaved buffer,
+      -- non-file URI scheme, a file deleted since the server indexed it).
+      local dir = H.tmpdir()
+      H.is_nil(
+        local_to_module.enhance_lsp_result({ path = dir, range = { line = 1, col = 1 } }),
+        "readfile throws E484 on a directory; enhance_lsp_result must not propagate it"
+      )
+    end
+  )
+
   -- ── ts_lua_ast ─────────────────────────────────────────────────────────────
 
   local AST = require("gopath.resolvers.lua.ts_lua_ast")

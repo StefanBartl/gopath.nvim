@@ -138,7 +138,11 @@ function M.shorten_current_line()
     return
   end
 
-  vim.api.nvim_buf_set_lines(0, row - 1, row, false, { result })
+  local ok = pcall(vim.api.nvim_buf_set_lines, 0, row - 1, row, false, { result })
+  if not ok then
+    LOG.warn("buffer is not modifiable — nothing was changed")
+    return
+  end
   LOG.info(string.format("shortened %d occurrence%s", count, count == 1 and "" or "s"))
 end
 
