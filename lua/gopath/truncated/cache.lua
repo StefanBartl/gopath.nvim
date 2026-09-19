@@ -242,7 +242,6 @@ local function scan_roots_bounded(roots, on_done)
   ---@internal
   ---@param item { dir:string, depth:integer }
   local function scan_one(item)
-    ---@diagnostic disable-next-line lib.uv
     uv.fs_scandir(item.dir, function(err, handle)
       if err or not handle then
         active = active - 1
@@ -251,7 +250,6 @@ local function scan_roots_bounded(roots, on_done)
       end
 
       while true do
-        ---@diagnostic disable-next-line lib.uv
         local name, typ = uv.fs_scandir_next(handle)
         if not name then break end
 
@@ -519,7 +517,6 @@ function M.start_periodic_refresh(interval_seconds)
     refresh_timer = nil
   end
 
-  ---@diagnostic disable-next-line lib.uv
   local timer = assert(uv.new_timer())
   refresh_timer = timer
 

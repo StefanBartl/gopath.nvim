@@ -84,13 +84,11 @@ end
 ---@param dir_path string
 ---@return string[]|nil files List of absolute file paths, or nil on error
 function M.scan_directory(dir_path)
-  ---@diagnostic disable-next-line lib.uv
   local handle = (uv.fs_scandir(dir_path))
   if not handle then return nil end
 
   local files = {}
   while true do
-    ---@diagnostic disable-next-line lib.uv
     local name, type = uv.fs_scandir_next(handle)
     if not name then break end
 
