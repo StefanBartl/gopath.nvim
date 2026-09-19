@@ -26,6 +26,19 @@ local function is_list(t)
   return true
 end
 
+---True when array-shaped `t` (already known to satisfy `is_list`) holds only
+---string elements. An empty list is vacuously a string list, matching how
+---`"list"` already treats an empty table as valid.
+---@private
+---@param t table
+---@return boolean
+local function is_string_list(t)
+  for _, v in ipairs(t) do
+    if type(v) ~= "string" then return false end
+  end
+  return true
+end
+
 ---Keys `setup()` recognizes, recursively: a nested table's own value may
 ---itself be one of these tags (see `alternate.frecency`/`external.pdf`
 ---below), and `validate_value` walks the whole thing by full dotted path
@@ -37,6 +50,13 @@ end
 ---
 ---  * `"list"` — a curated array (see `deep_merge_into`'s docstring); a
 ---    non-list value is a type error, not an override.
+---  * `"string_list"` — a curated array like `"list"`, plus every element
+---    must be a string; a non-list value, or a list with a non-string
+---    element, is a type error. Reserved for a field a downstream consumer
+---    feeds straight into a string-keyed lookup without its own per-element
+---    guard: `truncated.excluded_dirs` (`vim.tbl_contains(config.excluded_dirs,
+---    name)` in `truncated/cache.lua`'s `is_excluded()`, reached from the
+---    async scan callback on every directory visited).
 ---  * `"open"` — a table whose own keys are not a closed set (`languages` is
 ---    keyed by filetype, including ones gopath has no built-in resolver for)
 ---    and are therefore never flagged as unknown, nor recursed into.
@@ -65,7 +85,7 @@ end
 ---    `tailsearch.max_components`/`tailsearch.limit` (`math.min`/`math.max`
 ---    on the resolve fast path). Zero and negative values are left alone —
 ---    every one of those consumers already tolerates them.
----@alias GopathConfigSpec true|"list"|"open"|"number"|table<string, GopathConfigSpec>
+---@alias GopathConfigSpec true|"list"|"string_list"|"open"|"number"|table<string, GopathConfigSpec>
 ---@type table<string, GopathConfigSpec>
 local KNOWN = {
   dev_mode = true,
@@ -121,7 +141,7 @@ local KNOWN = {
     similarity_threshold = true,
     cache_roots = true,
     max_depth = "number",
-    excluded_dirs = true,
+    excluded_dirs = "string_list",
     watch_patterns = true,
     auto_rebuild_on_save = true,
   },
@@ -206,21 +226,24 @@ end
 ---extension point -- see the "unknown keys are kept" spec) so a typo like
 ---`truncted` for `truncated`, or `alternate.frecency.max_bnus` for
 ---`max_bonus`, is at least visible instead of silently leaving the real
----option at its default forever. A `"list"`/`"open"`/`"number"` leaf whose
----value does not fit is dropped instead -- one field falls back to its
----default rather than a crash three modules downstream: `order = "lsp"` (a
----string, not a list) used to throw "table expected, got string" out of
+---option at its default forever. A `"list"`/`"string_list"`/`"open"`/`"number"`
+---leaf whose value does not fit is dropped instead -- one field falls back to
+---its default rather than a crash three modules downstream: `order = "lsp"`
+---(a string, not a list) used to throw "table expected, got string" out of
 ---`resolve.lua`'s `ipairs(cfg.order)`, `languages = false` used to throw
----"attempt to index a boolean value" the same way, and a wrong-type
----`"number"` leaf (e.g. `truncated.max_depth = "6"`,
----`tailsearch.max_components = "abc"`) used to throw a
----"compare"/"arithmetic on a string/table/boolean value" error out of
----whichever consumer used the raw value without its own guard -- for
----`truncated.cache_refresh_interval`/`max_cache_age` that consumer is
+---"attempt to index a boolean value" the same way, a wrong-type `"number"`
+---leaf (e.g. `truncated.max_depth = "6"`, `tailsearch.max_components = "abc"`)
+---used to throw a "compare"/"arithmetic on a string/table/boolean value"
+---error out of whichever consumer used the raw value without its own guard
+----- for `truncated.cache_refresh_interval`/`max_cache_age` that consumer is
 ---`setup()` itself (`gopath.init._setup_cache`), so the crash took the whole
----plugin init down rather than just degrading the one feature. Dropping only
----the one bad leaf (not its whole parent table) means `deep_merge_into`
----leaves every other, valid sibling of e.g. `truncated` or
+---plugin init down rather than just degrading the one feature -- and a
+---non-string-list `truncated.excluded_dirs` (e.g. a bare string) used to
+---throw "expected table, got string" out of `truncated/cache.lua`'s
+---`is_excluded()` (`vim.tbl_contains(config.excluded_dirs, name)`), reached
+---from the async scan's `fs_scandir` callback on the first directory visited.
+---Dropping only the one bad leaf (not its whole parent table) means
+---`deep_merge_into` leaves every other, valid sibling of e.g. `truncated` or
 ---`alternate.frecency` exactly as the caller supplied it.
 ---
 ---`false` in place of a table is accepted only when `allow_false` is true
@@ -242,6 +265,16 @@ local function validate_value(value, spec, path, allow_false, found_issues)
     found_issues[#found_issues + 1] = ("option '%s' must be a list, got %s -- using the default"):format(
       path,
       type(value)
+    )
+    return nil, false
+  elseif spec == "string_list" then
+    if type(value) == "table" and is_list(value) and is_string_list(value) then
+      return value, true
+    end
+    local got = type(value) ~= "table" and type(value) or "a list with a non-string element"
+    found_issues[#found_issues + 1] = ("option '%s' must be a list of strings, got %s -- using the default"):format(
+      path,
+      got
     )
     return nil, false
   elseif spec == "open" then
