@@ -136,9 +136,14 @@ needs no external tools (`fd`/`rg` are used only by the synchronous
 - **In-memory:** `state.paths` — a flat array of every discovered absolute file
   path. This is what lookups search.
 - **On-disk:** a versioned JSON file at
-  `stdpath("cache") .. "/gopath_fs_cache.json"` containing `paths`,
-  `last_built`, `scan_roots` and a `version`. It is rewritten after each build
-  and loaded on startup so the very first lookup of a session is already fast.
+  `stdpath("cache") .. "/gopath_fs_cache_<hash>.json"` containing `paths`,
+  `last_built`, `scan_roots` and a `version`. `<hash>` is derived from the
+  configured scan roots, so two projects with a different root set never
+  share a file on disk, and loading one back also revalidates its
+  `scan_roots` field against the current configuration — a cache built for a
+  different project is never adopted, even on a hash collision or a
+  hand-copied file. It is rewritten after each build and loaded on startup so
+  the very first lookup of a session is already fast.
 
 ---
 
