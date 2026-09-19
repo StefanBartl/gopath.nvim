@@ -178,6 +178,31 @@ return function(H)
   end)
 
   H.check(
+    "setup: a misspelled key three levels deep is flagged too, not just the first level (ERR-50)",
+    function()
+      H.config_sandbox(function(c)
+        H.capture_notify(function()
+          c.setup({ alternate = { frecency = { max_bnus = 42 } } })
+        end)
+        H.match(
+          table.concat(c.issues(), "\n"),
+          "unknown option 'alternate%.frecency%.max_bnus' %(did you mean 'alternate%.frecency%.max_bonus'%?%)"
+        )
+        H.eq(
+          c.get().alternate.frecency.max_bonus,
+          10,
+          "the real option never moved off its default"
+        )
+        H.eq(
+          c.get().alternate.frecency.max_bnus,
+          42,
+          "the typo is still kept, same as any other unknown key"
+        )
+      end)
+    end
+  )
+
+  H.check(
     "setup: a wrong-shaped value degrades to the default instead of the crash it used to cause (ERR-22)",
     function()
       H.config_sandbox(function(c)
@@ -199,6 +224,100 @@ return function(H)
       end)
       H.eq(c.get().languages.lua.enable, true, "languages stayed the default table")
       H.match(table.concat(c.issues(), "\n"), "option 'languages' must be a table, got boolean")
+    end)
+  end)
+
+  H.check(
+    "setup: a wrong-type number-shaped field degrades to its default instead of the "
+      .. "crash it used to cause downstream (ERR-22)",
+    function()
+      H.config_sandbox(function(c)
+        H.capture_notify(function()
+          ---@diagnostic disable-next-line: assign-type-mismatch
+          c.setup({
+            lsp_timeout_ms = "200",
+            alternate = { similarity_threshold = "75" },
+            truncated = {
+              max_depth = "6",
+              cache_refresh_interval = "600",
+              max_cache_age = "3600",
+            },
+            tailsearch = { max_components = "6", limit = "100" },
+          })
+        end)
+        local cfg = c.get()
+        H.eq(cfg.lsp_timeout_ms, 200, "lsp_timeout_ms -- vim.wait() inside LSP resolution")
+        H.eq(
+          cfg.alternate.similarity_threshold,
+          75,
+          "alternate.similarity_threshold -- matcher.lua's >= compare"
+        )
+        H.eq(
+          cfg.truncated.max_depth,
+          6,
+          "truncated.max_depth -- cache.lua's < compare during the async scan"
+        )
+        H.eq(
+          cfg.truncated.cache_refresh_interval,
+          600,
+          "truncated.cache_refresh_interval -- start_periodic_refresh()'s `* 1000`, reached synchronously from setup()"
+        )
+        H.eq(
+          cfg.truncated.max_cache_age,
+          3600,
+          "truncated.max_cache_age -- needs_refresh()'s > compare, reached synchronously from setup()"
+        )
+        H.eq(
+          cfg.tailsearch.max_components,
+          6,
+          "tailsearch.max_components -- suffix_candidates()'s math.min"
+        )
+        H.eq(cfg.tailsearch.limit, 100, "tailsearch.limit -- find_by_tail()'s math.max")
+
+        local msg = table.concat(c.issues(), "\n")
+        H.match(msg, "option 'lsp_timeout_ms' must be a number, got string")
+        H.match(msg, "option 'alternate%.similarity_threshold' must be a number, got string")
+        H.match(msg, "option 'truncated%.max_depth' must be a number, got string")
+        H.match(msg, "option 'truncated%.cache_refresh_interval' must be a number, got string")
+        H.match(msg, "option 'truncated%.max_cache_age' must be a number, got string")
+        H.match(msg, "option 'tailsearch%.max_components' must be a number, got string")
+        H.match(msg, "option 'tailsearch%.limit' must be a number, got string")
+      end)
+    end
+  )
+
+  H.check(
+    "setup: a number-shaped field only drops itself, its siblings keep the caller's values (ERR-22)",
+    function()
+      H.config_sandbox(function(c)
+        H.capture_notify(function()
+          ---@diagnostic disable-next-line: assign-type-mismatch
+          c.setup({ truncated = { max_depth = "6", cache_refresh_interval = 42 } })
+        end)
+        H.eq(c.get().truncated.max_depth, 6, "the bad sibling fell back to its default")
+        H.eq(
+          c.get().truncated.cache_refresh_interval,
+          42,
+          "the good sibling kept the caller's value"
+        )
+      end)
+    end
+  )
+
+  H.check("setup: zero and negative numbers are valid values, not dropped (ERR-22)", function()
+    H.config_sandbox(function(c)
+      H.capture_notify(function()
+        c.setup({
+          truncated = { max_depth = 0 },
+          alternate = { similarity_threshold = -10 },
+          tailsearch = { max_components = 0, limit = -1 },
+        })
+      end)
+      H.eq(c.get().truncated.max_depth, 0)
+      H.eq(c.get().alternate.similarity_threshold, -10)
+      H.eq(c.get().tailsearch.max_components, 0)
+      H.eq(c.get().tailsearch.limit, -1)
+      H.eq(#c.issues(), 0, "these are valid (if unusual) numbers, not a type error")
     end)
   end)
 
