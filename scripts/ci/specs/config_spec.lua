@@ -148,6 +148,89 @@ return function(H)
     end)
   end)
 
+  H.check(
+    "setup: a misspelled key is kept but flagged with a did-you-mean hint (ERR-50)",
+    function()
+      H.config_sandbox(function(c)
+        H.capture_notify(function()
+          c.setup({ truncted = { enable = false } })
+        end)
+        H.eq(c.get().truncted.enable, false, "still kept, same as any other unknown key")
+        H.eq(c.get().truncated.enable, true, "the real option never moved off its default")
+        H.match(
+          table.concat(c.issues(), "\n"),
+          "unknown option 'truncted' %(did you mean 'truncated'%?%)"
+        )
+      end)
+    end
+  )
+
+  H.check("setup: a misspelled nested key is flagged the same way", function()
+    H.config_sandbox(function(c)
+      H.capture_notify(function()
+        c.setup({ mappings = { open_vspit = "gv" } })
+      end)
+      H.match(
+        table.concat(c.issues(), "\n"),
+        "unknown option 'mappings.open_vspit' %(did you mean 'mappings.open_vsplit'%?%)"
+      )
+    end)
+  end)
+
+  H.check(
+    "setup: a wrong-shaped value degrades to the default instead of the crash it used to cause (ERR-22)",
+    function()
+      H.config_sandbox(function(c)
+        H.capture_notify(function()
+          ---@diagnostic disable-next-line: assign-type-mismatch
+          c.setup({ order = "lsp" })
+        end)
+        H.same(c.get().order, { "lsp", "treesitter", "builtin" }, "order stayed the default list")
+        H.match(table.concat(c.issues(), "\n"), "option 'order' must be a list, got string")
+      end)
+    end
+  )
+
+  H.check("setup: languages = false degrades to the default table (ERR-22)", function()
+    H.config_sandbox(function(c)
+      H.capture_notify(function()
+        ---@diagnostic disable-next-line: assign-type-mismatch
+        c.setup({ languages = false })
+      end)
+      H.eq(c.get().languages.lua.enable, true, "languages stayed the default table")
+      H.match(table.concat(c.issues(), "\n"), "option 'languages' must be a table, got boolean")
+    end)
+  end)
+
+  H.check(
+    "setup: mappings/commands still accept `false` (the documented whole-preset toggle)",
+    function()
+      H.config_sandbox(function(c)
+        local notes = H.capture_notify(function()
+          c.setup({ mappings = false, commands = false })
+        end)
+        H.eq(c.get().mappings, false)
+        H.eq(c.get().commands, false)
+        H.eq(#c.issues(), 0, "false is a valid shape here, not a type error")
+        H.eq(#notes, 0, "and so nothing was warned about")
+      end)
+    end
+  )
+
+  H.check("issues() is empty after a clean setup(), even following an earlier bad one", function()
+    H.config_sandbox(function(c)
+      H.capture_notify(function()
+        ---@diagnostic disable-next-line: assign-type-mismatch
+        c.setup({ order = "lsp" })
+      end)
+      H.truthy(#c.issues() > 0, "the first call left something to report")
+      H.capture_notify(function()
+        c.setup({ dev_mode = true })
+      end)
+      H.eq(#c.issues(), 0, "a later well-formed call clears it")
+    end)
+  end)
+
   H.check("setup: values are copied out of the user's list, not aliased", function()
     H.config_sandbox(function(c)
       local mine = { "a", "b" }
