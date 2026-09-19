@@ -70,8 +70,15 @@ function M.open(res, opts)
     return
   end
 
-  --- CDX: nothing found, falls back to `:help vim.api` as a generic landing
-  --- page; unclear if this silent fallback is desired or should notify instead
+  -- Nothing matched any candidate, their paren-toggled siblings, or the help
+  -- index. Falling straight to `:help vim.api` without saying so looks like
+  -- an on-topic result for `needle` instead of the generic landing page it
+  -- actually is (LLS-31: a silent fallback here is indistinguishable from
+  -- "found it"). Warn, not error: this is the resolver giving up gracefully,
+  -- not a crash, and the user still ends up somewhere useful.
+  require("gopath.util.log").warn(
+    ("no help found for %q -- showing the general Neovim API index instead"):format(needle)
+  )
   pcall(function()
     vim.cmd("help vim.api")
   end)
