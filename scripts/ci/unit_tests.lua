@@ -35,7 +35,19 @@ require("gopath").setup({})
 
 local filter = vim.env.GOPATH_SPEC
 local spec_dir = root .. "/scripts/ci/specs"
-local specs = vim.fn.globpath(spec_dir, "*.lua", false, true)
+
+-- `vim.fn.globpath` reads its directory argument as a glob PATTERN, not a
+-- path -- fatal on Windows when the checkout sits under an 8.3 short name
+-- (`C:/Users/STEFAN~1/...`, which any profile name over eight characters
+-- gets from a `getcwd()`/`%TEMP%`-derived path): glob tries `~1` as a
+-- home-directory reference, finds no such user, and answers an empty list
+-- with no error, misreported below as "no specs found" (XP-01). `vim.fs.dir`
+-- takes `spec_dir` as an actual path, so no directory spelling can be
+-- misread as pattern syntax.
+local specs = {}
+for name, typ in vim.fs.dir(spec_dir) do
+  if typ == "file" and name:sub(-4) == ".lua" then specs[#specs + 1] = spec_dir .. "/" .. name end
+end
 table.sort(specs)
 
 if #specs == 0 then
