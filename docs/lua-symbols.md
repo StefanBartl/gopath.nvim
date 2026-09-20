@@ -107,7 +107,7 @@ which `resolve.lua` already runs before the language layer).
 ## Supported patterns
 
 ```lua
--- ✅ Supported
+-- Supported
 local config = require("gopath.config")   -- bare identifier → module
 local cfg    = require("gopath.config")   -- alias works
 config       = require("gopath.config")   -- non-local works
@@ -115,7 +115,7 @@ require("gopath.config")                  -- direct require string/call
 config.setup()                            -- chain → symbol definition
 config.get().value                        -- value origin / chain following
 
--- ❌ Not supported
+-- Not supported
 local config = require(some_variable)     -- dynamic require (non-literal)
 local config = req("gopath.config")       -- aliased require *function*
 ```

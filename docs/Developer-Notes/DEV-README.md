@@ -379,7 +379,7 @@ function calculate_similarity(s1, s2)
 end
 ```
 
-**Examples:**
+#### Examples:
 * `chadrer.lua` vs `chadrc.lua`: **87%** (2 edits / 11 chars)
 * `cofnig.lua` vs `config.lua`: **90%** (1 edit / 10 chars)
 * `init.lua` vs `unit.lua`: **80%** (1 substitution / 8 chars)
@@ -516,7 +516,7 @@ local setup = require("gopath.config").setup
 
 #### Architecture
 
-**Provider Priority:**
+##### Provider Priority:
 1. **LSP** (confidence: 1.0) - Exact symbol definitions with line/col
 2. **Treesitter** (confidence: 0.75-0.85) - Heuristic pattern matching
 3. **Builtin** (confidence: 0.5) - Module-level resolution
@@ -589,7 +589,7 @@ languages = {
 }
 ```
 
-**Behavior:**
+#### Behavior:
 * **Not in config**: Universal features work (filetoken, help, external)
 * **enable = true**: Universal + language-specific features
 * **enable = false**: Blocked entirely (returns "language-disabled")
@@ -609,7 +609,7 @@ languages = {
 }
 ```
 
-**Available Lua Resolvers:**
+#### Available Lua Resolvers:
 * `require_path` - Resolve `require("module")` to file
 * `binding_index` - Map identifiers to modules
 * `alias_index` - Resolve aliases
@@ -627,7 +627,7 @@ languages = {
 :GopathDebug
 ```
 
-**Output:**
+#### Output:
 
 ```vim
 === Gopath Debug ===
@@ -703,7 +703,7 @@ opts = {
 }
 ```
 
-**Recommendations:**
+#### Recommendations:
 * **Fast machines**: 100-150ms
 * **Normal use**: 200ms (default)
 * **Slow LSP servers**: 500ms
@@ -779,7 +779,7 @@ end
 | File path | N/A | 3ms | 2ms |
 | URL | N/A | 1ms | 1ms |
 
-**Notes:**
+#### Notes:
 * LSP times include network latency
 * Treesitter times include parsing (cached after first parse)
 * Builtin is fastest but least semantic

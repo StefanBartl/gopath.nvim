@@ -53,19 +53,19 @@ stack-trace line all end in the same place: the right file, at the right line.
 Start at [docs/README.md](docs/README.md) — what's where, and which question
 each page answers.
 
-**The Basics**
+### The Basics
 
 - [Requirements](docs/installation.md#requirements) — Neovim version, required plugins and CLI tools.
 - [Installation](docs/installation.md) — plugin managers and load-trigger variants.
 - [Quickstart](docs/quickstart.md) — the first thing to run after installing.
 
-**Configuration**
+### Configuration
 
 - [What you get with the defaults](docs/what-you-get.md) — the keymap table that matters on day one.
 - [All options](docs/configuration.md) — every `setup()` option and its default.
 - [Commands / bindings cheatsheet](docs/BINDINGS.md) — the whole `:Gopath` subcommand tree.
 
-**The Rest**
+### The Rest
 
 - [What it does and what not](docs/scope.md) — the resolution phases, at a glance.
 - [Why it does it that way](docs/Developer-Notes/DEV-README.md) — architecture, providers, resolvers.
