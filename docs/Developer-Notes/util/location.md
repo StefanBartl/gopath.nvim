@@ -57,7 +57,7 @@ architecture.
 
 This module serves as the single source of truth for parsing and normalizing location information.
 
-**Key Functions:**
+#### Key Functions:
 
 1. **`parse_location(str)`** - Parse various location formats
 2. **`merge_ranges(parsed, existing)`** - Merge location information
@@ -139,7 +139,7 @@ function M.parse_location(str)
 end
 ```
 
-**Design Decisions:**
+#### Design Decisions:
 
 - **Order matters**: Most specific patterns first (`path:line:col` before `path:line`)
 - **Greedy matching**: `(.+)` captures everything before location suffix
@@ -163,7 +163,7 @@ function M.normalize_range(range)
 end
 ```
 
-**Why Normalize?**
+#### Why Normalize?
 
 - **LSP compatibility**: LSP uses 0-indexed positions, must convert to 1-indexed
 - **Validation**: Prevent invalid positions (line 0, negative columns)
@@ -195,11 +195,11 @@ function M.merge_ranges(parsed, existing)
 end
 ```
 
-**Use Case:**
+#### Use Case:
 
 When a resolver finds a file path with embedded location info (e.g., from `<cfile>`), but also has semantic information (e.g., from LSP), merge the two intelligently.
 
-**Priority Order:**
+#### Priority Order:
 1. Parsed location (from user input/text)
 2. Existing range (from resolver/LSP)
 3. nil (no location information)
@@ -232,7 +232,7 @@ function M.resolve()
 end
 ```
 
-**Benefits:**
+#### Benefits:
 - Single parsing logic (DRY principle)
 - Consistent handling across all resolvers
 - Easy to add new formats (change one place)
@@ -297,7 +297,7 @@ function M.open(res)
 end
 ```
 
-**Important:**
+#### Important:
 - `nvim_win_set_cursor` expects `{ line, col }` where:
   - `line` is 1-indexed
   - `col` is 0-indexed (subtract 1 from normalized value)
@@ -393,7 +393,7 @@ Patterns are tried in **descending specificity order**:
 3. Less common: `path(line)`
 4. Rare: `path(line:col)`, `path +line`
 
-**Why?**
+#### Why?
 - Early exit on match (most formats are `:line` or `:line:col`)
 - Avoids unnecessary pattern attempts
 

@@ -104,7 +104,7 @@ A build is triggered:
 - **On save** (optional), if `auto_rebuild_on_save = true`, debounced.
 - **Manually**, via `:Gopath cache build`.
 
-> ⚠️ The build is wired up in [`lua/gopath/init.lua`](../lua/gopath/init.lua)
+> The build is wired up in [`lua/gopath/init.lua`](../lua/gopath/init.lua)
 > via `cache.setup{…}`. Without that call the scan roots are empty and the cache
 > indexes nothing — so the cache is only active when `truncated.enable = true`
 > (the default).
