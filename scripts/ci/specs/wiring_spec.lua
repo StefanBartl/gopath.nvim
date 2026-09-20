@@ -492,16 +492,31 @@ return function(H)
     end)
   end)
 
-  H.check("help.open: an empty quickfix list lands on the generic page", function()
-    H.with_field(vim.fn, "getqflist", function()
-      return { size = 0 }
-    end, function()
-      local issued = with_cmd_recorder("^[a-z ]*help nothing", function()
-        help_open.open({ kind = "help", subject = "nothing_at_all" }, {})
+  H.check(
+    "help.open: an empty quickfix list lands on the generic page, with a warning (LLS-31)",
+    function()
+      H.with_field(vim.fn, "getqflist", function()
+        return { size = 0 }
+      end, function()
+        local issued, notes
+        notes = H.capture_notify(function()
+          issued = with_cmd_recorder("^[a-z ]*help nothing", function()
+            help_open.open({ kind = "help", subject = "nothing_at_all" }, {})
+          end)
+        end)
+        H.eq(issued[#issued], "help vim.api", "the documented last-resort landing page")
+
+        -- LLS-31: this generic page looks exactly like an on-topic hit for
+        -- "nothing_at_all" unless the fallback says otherwise -- warn, naming
+        -- what was actually searched for, rather than opening it silently.
+        H.match(
+          H.notify_text(notes),
+          'no help found for "nothing_at_all"',
+          "the last-resort fallback says what it gave up looking for"
+        )
       end)
-      H.eq(issued[#issued], "help vim.api", "the documented last-resort landing page")
-    end)
-  end)
+    end
+  )
 
   H.check("help.open: a non-help result is ignored", function()
     local issued = with_cmd_recorder(nil, function()
