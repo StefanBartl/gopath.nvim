@@ -62,12 +62,13 @@ jobs:
           nvim -n -i NONE --headless --noplugin -u NONE \
             --cmd "set runtimepath+=${{ github.workspace }}/deps/lib.nvim" \
             -c "lua dofile('scripts/ci/headless_tests.lua')"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: test-output-headless-tests-${{ matrix.os }}
           path: ${{ runner.temp }}/test-output.log
           if-no-files-found: ignore
+          retention-days: 14
 
   functional-tests:
     name: headless functional tests (${{ matrix.os }})
@@ -100,12 +101,13 @@ jobs:
           nvim -n -i NONE --headless --noplugin -u NONE \
             --cmd "set runtimepath+=${{ github.workspace }}/deps/lib.nvim" \
             -c "lua dofile('scripts/ci/functional_tests.lua')"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: test-output-functional-tests-${{ matrix.os }}
           path: ${{ runner.temp }}/test-output.log
           if-no-files-found: ignore
+          retention-days: 14
 
   unit-tests:
     name: headless unit tests (${{ matrix.os }})
@@ -138,9 +140,10 @@ jobs:
           nvim -n -i NONE --headless --noplugin -u NONE \
             --cmd "set runtimepath+=${{ github.workspace }}/deps/lib.nvim" \
             -c "lua dofile('scripts/ci/unit_tests.lua')"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: test-output-unit-tests-${{ matrix.os }}
           path: ${{ runner.temp }}/test-output.log
           if-no-files-found: ignore
+          retention-days: 14
