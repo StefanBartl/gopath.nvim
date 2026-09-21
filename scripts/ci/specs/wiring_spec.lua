@@ -20,10 +20,10 @@ return function(H)
     local calls = { open = {}, copy = 0, debug = 0, check = 0, probe = {} }
     H.with_modules({
       ["gopath.commands"] = {
-        resolve_and_open = function(kind)
+        goto_at_cursor = function(kind)
           calls.open[#calls.open + 1] = kind
         end,
-        resolve_and_copy = function()
+        copy_location = function()
           calls.copy = calls.copy + 1
         end,
         debug_under_cursor = function()
@@ -189,10 +189,10 @@ return function(H)
     local calls = { open = {}, copy = 0, debug = 0, check = 0, probe = {}, shorten = 0 }
     H.with_modules({
       ["gopath.commands"] = {
-        resolve_and_open = function(kind)
+        goto_at_cursor = function(kind)
           calls.open[#calls.open + 1] = kind
         end,
-        resolve_and_copy = function()
+        copy_location = function()
           calls.copy = calls.copy + 1
         end,
         debug_under_cursor = function()
@@ -764,7 +764,7 @@ return function(H)
   H.check("the public API: resolve() delegates, commands is the command table", function()
     local gopath = require("gopath")
     H.eq(gopath.commands, require("gopath.commands"), "exposed for custom keymaps")
-    H.eq(type(gopath.commands.resolve_and_open), "function")
+    H.eq(type(gopath.commands.goto_at_cursor), "function")
 
     local asked
     H.with_modules({

@@ -161,7 +161,7 @@ function M.resolve()
   -- filesystem walk is intentionally NOT run inside the synchronous pipeline —
   -- it would block the UI for seconds on large trees. When the cache misses,
   -- we hand back the speculative (exists=false) result below and the command
-  -- layer performs the search asynchronously (see commands.resolve_and_open).
+  -- layer performs the search asynchronously (see commands.goto_at_cursor).
   if not abs then
     local cfg = require("gopath.config").get()
     if cfg.tailsearch and cfg.tailsearch.enable ~= false then

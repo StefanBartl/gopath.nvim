@@ -86,7 +86,7 @@ function M.resolve(opts)
 end
 
 ---Direct access to command implementations for custom keymaps.
----Example: `require("gopath").commands.resolve_and_open("vsplit")`
+---Example: `require("gopath").commands.goto_at_cursor("vsplit")`
 M.commands = require("gopath.commands")
 
 return M

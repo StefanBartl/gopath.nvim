@@ -109,7 +109,7 @@ local function register_gopath_cmd(config, commands)
       args = { { name = "mode", type = "STRING", optional = true, enum = OPEN_MODES } },
       desc = "Resolve & open the path under the cursor",
       run = function(ctx)
-        commands.resolve_and_open(norm_mode(ctx.args.mode))
+        commands.goto_at_cursor(norm_mode(ctx.args.mode))
       end,
     },
 
@@ -117,7 +117,7 @@ local function register_gopath_cmd(config, commands)
       path = { "copy" },
       desc = "Copy path:line:col to clipboard",
       run = function()
-        commands.resolve_and_copy()
+        commands.copy_location()
       end,
     },
 
@@ -210,7 +210,7 @@ local function register_individual(config, commands)
     usercmd.create("GopathOpen", function(o)
       local mode = o.args ~= "" and o.args or "edit"
       if mode == "window_vsplit" then mode = "vsplit" end
-      commands.resolve_and_open(norm_mode(mode))
+      commands.goto_at_cursor(norm_mode(mode))
     end, {
       nargs = "?",
       complete = function()
@@ -222,7 +222,7 @@ local function register_individual(config, commands)
 
   if cmds.copy ~= false then
     usercmd.create("GopathCopy", function()
-      commands.resolve_and_copy()
+      commands.copy_location()
     end, { desc = "Gopath: copy path:line:col (alias for :Gopath copy)" })
   end
 

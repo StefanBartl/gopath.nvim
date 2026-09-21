@@ -26,7 +26,7 @@ function M.setup(config)
   ---@return fun(): nil
   local function open(kind)
     return function()
-      commands.resolve_and_open(kind)
+      commands.goto_at_cursor(kind)
     end
   end
 
@@ -68,7 +68,7 @@ function M.setup(config)
 
       copy_location = {
         rhs = function()
-          commands.resolve_and_copy()
+          commands.copy_location()
         end,
         desc = "copy path:line:col",
       },

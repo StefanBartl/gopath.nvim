@@ -262,7 +262,7 @@ and `tailsearch.lua`'s own `normalize()` each handed a raw path straight to a
 Windows, where `vim.fs.normalize` itself rewrites "\" to "/", but not on
 Linux/macOS, where a backslash-spelled candidate survived unmangled and never
 matched. Fixed by normalising separators before each call. Separately,
-`commands.resolve_and_copy()` trusted a bare `vim.fn.setreg("+", ...)` as
+`commands.copy_location()` trusted a bare `vim.fn.setreg("+", ...)` as
 proof the clipboard was written; that call is a silent no-op without a
 provider (which this repo's own CI Neovim reports), so a failed copy still
 told the user "copied to clipboard". Both branches now go through lib.nvim's
