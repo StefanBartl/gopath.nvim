@@ -117,7 +117,7 @@ to match, or when the fuzzy tail search found it.
 
 ## Synchronous fast path vs. async search
 
-`commands.resolve_and_open(kind)` ([`commands.lua`](../lua/gopath/commands.lua))
+`commands.goto_at_cursor(kind)` ([`commands.lua`](../lua/gopath/commands.lua))
 orchestrates the user-facing open:
 
 ```

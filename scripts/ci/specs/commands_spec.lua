@@ -61,14 +61,14 @@ return function(H)
     }
   end
 
-  -- ── resolve_and_open ───────────────────────────────────────────────────────
+  -- ── goto_at_cursor ───────────────────────────────────────────────────────
 
-  H.check("resolve_and_open: an existing result goes straight to the opener", function()
+  H.check("goto_at_cursor: an existing result goes straight to the opener", function()
     H.config_sandbox(function(c)
       c.setup({ alternate = { enable = false } })
       local res = { kind = "file", path = "/a.lua", exists = true }
       with_commands(res, nil, function(commands, calls)
-        commands.resolve_and_open("vsplit")
+        commands.goto_at_cursor("vsplit")
         H.eq(#calls.open, 1)
         H.eq(calls.open[1].res, res)
         H.eq(calls.open[1].mode, "vsplit", "the window mode is forwarded")
@@ -76,15 +76,15 @@ return function(H)
     end)
   end)
 
-  H.check("resolve_and_open: a help result is routed to the help opener, per mode", function()
+  H.check("goto_at_cursor: a help result is routed to the help opener, per mode", function()
     H.config_sandbox(function(c)
       c.setup({ alternate = { enable = false } })
       local res = { kind = "help", subject = "vim.api" }
       with_commands(res, nil, function(commands, calls)
-        commands.resolve_and_open("tab")
-        commands.resolve_and_open("window")
-        commands.resolve_and_open("vsplit")
-        commands.resolve_and_open("edit")
+        commands.goto_at_cursor("tab")
+        commands.goto_at_cursor("window")
+        commands.goto_at_cursor("vsplit")
+        commands.goto_at_cursor("edit")
         H.eq(#calls.open, 0, "never the file opener")
         H.eq(#calls.help, 4)
         H.eq(calls.help[1].opts.target, "tab")
@@ -96,13 +96,13 @@ return function(H)
   end)
 
   H.check(
-    "resolve_and_open: a missing result with alternates disabled falls through to open",
+    "goto_at_cursor: a missing result with alternates disabled falls through to open",
     function()
       H.config_sandbox(function(c)
         c.setup({ alternate = { enable = false }, tailsearch = { enable = false } })
         local res = { kind = "file", path = "/gone.lua", exists = false }
         with_commands(res, nil, function(commands, calls)
-          commands.resolve_and_open("edit")
+          commands.goto_at_cursor("edit")
           H.eq(#calls.open, 1, "gopath.open decides whether to offer creating it")
           H.eq(calls.open[1].res, res)
         end)
@@ -110,7 +110,7 @@ return function(H)
     end
   )
 
-  H.check("resolve_and_open: the fuzzy-alternate dialog gets its chance first", function()
+  H.check("goto_at_cursor: the fuzzy-alternate dialog gets its chance first", function()
     H.config_sandbox(function(c)
       c.setup({
         alternate = { enable = true, similarity_threshold = 80 },
@@ -128,7 +128,7 @@ return function(H)
         },
       }, function()
         with_commands(res, nil, function(commands, calls)
-          commands.resolve_and_open("tab")
+          commands.goto_at_cursor("tab")
           H.eq(asked.path, "/gone.lua")
           H.eq(asked.opts.similarity_threshold, 80, "the configured threshold is forwarded")
           H.eq(asked.opts.mode, "tab")
@@ -139,7 +139,7 @@ return function(H)
     end)
   end)
 
-  H.check("resolve_and_open: an unhandled alternate dialog falls through to the opener", function()
+  H.check("goto_at_cursor: an unhandled alternate dialog falls through to the opener", function()
     H.config_sandbox(function(c)
       c.setup({ alternate = { enable = true }, tailsearch = { enable = false } })
       local res = { kind = "file", path = "/gone.lua", exists = false }
@@ -151,7 +151,7 @@ return function(H)
         },
       }, function()
         with_commands(res, nil, function(commands, calls)
-          commands.resolve_and_open("edit")
+          commands.goto_at_cursor("edit")
           H.eq(#calls.open, 1)
         end)
       end)
@@ -159,7 +159,7 @@ return function(H)
   end)
 
   H.check(
-    "resolve_and_open: a miss triggers the async search, announced only when it starts",
+    "goto_at_cursor: a miss triggers the async search, announced only when it starts",
     function()
       H.config_sandbox(function(c)
         c.setup({
@@ -175,7 +175,7 @@ return function(H)
         }, function()
           with_commands(res, nil, function(commands, calls)
             local notes = H.capture_notify(function()
-              commands.resolve_and_open("edit")
+              commands.goto_at_cursor("edit")
               H.truthy(
                 H.wait(function()
                   return #calls.open > 0
@@ -197,31 +197,28 @@ return function(H)
     end
   )
 
-  H.check(
-    "resolve_and_open: when the live search misses, the speculative result is used",
-    function()
-      H.config_sandbox(function(c)
-        c.setup({ alternate = { enable = false }, tailsearch = { enable = true } })
-        local res = { kind = "file", path = "a/b.lua", exists = false }
-        H.with_modules({
-          ["gopath.resolvers.common.tailsearch"] = fake_tailsearch(nil, {}),
-        }, function()
-          with_commands(res, nil, function(commands, calls)
-            commands.resolve_and_open("edit")
-            H.truthy(
-              H.wait(function()
-                return #calls.open > 0
-              end),
-              "the fallback open ran"
-            )
-            H.eq(calls.open[1].res, res)
-          end)
+  H.check("goto_at_cursor: when the live search misses, the speculative result is used", function()
+    H.config_sandbox(function(c)
+      c.setup({ alternate = { enable = false }, tailsearch = { enable = true } })
+      local res = { kind = "file", path = "a/b.lua", exists = false }
+      H.with_modules({
+        ["gopath.resolvers.common.tailsearch"] = fake_tailsearch(nil, {}),
+      }, function()
+        with_commands(res, nil, function(commands, calls)
+          commands.goto_at_cursor("edit")
+          H.truthy(
+            H.wait(function()
+              return #calls.open > 0
+            end),
+            "the fallback open ran"
+          )
+          H.eq(calls.open[1].res, res)
         end)
       end)
-    end
-  )
+    end)
+  end)
 
-  H.check("resolve_and_open: nothing resolved and nothing found is reported", function()
+  H.check("goto_at_cursor: nothing resolved and nothing found is reported", function()
     H.config_sandbox(function(c)
       c.setup({ alternate = { enable = false }, tailsearch = { enable = true } })
       H.line_at("", "", { filetype = "lua" })
@@ -230,7 +227,7 @@ return function(H)
       }, function()
         with_commands(nil, "no-match", function(commands, calls)
           local notes = H.capture_notify(function()
-            commands.resolve_and_open("edit")
+            commands.goto_at_cursor("edit")
           end)
           H.eq(#calls.open, 0)
           H.match(H.notify_text(notes), "no match", "and the reason is named")
@@ -239,7 +236,7 @@ return function(H)
     end)
   end)
 
-  H.check("resolve_and_open: tailsearch.enable = false skips the async pass entirely", function()
+  H.check("goto_at_cursor: tailsearch.enable = false skips the async pass entirely", function()
     H.config_sandbox(function(c)
       c.setup({ alternate = { enable = false }, tailsearch = { enable = false } })
       H.with_modules({
@@ -254,7 +251,7 @@ return function(H)
       }, function()
         with_commands(nil, "no-match", function(commands, calls)
           local notes = H.capture_notify(function()
-            commands.resolve_and_open("edit")
+            commands.goto_at_cursor("edit")
           end)
           H.eq(#calls.open, 0)
           H.match(H.notify_text(notes), "no match")
@@ -263,7 +260,7 @@ return function(H)
     end)
   end)
 
-  -- ── resolve_and_copy ───────────────────────────────────────────────────────
+  -- ── copy_location ───────────────────────────────────────────────────────
   -- commands.lua writes through lib.nvim's verified clipboard helper, which
   -- needs a real provider (or has("clipboard") == 1, which not every CI
   -- Neovim build reports) -- neither of which a bare runner necessarily
@@ -277,60 +274,60 @@ return function(H)
     vim.fn.setreg("+", "")
   end
 
-  H.check("resolve_and_copy: 'path:line:col' for a file", function()
+  H.check("copy_location: 'path:line:col' for a file", function()
     vim.fn.setreg("+", "")
     with_commands(
       { kind = "file", path = "/a/b.lua", range = { line = 12, col = 4 } },
       nil,
       function(commands)
         H.capture_notify(function()
-          commands.resolve_and_copy()
+          commands.copy_location()
         end)
       end
     )
     H.eq(vim.fn.getreg("+"), clipboard_works and "/a/b.lua:12:4" or "")
   end)
 
-  H.check("resolve_and_copy: a result with no range defaults to 1:1", function()
+  H.check("copy_location: a result with no range defaults to 1:1", function()
     vim.fn.setreg("+", "")
     with_commands({ kind = "file", path = "/a/b.lua" }, nil, function(commands)
       H.capture_notify(function()
-        commands.resolve_and_copy()
+        commands.copy_location()
       end)
     end)
     H.eq(vim.fn.getreg("+"), clipboard_works and "/a/b.lua:1:1" or "")
   end)
 
-  H.check("resolve_and_copy: a URL is copied verbatim, so it stays pasteable", function()
+  H.check("copy_location: a URL is copied verbatim, so it stays pasteable", function()
     vim.fn.setreg("+", "")
     with_commands({ kind = "url", path = "https://x.com/a?b=1" }, nil, function(commands)
       H.capture_notify(function()
-        commands.resolve_and_copy()
+        commands.copy_location()
       end)
     end)
     H.eq(vim.fn.getreg("+"), clipboard_works and "https://x.com/a?b=1" or "", "no ':1:1' appended")
   end)
 
-  H.check("resolve_and_copy: a help subject is copied in its own notation", function()
+  H.check("copy_location: a help subject is copied in its own notation", function()
     vim.fn.setreg("+", "")
     with_commands({ kind = "help", subject = "nvim_buf_set_lines()" }, nil, function(commands)
       H.capture_notify(function()
-        commands.resolve_and_copy()
+        commands.copy_location()
       end)
     end)
     H.eq(vim.fn.getreg("+"), clipboard_works and "<help:nvim_buf_set_lines()>:1:1" or "")
   end)
 
-  H.check("resolve_and_copy: nothing resolved leaves the clipboard alone", function()
+  H.check("copy_location: nothing resolved leaves the clipboard alone", function()
     -- Without a provider, even this setup write is a no-op -- the register
     -- reads back "" either way, not "untouched". What this test actually
-    -- guards (resolve_and_copy never calls the clipboard writer on the
+    -- guards (copy_location never calls the clipboard writer on the
     -- no-match path) holds regardless; only the literal value to expect
     -- depends on clipboard_works.
     vim.fn.setreg("+", "untouched")
     with_commands(nil, "no-match", function(commands)
       local notes = H.capture_notify(function()
-        commands.resolve_and_copy()
+        commands.copy_location()
       end)
       H.match(H.notify_text(notes), "no match to copy")
     end)

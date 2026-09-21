@@ -63,7 +63,7 @@ end
 ---found.
 ---@param kind string  "edit"|"window"|"vsplit"|"tab"|"explorer"
 ---@see M.probe_selection
-function M.resolve_and_open(kind)
+function M.goto_at_cursor(kind)
   kind = kind or "edit"
   local res, err = RESOLVE.resolve_at_cursor({})
 
@@ -153,7 +153,7 @@ function M.check_under_cursor()
 end
 
 ---Copy the resolved location to the system clipboard as "path:line:col".
-function M.resolve_and_copy()
+function M.copy_location()
   local res, err = RESOLVE.resolve_at_cursor({})
   if not res then
     LOG.warn("no match to copy: " .. (err or "unknown"))

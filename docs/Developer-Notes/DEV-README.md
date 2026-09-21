@@ -73,7 +73,7 @@ gopath.nvim/
 │   ├── config.lua            # Configuration management
 │   ├── resolve.lua           # Resolution orchestrator (sync pipeline)
 │   ├── registry.lua          # Provider & resolver registry
-│   ├── commands.lua          # Command impls + async resolve_and_open
+│   ├── commands.lua          # Command impls + async goto_at_cursor
 │   ├── keymaps.lua           # Keymap registration
 │   ├── usercommands.lua      # :Gopath… user-command registration
 │   ├── health.lua            # :checkhealth gopath
@@ -158,7 +158,7 @@ resolve_at_cursor()
 │ • Build best-guess path          │
 └─────────────────────────────────┘
     ↓
-commands.resolve_and_open()
+commands.goto_at_cursor()
     ↓
 ┌─────────────────────────────────┐
 │ Phase 4: Post-Resolution         │
@@ -714,7 +714,7 @@ opts = {
 Expensive filesystem searches run **asynchronously** so the UI never blocks.
 The synchronous `resolve_at_cursor` pipeline only consults instant sources
 (help, env, rtp, `&path`, and the in-memory truncated-path cache). When no
-existing file is found, `commands.resolve_and_open` derives a search tail and
+existing file is found, `commands.goto_at_cursor` derives a search tail and
 hands it to `tailsearch.resolve_async`, which is cache-first and otherwise runs
 a non-blocking libuv directory walk (`finder.find_async`); a single
 `"[gopath] Dateisuche läuft…"` message is shown only when that live walk
