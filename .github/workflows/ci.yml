@@ -9,6 +9,7 @@ jobs:
   stylua:
     name: stylua (format check)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
       - uses: JohnnyMorganz/stylua-action@v4
@@ -20,6 +21,7 @@ jobs:
   luacheck:
     name: luacheck (lint)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
       - uses: leafo/gh-actions-lua@v10
@@ -32,6 +34,7 @@ jobs:
   headless-tests:
     name: headless smoke tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     strategy:
       # One platform failing must not cancel the others: which of the three
       # broke is the whole information content of this job.
@@ -55,13 +58,21 @@ jobs:
           neovim: true
           version: stable
       - run: |
-          nvim --headless --noplugin -u NONE \
+          exec > >(tee -a "$RUNNER_TEMP/test-output.log") 2>&1
+          nvim -n -i NONE --headless --noplugin -u NONE \
             --cmd "set runtimepath+=${{ github.workspace }}/deps/lib.nvim" \
             -c "lua dofile('scripts/ci/headless_tests.lua')"
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-output-headless-tests-${{ matrix.os }}
+          path: ${{ runner.temp }}/test-output.log
+          if-no-files-found: ignore
 
   functional-tests:
     name: headless functional tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     strategy:
       # One platform failing must not cancel the others: which of the three
       # broke is the whole information content of this job.
@@ -85,13 +96,21 @@ jobs:
           neovim: true
           version: stable
       - run: |
-          nvim --headless --noplugin -u NONE \
+          exec > >(tee -a "$RUNNER_TEMP/test-output.log") 2>&1
+          nvim -n -i NONE --headless --noplugin -u NONE \
             --cmd "set runtimepath+=${{ github.workspace }}/deps/lib.nvim" \
             -c "lua dofile('scripts/ci/functional_tests.lua')"
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-output-functional-tests-${{ matrix.os }}
+          path: ${{ runner.temp }}/test-output.log
+          if-no-files-found: ignore
 
   unit-tests:
     name: headless unit tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     strategy:
       # One platform failing must not cancel the others: which of the three
       # broke is the whole information content of this job.
@@ -115,6 +134,13 @@ jobs:
           neovim: true
           version: stable
       - run: |
-          nvim --headless --noplugin -u NONE \
+          exec > >(tee -a "$RUNNER_TEMP/test-output.log") 2>&1
+          nvim -n -i NONE --headless --noplugin -u NONE \
             --cmd "set runtimepath+=${{ github.workspace }}/deps/lib.nvim" \
             -c "lua dofile('scripts/ci/unit_tests.lua')"
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-output-unit-tests-${{ matrix.os }}
+          path: ${{ runner.temp }}/test-output.log
+          if-no-files-found: ignore
