@@ -37,6 +37,7 @@ Key capabilities:
   - Fuzzy alternate (Levenshtein) when file does not exist
   - External opener for images, PDFs, media
   - Reveal resolved targets in the OS file manager (gM)
+  - Reveal resolved targets in filetree.nvim's own tree (gT, soft dep)
 
 ==============================================================================
 2. REQUIREMENTS                                         *gopath-requirements*
@@ -77,6 +78,7 @@ Default keymaps (all configurable, see |gopath-config-mappings|):
   g\            Open target in vertical split
   g}            Open target in new tab
   gM            Reveal target in the system file manager (Explorer/Finder/…)
+  gT            Reveal target in filetree.nvim's own tree (soft dependency)
   gY            Copy path:line:col to clipboard
   g?            Debug resolution under cursor
   gC            Check path under cursor exists; offer to create if missing
@@ -403,6 +405,7 @@ mappings = {
   open_vsplit   = "g\\",
   open_tab      = "g}",
   open_explorer = "gM",
+  open_filetree = "gT",
   copy_location = "gY",
   debug         = "g?",
   probe         = "<leader>pp",

@@ -121,6 +121,7 @@ require("gopath").setup({
     open_vsplit   = "g\\",
     open_tab      = "g}",
     open_explorer = "gM",  -- reveal in system file manager instead of opening
+    open_filetree = "gT",  -- reveal in filetree.nvim instead of opening (soft dep)
     copy_location = "gY",
     debug         = "g?",
     check         = "gC",

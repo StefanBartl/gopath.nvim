@@ -67,6 +67,27 @@ A resolved-but-missing path is not offered through create-on-missing here —
   (falls back to a minimal built-in per-OS reveal when lib.nvim is absent)
 - **Config:** `mappings.open_explorer` (default `"gM"`, set `false` to disable)
 
+## Reveal in filetree.nvim
+
+`gT` (config key `mappings.open_filetree`, also `:Gopath open filetree` /
+`:GopathOpen filetree`) is the in-editor analogue of `gM` above: resolves the
+path under the cursor the same way, but focuses it in
+[filetree.nvim](https://github.com/StefanBartl/filetree.nvim)'s own sidebar
+instead of the OS file manager — for navigating a project through Neovim's
+own tree rather than switching to a separate window. Same priority reasoning
+as `gM`: it takes precedence over the external-app heuristic, and a
+resolved-but-missing path just warns rather than offering to create it.
+
+Soft dependency, no fallback: unlike `gM` (which degrades to a minimal
+built-in reveal when lib.nvim is absent), `gT` simply warns when
+filetree.nvim isn't installed or hasn't completed `setup()` yet — there is
+no non-filetree.nvim way to reveal a path *inside Neovim's own tree*.
+
+- **Module:** `util/filetree.lua` (the shared soft-dependency seam this and
+  the create-on-missing dialog's "Open in filetree" button both use), calling
+  filetree.nvim's own `adapter.open_reveal()`
+- **Config:** `mappings.open_filetree` (default `"gT"`, set `false` to disable)
+
 ## Opener fallback chain
 
 Three-stage fallback for actually launching the external application, each

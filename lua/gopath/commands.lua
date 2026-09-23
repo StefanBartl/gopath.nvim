@@ -61,7 +61,7 @@ end
 ---the expensive filesystem search runs ASYNCHRONOUSLY so the UI never freezes:
 ---a "Dateisuche läuft…" message is shown and the buffer opens once a match is
 ---found.
----@param kind string  "edit"|"window"|"vsplit"|"tab"|"explorer"
+---@param kind string  "edit"|"window"|"vsplit"|"tab"|"explorer"|"filetree"
 ---@see M.probe_selection
 function M.goto_at_cursor(kind)
   kind = kind or "edit"

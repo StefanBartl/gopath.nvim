@@ -9,6 +9,10 @@
 ---@field open_explorer string|string[]|false Default: "gM"
 --- Reveal the resolved path in the OS file manager (Explorer/Finder/…)
 --- instead of opening a buffer for it.
+---@field open_filetree string|string[]|false Default: "gT"
+--- Reveal the resolved path in filetree.nvim's own tree instead of opening a
+--- buffer for it (soft dependency -- warns if filetree.nvim isn't installed
+--- or hasn't completed setup()).
 ---@field copy_location string|string[]|false Default: "gY"
 ---@field debug string|string[]|false Default: "g?"
 ---@field probe string|string[]|false Default: "<leader>pp" (n + v mode)

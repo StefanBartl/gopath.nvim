@@ -171,18 +171,20 @@ local function check_filetree_nvim()
   local ok_ft, filetree = pcall(require, "filetree")
   if ok_ft and type(filetree) == "table" and filetree.is_initialized() then
     ok_s(
-      "filetree.nvim installed and set up — create-on-missing dialog offers 'Open in filetree'"
+      "filetree.nvim installed and set up — create-on-missing dialog offers 'Open in filetree', "
+        .. "open_filetree (gT) reveals resolved paths there"
     )
   elseif ok_ft then
     info_s(
       "filetree.nvim installed but setup() not called (or not yet run) — "
-        .. "'Open in filetree' choice unavailable until then"
+        .. "'Open in filetree' choice and open_filetree (gT) unavailable until then"
     )
   else
     info_s(
-      "filetree.nvim not installed — create-on-missing dialog has no 'Open in filetree' choice\n"
+      "filetree.nvim not installed — create-on-missing dialog has no 'Open in filetree' choice, "
+        .. "and open_filetree (gT) has nothing to reveal into\n"
         .. "  install StefanBartl/filetree.nvim to open the nearest existing ancestor "
-        .. "directory there instead of just creating the file"
+        .. "directory there instead of just creating the file, or to reveal a resolved path"
     )
   end
 end
@@ -335,6 +337,7 @@ local function check_config()
   km("open_vsplit")
   km("open_tab")
   km("open_explorer")
+  km("open_filetree")
   km("copy_location")
   km("debug")
   km("probe")
