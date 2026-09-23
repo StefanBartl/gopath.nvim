@@ -89,7 +89,16 @@ function M.open(res, mode)
       LOG.warn("filetree.nvim not available — could not reveal: " .. tostring(res.path))
       return
     end
-    if not adapter.open_reveal(res.path) then
+    -- filetree.nvim is a soft dependency we don't control: a bad adapter
+    -- (misconfigured, or erroring on a path it doesn't like) must not
+    -- surface as a raw Lua traceback -- same convention as pdfport.open()
+    -- in external/pdf.lua.
+    local ok, revealed = pcall(adapter.open_reveal, res.path)
+    if not ok then
+      LOG.error(
+        "filetree.nvim error while revealing '" .. tostring(res.path) .. "': " .. tostring(revealed)
+      )
+    elseif not revealed then
       LOG.error("Could not reveal in filetree: " .. tostring(res.path))
     end
     return
