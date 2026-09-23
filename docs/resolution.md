@@ -228,14 +228,17 @@ When resolution yields a path that does not exist, `commands` tries, in order:
    **callback**, so an asynchronous backend (telescope-ui-select, dressing,
    kit's chooser) can't make the caller fall through while the list is still on
    screen — that used to open the missing file *and* stack a create dialog on
-   top of the open picker. Dismissing the picker counts as *handled*: it means
-   "none of these", so the chain stops rather than chaining another dialog onto
-   the one you just dismissed. The chosen candidate is opened through
-   `gopath.open`, so it honours the window mode you actually pressed
-   (`gP`/`g|`/`g\`/`g}`) and the `:line:col` jump — both were previously lost:
-   the mode was passed under a key the callee never read, and even when read it
-   was concatenated into an Ex command line, where a gopath mode like `window`
-   or `tab` is not a valid command (`E492`).
+   top of the open picker. Dismissing the picker (its list closes with nothing
+   chosen) means "none of these", not "give up entirely": the chain still
+   falls through to **Create on missing** below, offering to create the path
+   you originally typed — the picker is already fully closed by then, so
+   there is no dialog left to stack a second one onto. The chosen candidate,
+   when there is one, is opened through `gopath.open`, so it honours the
+   window mode you actually pressed (`gP`/`g|`/`g\`/`g}`) and the
+   `:line:col` jump — both were previously lost: the mode was passed under a
+   key the callee never read, and even when read it was concatenated into an
+   Ex command line, where a gopath mode like `window` or `tab` is not a valid
+   command (`E492`).
 2. **Create on missing** — if that fails too, `gopath.open` asks (button
    dialog via ui.nvim's `ui.kit.confirm`, falling back to `vim.ui.select`
    when ui.nvim is absent) whether to create the file. See

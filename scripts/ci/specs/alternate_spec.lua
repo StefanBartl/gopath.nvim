@@ -262,29 +262,36 @@ return function(H)
     H.same(opened.res.range, { line = 5, col = 1 }, "the original result's position is kept")
   end)
 
-  H.check("try_resolve: cancelling counts as handled, so no second dialog stacks on top", function()
-    local dir = H.tmpdir()
-    H.write(dir .. "/configs.lua", { "" })
-    local opened, handled = false, nil
-    H.with_modules({
-      ["gopath.open"] = {
-        open = function()
-          opened = true
-        end,
-      },
-      ["ui.kit"] = {
-        select = function(spec)
-          spec.on_cancel()
-        end,
-      },
-    }, function()
-      alternate.try_resolve(dir .. "/config.lua", {}, function(h)
-        handled = h
+  H.check(
+    "try_resolve: cancelling counts as NOT handled, so the caller can still offer to create the original",
+    function()
+      local dir = H.tmpdir()
+      H.write(dir .. "/configs.lua", { "" })
+      local opened, handled = false, nil
+      H.with_modules({
+        ["gopath.open"] = {
+          open = function()
+            opened = true
+          end,
+        },
+        ["ui.kit"] = {
+          select = function(spec)
+            spec.on_cancel()
+          end,
+        },
+      }, function()
+        alternate.try_resolve(dir .. "/config.lua", {}, function(h)
+          handled = h
+        end)
       end)
-    end)
-    H.eq(handled, true, "the user said 'none of these'")
-    H.falsy(opened, "and nothing was opened")
-  end)
+      H.eq(
+        handled,
+        false,
+        "declining the alternates is not the same as declining to create the original"
+      )
+      H.falsy(opened, "and nothing was opened")
+    end
+  )
 
   H.check("try_resolve: the frecency pass sees the candidates before the picker does", function()
     local dir = H.tmpdir()
