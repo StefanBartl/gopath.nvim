@@ -55,11 +55,17 @@ local function present(matches, original_path, opts, on_done)
 
   require("gopath.alternate.ui").present_selection(frecency.rerank(matches), original_path, {
     on_choice = function(match)
-      -- Cancelling means "none of these". Report it as handled so the caller
-      -- aborts instead of falling through to the create-offer — chaining a
-      -- second dialog onto a dismissed one is exactly what the user said no to.
+      -- Cancelling means "none of these" -- not "give up on the original
+      -- path too". Reported as NOT handled, so finish_open() falls through
+      -- to open_for_kind() -> gopath.create's offer to create original_path
+      -- itself. Declining an alternate and declining to create the file are
+      -- two different questions; this used to conflate them (see git log
+      -- for the previous "report handled to avoid a second dialog"
+      -- reasoning) -- but the alternates dialog is already fully dismissed
+      -- by the time this fires, so there is no dialog left to stack a
+      -- second one onto.
       if not (match and match.path) then
-        on_done(true)
+        on_done(false)
         return
       end
 
@@ -77,7 +83,10 @@ end
 ---Attempt alternate file resolution when exact match fails.
 ---@param target_path string The path that failed to resolve
 ---@param opts AlternateOpts|nil
----@param on_done fun(handled: boolean)|nil  called once; false = nothing shown
+---@param on_done fun(handled: boolean)|nil  called once; false = nothing was opened -- no
+---dialog shown at all, or shown and declined/cancelled. Either way the caller is free to
+---fall through to its own not-found handling (e.g. gopath.create's offer to create
+---`target_path` itself).
 ---@return nil
 function M.try_resolve(target_path, opts, on_done)
   on_done = on_done or function() end
@@ -112,7 +121,8 @@ end
 ---@param matches AlternateMatch[] Pre-formatted matches with similarity scores
 ---@param original_path string Original path that failed to resolve
 ---@param opts AlternateOpts|nil
----@param on_done fun(handled: boolean)|nil  called once; false = nothing shown
+---@param on_done fun(handled: boolean)|nil  called once; false = nothing was opened -- no
+---dialog shown at all, or shown and declined/cancelled.
 ---@return nil
 function M.try_resolve_with_matches(matches, original_path, opts, on_done)
   on_done = on_done or function() end
