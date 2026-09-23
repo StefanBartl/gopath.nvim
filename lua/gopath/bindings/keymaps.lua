@@ -54,6 +54,7 @@ function M.setup(config)
       "open_vsplit",
       "open_tab",
       "open_explorer",
+      "open_filetree",
       "copy_location",
       "debug",
       "check",
@@ -65,6 +66,7 @@ function M.setup(config)
       open_vsplit = { rhs = open("vsplit"), desc = "open in vsplit" },
       open_tab = { rhs = open("tab"), desc = "open in tab" },
       open_explorer = { rhs = open("explorer"), desc = "reveal in file explorer" },
+      open_filetree = { rhs = open("filetree"), desc = "reveal in filetree.nvim (soft dependency)" },
 
       copy_location = {
         rhs = function()

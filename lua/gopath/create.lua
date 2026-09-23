@@ -19,6 +19,7 @@
 local LOG = require("gopath.util.log")
 local CROSS = require("gopath.util.cross")
 local PATH = require("gopath.util.path")
+local FILETREE_UTIL = require("gopath.util.filetree")
 
 local M = {}
 
@@ -128,24 +129,12 @@ end
 
 -- ── filetree.nvim (soft dependency) ──────────────────────────────────────────
 
----Return the active filetree.nvim adapter when the plugin is installed and
----has completed setup(), else nil. Never throws.
----@internal
----@return table|nil
-local function filetree_adapter()
-  local ok, filetree = pcall(require, "filetree")
-  if not ok or type(filetree) ~= "table" or not filetree.is_initialized() then return nil end
-  local ok_adapter, adapter = pcall(filetree.adapter)
-  if not ok_adapter or type(adapter) ~= "table" then return nil end
-  return adapter
-end
-
 ---Set cwd to `dir` and hand it to filetree.nvim's tree (rooted + focused there).
 ---@internal
 ---@param dir string
 ---@return nil
 local function open_in_filetree(dir)
-  local adapter = filetree_adapter()
+  local adapter = FILETREE_UTIL.adapter()
   if not adapter then
     LOG.warn("filetree.nvim not available — could not open: " .. dir)
     return
@@ -247,7 +236,7 @@ function M.offer(res, on_created, opts)
 
   local nearest_dir = find_nearest_existing_dir(res.path)
   local choices = { CREATE }
-  if nearest_dir and filetree_adapter() then choices[#choices + 1] = FILETREE end
+  if nearest_dir and FILETREE_UTIL.adapter() then choices[#choices + 1] = FILETREE end
   choices[#choices + 1] = CANCEL
 
   ask("gopath: '" .. tostring(res.path) .. "' not found", choices, function(choice)

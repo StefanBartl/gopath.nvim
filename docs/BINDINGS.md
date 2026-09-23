@@ -26,6 +26,7 @@ via `require("gopath").setup({ mappings = ..., commands = ... })`. See
 | `g\` | n | `open_vsplit` | Resolve and open in vertical split |
 | `g}` | n | `open_tab` | Resolve and open in new tab |
 | `gM` | n | `open_explorer` | Reveal target in the system file manager (Explorer/Finder/…) instead of opening it |
+| `gT` | n | `open_filetree` | Reveal target in filetree.nvim's own tree instead of opening it (soft dependency) |
 | `gY` | n | `copy_location` | Copy `path:line:col` to clipboard |
 | `g?` | n | `debug` | Print resolution chain to `:messages` |
 | `gC` | n | `check` | Check path under cursor exists; offer to create if missing (does not open on hit) |
@@ -36,12 +37,18 @@ Set any config key to `false` to disable that single mapping, or
 `mappings = false` to disable all of them. Values may be a single lhs string
 or a list of lhs strings (`{ "gP", "<leader>gp" }`).
 
-`open_explorer` (`gM`) is the odd one out: it never opens a buffer, so it does
-not go through create-on-missing or the external-opener heuristic below — it
-warns instead of prompting when the resolved path does not exist. Backed by
+`open_explorer` (`gM`) and `open_filetree` (`gT`) are the odd ones out:
+neither opens a buffer, so neither goes through create-on-missing or the
+external-opener heuristic below — both warn instead of prompting when the
+resolved path does not exist. `open_explorer` is backed by
 [lib.nvim's `cross.reveal_in_fm`](https://github.com/StefanBartl/lib.nvim),
 falling back to a minimal built-in per-OS reveal
 (`explorer.exe /select,`/`open -R`/`xdg-open`) when lib.nvim is absent.
+`open_filetree` is backed by
+[filetree.nvim](https://github.com/StefanBartl/filetree.nvim)'s
+`adapter.open_reveal()` — a soft dependency with no fallback: it warns
+(rather than erroring) when filetree.nvim isn't installed or hasn't
+completed `setup()` yet.
 
 ### Create-on-missing
 

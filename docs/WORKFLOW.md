@@ -102,16 +102,21 @@ all. Unbalanced trailing brackets are dropped while balanced ones are kept, so
 `C:/Program Files (x86)/x.pdf` survives and a link's closing `)` does not come
 along.
 
-## `gM` reveals instead of opening
+## `gM`/`gT` reveal instead of opening
 
 Every other open mode turns the resolved target into a buffer. `gM`
 (`:Gopath open explorer`) hands it to the OS file manager instead — selecting
-a file inside its parent directory, navigating into a directory.
+a file inside its parent directory, navigating into a directory. `gT`
+(`:Gopath open filetree`) does the in-editor equivalent: focuses the path in
+[filetree.nvim](https://github.com/StefanBartl/filetree.nvim)'s own sidebar
+instead (soft dependency — warns if filetree.nvim isn't installed or set
+up).
 
-Reach for it when the next step is not reading the file but doing something to
-it: attaching it, renaming it, looking at what else is in that folder. It takes
-priority over the external-app heuristic, so it reveals even a file that would
-otherwise have been opened in another application.
+Reach for either when the next step is not reading the file but doing
+something to it: attaching it, renaming it, looking at what else is in that
+folder — `gM` for the OS's own tools, `gT` to stay inside Neovim's tree.
+Both take priority over the external-app heuristic, so they reveal even a
+file that would otherwise have been opened in another application.
 
 ## Language resolvers vs. universal resolvers don't fight over precedence — order matters per filetype
 

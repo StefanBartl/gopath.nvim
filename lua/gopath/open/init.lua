@@ -12,7 +12,7 @@ local CROSS = require("gopath.util.cross")
 
 local M = {}
 
----@alias GopathOpenMode "edit"|"window"|"vsplit"|"tab"|"explorer"
+---@alias GopathOpenMode "edit"|"window"|"vsplit"|"tab"|"explorer"|"filetree"
 
 ---Create the target window/tab before editing the file.
 ---Each function is a no-op or issues one window-management command only.
@@ -70,6 +70,28 @@ function M.open(res, mode)
       return
     end
     external.reveal(res.path)
+    return
+  end
+
+  -- "filetree" reveals the resolved path in filetree.nvim's own in-editor
+  -- tree instead of opening a buffer for it -- the in-editor analogue of
+  -- "explorer" above, for anyone who navigates the project through the
+  -- sidebar rather than the OS file manager. Same priority reasoning: an
+  -- image should still be revealed in the tree, not launched externally,
+  -- when the user explicitly asked for the tree.
+  if mode == "filetree" then
+    if res.exists == false then
+      LOG.warn("cannot reveal — path does not exist: " .. tostring(res.path))
+      return
+    end
+    local adapter = require("gopath.util.filetree").adapter()
+    if not adapter or type(adapter.open_reveal) ~= "function" then
+      LOG.warn("filetree.nvim not available — could not reveal: " .. tostring(res.path))
+      return
+    end
+    if not adapter.open_reveal(res.path) then
+      LOG.error("Could not reveal in filetree: " .. tostring(res.path))
+    end
     return
   end
 

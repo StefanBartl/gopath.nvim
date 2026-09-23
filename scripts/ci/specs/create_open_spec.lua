@@ -323,9 +323,12 @@ return function(H)
   local open = require("gopath.open")
 
   ---Collaborator doubles for the modules `gopath.open` requires lazily.
+  ---`filetree_adapter` (default nil) lets a case opt into a fake adapter
+  ---whose `open_reveal` calls are recorded in `calls.filetree`.
+  ---@param filetree_adapter table|nil
   ---@return table externals, table calls
-  local function open_doubles()
-    local calls = { open = {}, reveal = {}, pdf = {}, create = {} }
+  local function open_doubles(filetree_adapter)
+    local calls = { open = {}, reveal = {}, pdf = {}, create = {}, filetree = {} }
     return {
       ["gopath.external"] = {
         should_open_externally = function(p)
@@ -351,6 +354,17 @@ return function(H)
           -- back, which is what stops `gopath.open`'s recursion.
           res.exists = true
           on_created(res)
+        end,
+      },
+      ["gopath.util.filetree"] = {
+        adapter = function()
+          if not filetree_adapter then return nil end
+          return {
+            open_reveal = function(p)
+              calls.filetree[#calls.filetree + 1] = p
+              return true
+            end,
+          }
         end,
       },
     },
@@ -398,6 +412,46 @@ return function(H)
       H.match(H.notify_text(notes), "cannot reveal")
     end)
   end)
+
+  H.check(
+    "open: filetree mode reveals in filetree.nvim instead of opening, and refuses a missing path",
+    function()
+      local doubles, calls = open_doubles({})
+      H.with_modules(doubles, function()
+        local dir = H.tmpdir()
+        local img = H.write(dir .. "/pic.png", { "" })
+        open.open({ kind = "file", path = img, exists = true }, "filetree")
+        H.same(
+          calls.filetree,
+          { img },
+          "revealed in the tree, not launched -- even though .png is an external type"
+        )
+        H.eq(#calls.open, 0)
+
+        local notes = H.capture_notify(function()
+          open.open({ kind = "file", path = dir .. "/gone.txt", exists = false }, "filetree")
+        end)
+        H.eq(#calls.filetree, 1, "nothing more was revealed")
+        H.match(H.notify_text(notes), "cannot reveal")
+      end)
+    end
+  )
+
+  H.check(
+    "open: filetree mode warns instead of erroring when filetree.nvim isn't available",
+    function()
+      local doubles, calls = open_doubles(nil)
+      H.with_modules(doubles, function()
+        local dir = H.tmpdir()
+        local img = H.write(dir .. "/pic.png", { "" })
+        local notes = H.capture_notify(function()
+          open.open({ kind = "file", path = img, exists = true }, "filetree")
+        end)
+        H.eq(#calls.filetree, 0, "nothing to call open_reveal on")
+        H.match(H.notify_text(notes), "filetree%.nvim not available")
+      end)
+    end
+  )
 
   H.check("open: a missing external file is reported, never conjured up", function()
     local doubles, calls = open_doubles()

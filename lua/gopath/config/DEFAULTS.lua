@@ -125,6 +125,7 @@ return {
     open_vsplit = "g\\",
     open_tab = "g}",
     open_explorer = "gM",
+    open_filetree = "gT",
     copy_location = "gY",
     debug = "g?",
     probe = "<leader>pp",

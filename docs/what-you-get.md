@@ -5,6 +5,7 @@
 | `gP` | Resolve and open in the current window |
 | `g\|` / `g\` / `g}` | The same, in a horizontal split, a vertical split, a new tab |
 | `gM` | Reveal the target in the system file manager instead of opening it |
+| `gT` | Reveal the target in filetree.nvim's own tree instead of opening it (soft dependency) |
 | `gY` | Copy `path:line:col` to the clipboard |
 | `gC` | Check the path under the cursor exists; offer to create it if not |
 | `g?` | Print the resolution chain to `:messages` — the first thing to try when a jump goes somewhere odd |
