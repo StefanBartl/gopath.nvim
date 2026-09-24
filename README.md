@@ -20,6 +20,9 @@
 ![Status](https://img.shields.io/badge/status-beta-orange)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey)
 [![CI](https://github.com/StefanBartl/gopath.nvim/actions/workflows/ci.yml/badge.svg)](https://github.com/StefanBartl/gopath.nvim/actions/workflows/ci.yml)
+[![wkd](https://img.shields.io/badge/wkd-family-c6ff3d)](https://stefanbartl.github.io/wkd/p/gopath/)
+
+> Part of the [wkd](https://stefanbartl.github.io/wkd/) family — see this plugin's [page](https://stefanbartl.github.io/wkd/p/gopath/) on the site.
 
 One key, and you are at the file the cursor is pointing at — however that
 reference happens to be written. gopath.nvim resolves symbols, `require()`
