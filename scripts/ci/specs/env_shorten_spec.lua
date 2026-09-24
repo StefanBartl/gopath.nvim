@@ -221,4 +221,145 @@ return function(H)
       H.eq(vim.api.nvim_get_current_line(), "$REPOS_DIR/x.md", "default pair used")
     end)
   end)
+
+  -- ── M.shorten_known / :GopathToNvimDir: literal well-known-dir match ───────
+
+  H.check("shorten_known: a literal absolute path, any case, any separator", function()
+    local pairs_list = { { var = "NVIM_CONFIG_DIR", dir = [[C:\Users\bartl\AppData\Local\nvim]] } }
+    local out, n = ES.shorten_known(
+      [[edit C:/Users/bartl/AppData/Local/NVIM/lua/plugins/personal/init.lua]],
+      pairs_list
+    )
+    H.eq(out, "edit $NVIM_CONFIG_DIR/lua/plugins/personal/init.lua")
+    H.eq(n, 1)
+  end)
+
+  H.check("shorten_known: unlike shorten_segment, a bare folder name never matches", function()
+    -- The whole point of the literal match: "nvim" alone (no full stdpath
+    -- prefix before it) must NOT be rewritten -- that would be exactly the
+    -- false-positive risk shorten_prefix exists to avoid.
+    local pairs_list = { { var = "NVIM_CONFIG_DIR", dir = "/home/x/.config/nvim" } }
+    local line = "cd /some/other/nvim/project"
+    local out, n = ES.shorten_known(line, pairs_list)
+    H.eq(out, line, "unchanged")
+    H.eq(n, 0)
+  end)
+
+  H.check("shorten_known: a longer directory wins over a shorter one nested in it", function()
+    local pairs_list = {
+      { var = "NVIM_CONFIG_DIR", dir = "/home/x/.config/nvim" },
+      { var = "CONFIG_DIR", dir = "/home/x/.config" },
+    }
+    H.eq(
+      ES.shorten_known("/home/x/.config/nvim/init.lua", pairs_list),
+      "$NVIM_CONFIG_DIR/init.lua",
+      "the more specific (longer) directory wins"
+    )
+    H.eq(
+      ES.shorten_known("/home/x/.config/other/x", pairs_list),
+      "$CONFIG_DIR/other/x",
+      "and the shorter one still works outside the nested one"
+    )
+  end)
+
+  H.check(
+    "shorten_current_line_known rewrites the current line using shorten_known_dirs",
+    function()
+      H.config_sandbox(function(c)
+        c.setup({
+          env_variable_resolution = {
+            shorten_known_dirs = { PROJ_ROOT = "/home/x/work/proj" },
+          },
+        })
+        H.buf({ "see /home/x/work/proj/README.md" })
+        vim.api.nvim_win_set_cursor(0, { 1, 0 })
+        local notes = H.capture_notify(function()
+          ES.shorten_current_line_known()
+        end)
+        H.eq(vim.api.nvim_get_current_line(), "see $PROJ_ROOT/README.md")
+        H.match(H.notify_text(notes), "shortened 1 occurrence")
+      end)
+    end
+  )
+
+  H.check("shorten_current_line_known accepts a resolver function, called fresh", function()
+    H.config_sandbox(function(c)
+      local calls = 0
+      c.setup({
+        env_variable_resolution = {
+          shorten_known_dirs = {
+            NVIM_CONFIG_DIR = function()
+              calls = calls + 1
+              return "/computed/config/dir"
+            end,
+          },
+        },
+      })
+      H.buf({ "open /computed/config/dir/init.lua" })
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      H.capture_notify(function()
+        ES.shorten_current_line_known()
+      end)
+      H.eq(vim.api.nvim_get_current_line(), "open $NVIM_CONFIG_DIR/init.lua")
+      H.eq(calls, 1, "the resolver ran")
+    end)
+  end)
+
+  -- These two mock `gopath.config` directly rather than going through
+  -- `config_sandbox`/`c.setup()`: `deep_merge_into` merges map fields
+  -- key-by-key (see the "shorten_dirs...falls back" test above), so setting
+  -- `shorten_known_dirs = {}` through setup() is a no-op that leaves the
+  -- default NVIM_CONFIG_DIR entry in place -- there is no way to reach a
+  -- genuinely empty map through the public config API, only by replacing
+  -- what `gopath.config.get()` itself returns.
+
+  H.check(
+    "shorten_current_line_known warns instead of raising when nothing is configured",
+    function()
+      H.with_modules({
+        ["gopath.config"] = {
+          get = function()
+            return { env_variable_resolution = { shorten_known_dirs = {} } }
+          end,
+        },
+      }, function()
+        H.buf({ "anything at all" })
+        vim.api.nvim_win_set_cursor(0, { 1, 0 })
+        local notes = H.capture_notify(function()
+          ES.shorten_current_line_known()
+        end)
+        H.eq(vim.api.nvim_get_current_line(), "anything at all", "unchanged")
+        H.match(H.notify_text(notes), "no known directories configured")
+      end)
+    end
+  )
+
+  H.check("shorten_current_line_known ignores a resolver that fails or returns nothing", function()
+    H.with_modules({
+      ["gopath.config"] = {
+        get = function()
+          return {
+            env_variable_resolution = {
+              shorten_known_dirs = {
+                BROKEN = function()
+                  error("boom")
+                end,
+                EMPTY = function()
+                  return ""
+                end,
+              },
+            },
+          }
+        end,
+      },
+    }, function()
+      H.buf({ "anything at all" })
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      local notes = H.capture_notify(function()
+        ES.shorten_current_line_known()
+      end)
+      H.eq(vim.api.nvim_get_current_line(), "anything at all", "unchanged")
+      H.match(H.notify_text(notes), "no known directories configured")
+    end)
+  end)
 end

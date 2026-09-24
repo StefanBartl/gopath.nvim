@@ -341,36 +341,33 @@ return function(H)
     end
   )
 
-  H.check(
-    "offer: 'Create file in this folder' asks for a name and creates it there",
-    function()
-      H.config_sandbox(function(c)
-        local dir = H.tmpdir()
-        c.setup({})
-        local got
-        H.with_field(vim.ui, "input", function(_, on_confirm)
-          on_confirm("newfile.lua")
-        end, function()
-          H.capture_notify(function()
-            H.with_ui_select("Create file in this folder", function()
-              create.offer(
-                { path = dir, exists = false, kind = "file", language = "lua" },
-                function(r)
-                  got = r
-                end
-              )
-            end)
+  H.check("offer: 'Create file in this folder' asks for a name and creates it there", function()
+    H.config_sandbox(function(c)
+      local dir = H.tmpdir()
+      c.setup({})
+      local got
+      H.with_field(vim.ui, "input", function(_, on_confirm)
+        on_confirm("newfile.lua")
+      end, function()
+        H.capture_notify(function()
+          H.with_ui_select("Create file in this folder", function()
+            create.offer(
+              { path = dir, exists = false, kind = "file", language = "lua" },
+              function(r)
+                got = r
+              end
+            )
           end)
         end)
-        H.truthy(got, "on_created ran")
-        H.eq(got.path, dir .. "/newfile.lua")
-        H.eq(got.exists, true)
-        H.eq(got.kind, "file")
-        H.eq(got.language, "lua", "unrelated GopathResult fields are preserved")
-        H.eq(vim.fn.filereadable(dir .. "/newfile.lua"), 1)
       end)
-    end
-  )
+      H.truthy(got, "on_created ran")
+      H.eq(got.path, dir .. "/newfile.lua")
+      H.eq(got.exists, true)
+      H.eq(got.kind, "file")
+      H.eq(got.language, "lua", "unrelated GopathResult fields are preserved")
+      H.eq(vim.fn.filereadable(dir .. "/newfile.lua"), 1)
+    end)
+  end)
 
   H.check("offer: declining the name prompt creates nothing", function()
     H.config_sandbox(function(c)

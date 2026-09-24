@@ -186,7 +186,8 @@ return function(H)
   ---@param fn fun(calls: table)
   ---@return nil
   local function with_usrcmds(config_overrides, fn)
-    local calls = { open = {}, copy = 0, debug = 0, check = 0, probe = {}, shorten = 0 }
+    local calls =
+      { open = {}, copy = 0, debug = 0, check = 0, probe = {}, shorten = 0, shorten_known = 0 }
     H.with_modules({
       ["gopath.commands"] = {
         goto_at_cursor = function(kind)
@@ -206,6 +207,9 @@ return function(H)
         end,
         shorten_to_env = function()
           calls.shorten = calls.shorten + 1
+        end,
+        shorten_to_known_dir = function()
+          calls.shorten_known = calls.shorten_known + 1
         end,
       },
     }, function()
@@ -231,6 +235,7 @@ return function(H)
       "GopathCheck",
       "GopathProbe",
       "GopathToReposDir",
+      "GopathToNvimDir",
       "GopathCacheBuild",
       "GopathCacheInfo",
       "GopathCacheAddRoot",
@@ -249,12 +254,13 @@ return function(H)
       "GopathCheck",
       "GopathProbe",
       "GopathToReposDir",
+      "GopathToNvimDir",
     }) do
       H.eq(vim.fn.exists(":" .. name), 2, ":" .. name .. " is registered")
     end
   end)
 
-  H.check(":Gopath open/copy/debug/check/to-repos-dir each dispatch once", function()
+  H.check(":Gopath open/copy/debug/check/to-repos-dir/to-nvim-dir each dispatch once", function()
     with_usrcmds({}, function(calls)
       vim.cmd("Gopath open")
       H.same(calls.open, { "edit" }, "no argument means edit")
@@ -272,6 +278,8 @@ return function(H)
       H.eq(calls.check, 1)
       vim.cmd("Gopath to-repos-dir")
       H.eq(calls.shorten, 1)
+      vim.cmd("Gopath to-nvim-dir")
+      H.eq(calls.shorten_known, 1)
     end)
   end)
 

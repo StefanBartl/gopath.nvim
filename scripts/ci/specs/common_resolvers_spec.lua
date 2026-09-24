@@ -568,6 +568,68 @@ return function(H)
     end)
   end)
 
+  H.check("env_path: a name unset in the environment falls back to shorten_known_dirs", function()
+    H.config_sandbox(function(c)
+      local dir = H.tmpdir()
+      H.write(dir .. "/init.lua", { "" })
+      vim.env.GOPATH_SPEC_KNOWN = nil
+      c.setup({
+        env_variable_resolution = { shorten_known_dirs = { GOPATH_SPEC_KNOWN = dir } },
+      })
+      H.line_at("open $GOPATH_SPEC_KNOWN/init.lua", "GOPATH", { filetype = "lua" })
+      local r = env_path.resolve()
+      H.truthy(r, "resolved via the known-dir fallback, no real env var needed")
+      H.eq(r.exists, true)
+    end)
+  end)
+
+  H.check("env_path: a resolver function is called fresh (needed for stdpath())", function()
+    H.config_sandbox(function(c)
+      local dir = H.tmpdir()
+      H.write(dir .. "/x.lua", { "" })
+      c.setup({
+        env_variable_resolution = {
+          shorten_known_dirs = {
+            GOPATH_SPEC_KNOWN = function()
+              return dir
+            end,
+          },
+        },
+      })
+      H.line_at("open $GOPATH_SPEC_KNOWN/x.lua", "GOPATH", { filetype = "lua" })
+      local r = env_path.resolve()
+      H.truthy(r)
+      H.eq(r.exists, true)
+    end)
+  end)
+
+  H.check("env_path: a real environment variable always wins over a known-dir fallback", function()
+    H.config_sandbox(function(c)
+      local real_dir = H.tmpdir()
+      local known_dir = H.tmpdir()
+      H.write(real_dir .. "/z.lua", { "" })
+      vim.env.GOPATH_SPEC_KNOWN = real_dir
+      c.setup({
+        env_variable_resolution = { shorten_known_dirs = { GOPATH_SPEC_KNOWN = known_dir } },
+      })
+      H.line_at("open $GOPATH_SPEC_KNOWN/z.lua", "GOPATH", { filetype = "lua" })
+      local r = env_path.resolve()
+      H.truthy(r)
+      H.eq(r.exists, true, "found under the real env var's directory, not the known-dir one")
+      vim.env.GOPATH_SPEC_KNOWN = nil
+    end)
+  end)
+
+  H.check("env_path: $NVIM_CONFIG_DIR resolves via stdpath('config') by default", function()
+    H.config_sandbox(function()
+      vim.env.NVIM_CONFIG_DIR = nil
+      H.line_at("open $NVIM_CONFIG_DIR", "NVIM_CONFIG", { filetype = "lua" })
+      local r = env_path.resolve()
+      H.truthy(r, "resolved without any env var being set")
+      H.eq((r.path:gsub("\\", "/")), (vim.fn.stdpath("config"):gsub("\\", "/")))
+    end)
+  end)
+
   -- ── help ───────────────────────────────────────────────────────────────────
 
   local help = require("gopath.resolvers.common.help")

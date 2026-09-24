@@ -424,4 +424,11 @@ function M.shorten_to_env()
   require("gopath.env_shorten").shorten_current_line()
 end
 
+---Rewrite literal occurrences of a configured "well-known" directory (e.g.
+---vim.fn.stdpath("config")) on the current line back into `$VAR` form.
+---@see gopath.env_shorten
+function M.shorten_to_known_dir()
+  require("gopath.env_shorten").shorten_current_line_known()
+end
+
 return M

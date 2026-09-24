@@ -5,10 +5,16 @@
 --- IMPORTANT: This resolver deliberately bypasses vim.fn.expand("<cfile>")
 --- and reads the raw line text directly. expand() would corrupt tokens like
 --- $REPOS_DIR\foo by prepending cwd before env_path ever runs.
+---
+--- A name not set in the real environment falls back to
+--- `env_variable_resolution.shorten_known_dirs` (default includes
+--- NVIM_CONFIG_DIR = vim.fn.stdpath("config")) -- see gopath.util.known_dirs.
+--- A real environment variable of the same name always wins.
 
 local U = require("gopath.util.path")
 local LOC = require("gopath.util.location")
 local LOG = require("gopath.util.log")
+local KNOWN_DIRS = require("gopath.util.known_dirs")
 
 local M = {}
 
@@ -83,9 +89,27 @@ local function parse_env_token(raw)
   return nil, nil
 end
 
+--- Resolve a name against `env_variable_resolution.shorten_known_dirs`
+--- (a "well-known" directory gopath can compute on its own, e.g.
+--- NVIM_CONFIG_DIR -> vim.fn.stdpath("config")) -- the fallback for a name
+--- that is not set as a real environment variable.
+---@internal
+---@param name string
+---@return string|nil
+local function resolve_known_dir(name)
+  local cfg = require("gopath.config").get()
+  local opt = cfg.env_variable_resolution
+  local known = opt and opt.shorten_known_dirs
+  local resolver = known and known[name]
+  if resolver == nil then return nil end
+  return KNOWN_DIRS.resolve(resolver)
+end
+
 --- Resolve an environment variable name to its string value.
 --- vim.env is checked first (reflects runtime vim.env assignments);
---- os.getenv is used as fallback for variables inherited from the shell.
+--- os.getenv is next, for variables inherited from the shell; a
+--- configured "well-known" directory (see `resolve_known_dir`) is the last
+--- resort, so a real environment variable of the same name always wins.
 ---@internal
 ---@param name string
 ---@return string|nil
@@ -99,7 +123,7 @@ local function resolve_var(name)
   local v = os.getenv(name)
   if type(v) == "string" and v ~= "" then return v end
 
-  return nil
+  return resolve_known_dir(name)
 end
 
 --- Join a resolved variable value with the path remainder.

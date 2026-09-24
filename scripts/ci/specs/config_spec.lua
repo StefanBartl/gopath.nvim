@@ -65,6 +65,12 @@ return function(H)
     H.same(cfg.env_variable_resolution.shorten_dirs, { repos = "REPOS_DIR" })
     H.eq(cfg.external.pdf.picker, true)
     H.eq(cfg.external.pdf.default, "system")
+    H.eq(
+      type(cfg.env_variable_resolution.shorten_known_dirs.NVIM_CONFIG_DIR),
+      "function",
+      "a resolver function, not a baked-in path"
+    )
+    H.eq(cfg.commands.to_nvim_dir, true)
   end)
 
   H.check("setup(nil) and setup(non-table) change nothing", function()
