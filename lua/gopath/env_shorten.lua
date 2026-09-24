@@ -34,7 +34,12 @@
 --- file under `$NVIM_CONFIG_DIR/docs/x/` becomes
 --- `$NVIM_CONFIG_DIR/docs/x/assets/a.png`) when the resolved absolute path
 --- actually falls under one of the configured roots -- an unrelated relative
---- link is left untouched. `:GopathToReposDir`/`:GopathToNvimDir` also take
+--- link, or a URL (a Markdown link's path is very often one), is left
+--- untouched: a URL is never treated as a relative filesystem path, since
+--- resolving one against the buffer directory and matching it by PREFIX
+--- against a configured root can spuriously "match" through the buffer's
+--- OWN path rather than anything about the URL -- see `skip_relative_resolution`.
+--- `:GopathToReposDir`/`:GopathToNvimDir` also take
 --- a visual range (`:'<,'>GopathToNvimDir`): with one, only the selected
 --- span is rewritten (tried as a literal match first, then as a relative
 --- candidate), leaving the rest of the line alone -- see
@@ -45,6 +50,7 @@
 local LOG = require("gopath.util.log")
 local KNOWN_DIRS = require("gopath.util.known_dirs")
 local SELECTION = require("gopath.util.selection")
+local URL = require("gopath.util.url")
 
 local M = {}
 
@@ -213,17 +219,27 @@ end
 
 -- ── Relative paths (typically Markdown links) resolved against bufdir ──────
 
----Whether `path` already looks like an absolute reference (Windows drive,
----POSIX/UNC root, or `~`-relative) -- if so it is not a relative candidate;
----the literal/structural passes above already handle genuinely absolute
----text, and joining it to the buffer directory would just produce garbage.
+---Whether `path` is NOT a plausible relative FILESYSTEM path -- either
+---already absolute (Windows drive, POSIX/UNC root, `~`-relative: the
+---literal/structural passes above already handle genuinely absolute text,
+---and joining it to the buffer directory would just produce garbage), or a
+---URL (`scheme://…`, `mailto:…`, a bare `www.…`/known-TLD host). A Markdown
+---link's path is very often a URL, not a file reference at all, and joining
+---one to the buffer directory then matching it against a configured root by
+---PREFIX is actively dangerous, not just pointless: a buffer that itself
+---lives under the configured root turns `https://github.com/x` into
+---`$VAR/docs/https:/github.com/x` -- the known-dir prefix matches because
+---the buffer's own path is in front, not because the URL has anything to do
+---with it. Checked with `nil` opts (built-in schemes/TLDs only, regardless
+---of the user's own `url.schemes`/`url.tlds`/`url.enable`): this is a
+---defensive exclusion, not the url feature itself, so it stays maximally
+---inclusive rather than following that config.
 ---@internal
 ---@param path string
 ---@return boolean
-local function looks_absolute(path)
-  return path:match("^%a:[/\\]") ~= nil
-    or path:match("^[/\\]") ~= nil
-    or path:match("^~[/\\]?$") ~= nil
+local function skip_relative_resolution(path)
+  if path:match("^%a:[/\\]") or path:match("^[/\\]") or path:match("^~[/\\]?$") then return true end
+  return URL.is_strict_url(path) or URL.is_loose_url(path)
 end
 
 ---Every Markdown-link path span in `line` -- matches both `[text](path)` and
@@ -257,7 +273,7 @@ end
 ---@param apply fun(abs: string): string, integer
 ---@return string|nil
 local function shorten_relative_candidate(path, bufdir, apply)
-  if path == "" or bufdir == "" or looks_absolute(path) then return nil end
+  if path == "" or bufdir == "" or skip_relative_resolution(path) then return nil end
   local abs = vim.fs.normalize(bufdir .. "/" .. path)
   local shortened, n = apply(abs)
   if n > 0 then return shortened end

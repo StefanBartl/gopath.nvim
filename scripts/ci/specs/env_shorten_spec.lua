@@ -463,6 +463,91 @@ return function(H)
   )
 
   H.check(
+    "shorten_current_line_known: a URL inside a Markdown link is NEVER treated as a relative path"
+      .. " (regression: used to mangle it when the buffer itself lives under the known dir)",
+    function()
+      H.config_sandbox(function(c)
+        local dir = H.tmpdir()
+        -- The bug: joining "https://github.com/foo/bar" to a bufdir that is
+        -- itself under the known dir makes the JOINED string start with the
+        -- known dir purely because the bufdir does -- nothing to do with the
+        -- URL. shorten_prefix then matched that prefix and spliced
+        -- "$NVIM_CONFIG_DIR/docs/https:/github.com/foo/bar" into the link.
+        local note = H.write(dir .. "/docs/note.md", {
+          "see [GitHub](https://github.com/foo/bar) and [rel](./a.png) here",
+        })
+        c.setup({ env_variable_resolution = { shorten_known_dirs = { NVIM_CONFIG_DIR = dir } } })
+        vim.cmd.edit(vim.fn.fnameescape(note))
+        vim.api.nvim_win_set_cursor(0, { 1, 0 })
+
+        ES.shorten_current_line_known()
+        H.eq(
+          vim.api.nvim_get_current_line(),
+          "see [GitHub](https://github.com/foo/bar) and [rel]($NVIM_CONFIG_DIR/docs/a.png) here",
+          "the URL survives untouched; the genuine relative link (bufdir is dir/docs) still resolves"
+        )
+      end)
+    end
+  )
+
+  H.check(
+    "shorten_current_line: same URL guard applies to the structural (repos-dir) flavour",
+    function()
+      H.config_sandbox(function()
+        local root = H.tmpdir():match("^(%a:[/\\])") or "/"
+        H.buf(
+          { "see [x](https://example.com/repos/thing) here" },
+          { name = root .. "repos/note.md" }
+        )
+        local before = vim.api.nvim_get_current_line()
+        local notes = H.capture_notify(function()
+          ES.shorten_current_line()
+        end)
+        H.eq(vim.api.nvim_get_current_line(), before, "unchanged -- the URL is not a relative path")
+        H.match(H.notify_text(notes), "nothing to shorten")
+      end)
+    end
+  )
+
+  H.check(
+    "shorten_current_line_known: a bare-host (schemeless) Markdown link is also excluded",
+    function()
+      H.config_sandbox(function(c)
+        local dir = H.tmpdir()
+        local note = H.write(dir .. "/docs/note.md", { "see [x](github.com/foo/bar) here" })
+        c.setup({ env_variable_resolution = { shorten_known_dirs = { NVIM_CONFIG_DIR = dir } } })
+        vim.cmd.edit(vim.fn.fnameescape(note))
+        local before = vim.api.nvim_get_current_line()
+        local notes = H.capture_notify(function()
+          ES.shorten_current_line_known()
+        end)
+        H.eq(vim.api.nvim_get_current_line(), before, "unchanged")
+        H.match(H.notify_text(notes), "nothing to shorten")
+      end)
+    end
+  )
+
+  H.check(
+    "shorten_current_line_known: a URL directly selected (not in a Markdown link) is also excluded",
+    function()
+      H.config_sandbox(function(c)
+        local dir = H.tmpdir()
+        local note = H.write(dir .. "/docs/note.md", { "https://github.com/foo/bar" })
+        c.setup({ env_variable_resolution = { shorten_known_dirs = { NVIM_CONFIG_DIR = dir } } })
+        vim.cmd.edit(vim.fn.fnameescape(note))
+        vim.api.nvim_buf_set_mark(0, "<", 1, 0, {})
+        vim.api.nvim_buf_set_mark(0, ">", 1, #"https://github.com/foo/bar" - 1, {})
+
+        local notes = H.capture_notify(function()
+          ES.shorten_current_line_known({ selection = true })
+        end)
+        H.eq(vim.api.nvim_get_current_line(), "https://github.com/foo/bar", "unchanged")
+        H.match(H.notify_text(notes), "nothing to shorten")
+      end)
+    end
+  )
+
+  H.check(
     "shorten_current_line_known: an unnamed buffer skips relative resolution, no error",
     function()
       H.config_sandbox(function(c)

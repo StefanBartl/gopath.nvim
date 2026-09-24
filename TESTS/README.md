@@ -157,8 +157,8 @@ Two house rules:
 
 ## Coverage
 
-82 files under `lua/`. 19 spec files under `scripts/ci/specs/`, 540 checks and
-about 1873 executed assertions, plus the 38 checks in `functional_tests.lua`
+82 files under `lua/`. 19 spec files under `scripts/ci/specs/`, 544 checks and
+about 1880 executed assertions, plus the 38 checks in `functional_tests.lua`
 and the 8 in `headless_tests.lua`.
 
 | Spec | Covers |
@@ -167,7 +167,7 @@ and the 8 in `headless_tests.lua`.
 | `util_misc_spec` | `util/cross.lua` (with and without lib.nvim), `util/location.lua` (all five suffix forms, Windows drives, range clamping), `util/log.lua` (both notifier paths, the `dev_mode` gate), `util/safe.lua`, `util/safe_notify.lua`, `util/selection.lua` (single-line span extraction, mark order, multi-line/whitespace-only -> nil, MAXCOL clamping) |
 | `config_spec` | `config/DEFAULTS.lua`'s shape and `config/init.lua`'s recursive merge: nested overrides, list-replacement, scalars over tables, resetting to defaults across calls |
 | `url_spec` | `util/url.lua` (strict vs. loose detection, the drive-letter guard, normalisation, cursor extraction) and `resolvers/common/url.lua` (both passes, the `enable`/`bare_hosts` gates, configured schemes/TLDs) |
-| `env_shorten_spec` | `env_shorten.lua`: all four root forms, every negative case from `TESTS/06`, multi-pair ordering, the buffer-facing `:GopathToReposDir`/`:GopathToNvimDir` (resolver functions, the longest-dir-wins rule, the "nothing configured" warning), a visual range shortening just the selection (literal match first, then buffer-relative), and a relative Markdown-link path resolved against the buffer's directory and rewritten only when it lands under a configured root |
+| `env_shorten_spec` | `env_shorten.lua`: all four root forms, every negative case from `TESTS/06`, multi-pair ordering, the buffer-facing `:GopathToReposDir`/`:GopathToNvimDir` (resolver functions, the longest-dir-wins rule, the "nothing configured" warning), a visual range shortening just the selection (literal match first, then buffer-relative), a relative Markdown-link path resolved against the buffer's directory and rewritten only when it lands under a configured root, and a URL (in a link or directly selected) never mistaken for one -- regression: used to mangle a URL into `$VAR/.../https:/...` when the buffer itself lived under the configured root |
 | `external_spec` | `external/`: the extension/URL detector, `should_open_externally`, the opener and revealer argv chains through all their fallback layers, and the PDF mode chooser |
 | `create_open_spec` | `create.lua` (the offer in every branch — including a resolved path that IS a directory — the nearest-ancestor walk, filetree.nvim, ui.kit vs. `vim.ui.select`) and `open/init.lua` (URL / explorer / external / missing / placement / jump / escaping) |
 | `tailsearch_spec` | `resolvers/common/tailsearch.lua`: `sanitize`, `suffix_candidates`, `pick_best`, `guess_roots`, `find_by_tail`, `cache_lookup`, and all four resolution entry points including the picker flow |

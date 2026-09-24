@@ -55,6 +55,10 @@
 -- resolves under a configured root does it get rewritten, to
 -- ![alt]($NVIM_CONFIG_DIR/docs/ROADMAP/assets/pic.png) -- an unrelated
 -- relative link (resolving outside every configured root) is left alone.
+-- Add a second link in the SAME note pointing at an ordinary URL, e.g.
+-- [repo](https://github.com/you/yours) -- it must stay exactly as typed:
+-- a URL is never treated as a relative path, even when (as here) the note
+-- itself lives under the configured root.
 
 -- ── 1. Windows drive, backslash ───────────────────────────────────────────────
 -- Expected: "see $REPOS_DIR\gopath.nvim\lua\gopath\env_shorten.lua"
