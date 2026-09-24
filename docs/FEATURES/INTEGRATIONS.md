@@ -71,6 +71,42 @@ hijacking the picture.
   (`resolve_via_gopath`)
 - **Their config:** `display.gopath_fallback`, default `true`
 
+## gopath.integrations.menu — the right-click "Paths" entry (outbound)
+
+The two sections above are gopath as a library *other plugins* call into.
+This one is the other direction: gopath itself is a "Pattern-B" contributor
+to a host's global right-click context menu (`lib.nvim.contextmenu`/
+nvzone-menu-shaped — the same convention
+[filetree.nvim](https://github.com/StefanBartl/filetree.nvim) and
+[open.nvim](https://github.com/StefanBartl/open.nvim) ship their own menu
+integrations through):
+
+```lua
+local items = require("gopath.integrations.menu").items()   -- inline entries
+-- or:
+local sub = require("gopath.integrations.menu").submenu()   -- a single "  Paths" fly-out, or nil
+```
+
+Self-gating like the other two: an empty list / `nil` when ui.nvim (soft
+dependency, for `ui.contextmenu`) is not installed, or nothing resolves.
+What "nothing under the cursor" means here is exactly `resolve_at_cursor`'s
+own answer — **except** when the buffer is still in Visual mode at the
+moment the host calls `items()` (a right-click while a selection is up,
+before any `<Esc>`): then the SELECTED text is resolved instead, via
+`gopath.resolve_selection` (a `$VAR/rest` reference or a URL — what lets a
+PARTIALLY selected one work here too, not just a fully recognized path).
+Tailsearch's filesystem suffix search is deliberately not tried from the
+menu — a right-click that silently kicks off a filesystem walk on every
+miss would be a bad trade; that is what `:GopathProbe` is for.
+
+- **Module:** `lua/gopath/integrations/menu.lua`
+- **Entries:** "Open" (always, for anything resolved), "Reveal in File
+  Manager" / "Reveal in filetree.nvim" (only for `kind == "file"` — a URL or
+  a `:help` subject only ever gets "Open")
+- **Wiring it up:** a host adds one row to its own contributor table, e.g.
+  `config.menu.mappings.CONTRIBUTORS` in a `lib.nvim.contextmenu`-based
+  setup — see that host's own docs for the exact shape.
+
 ## What this means for changes here
 
 `resolve_at_cursor` is a public entry point with consumers outside this

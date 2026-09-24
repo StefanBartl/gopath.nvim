@@ -23,6 +23,17 @@ local function open_for_kind(res, kind)
   return OPEN.open(res, kind or "edit")
 end
 
+---Open a result a caller already resolved itself (bypasses cursor
+---re-resolution) -- for a caller like `gopath.integrations.menu` that
+---resolved a right-click's context (cursor OR a live visual selection, via
+---`gopath.resolve_selection`) once, up front, and needs to open exactly
+---that same result once an action is chosen from the menu.
+---@param res GopathResult
+---@param kind string|nil  "edit"|"window"|"vsplit"|"tab"|"explorer"|"filetree"
+function M.open_result(res, kind)
+  open_for_kind(res, kind or "edit")
+end
+
 ---Open a resolved result, applying the fuzzy-alternate fallback when the
 ---file does not exist. A missing file that fuzzy-alternate can't resolve
 ---either falls through to `gopath.open`, which offers to create it (see
