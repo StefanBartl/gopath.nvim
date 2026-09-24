@@ -71,6 +71,12 @@ Tries two things in order:
    when several files match) for everything else, e.g. a partial plain file
    path.
 
+`:Gopath probe [edit|split|vsplit|explorer|filetree]` / `:GopathProbe
+[mode]`: the same modes `gopath.open` supports for the cursor-based `gM`/`gT`
+keymaps are available here too, so a whole OR partially selected path can be
+**revealed in the OS file manager or in filetree.nvim** instead of opened as
+a buffer — not just resolved.
+
 - **Module:** `resolve_selection.lua`, `alternate/init.lua`,
   `resolvers/common/tailsearch.lua`, `resolvers/common/env_path.lua`
   (`resolve_text`), `util/url.lua`

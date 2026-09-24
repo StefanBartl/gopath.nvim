@@ -430,7 +430,14 @@ return function(H)
   H.check("probe_selection: each open_cmd maps onto a window mode", function()
     H.line_at("see a/b.lua now", "a/b", { filetype = "text" })
     local found = { kind = "file", path = "/found.lua", exists = true }
-    for cmd, mode in pairs({ vsplit = "vsplit", split = "window", tab = "tab", edit = "edit" }) do
+    for cmd, mode in pairs({
+      vsplit = "vsplit",
+      split = "window",
+      tab = "tab",
+      edit = "edit",
+      explorer = "explorer",
+      filetree = "filetree",
+    }) do
       H.with_modules({
         ["gopath.resolvers.common.tailsearch"] = fake_tailsearch(found, {}),
       }, function()
@@ -525,6 +532,34 @@ return function(H)
     end)
     vim.env.GOPATH_SPEC_PROBE = nil
   end)
+
+  H.check(
+    "probe_selection: a partial $VAR selection can be revealed in filetree.nvim too (open_cmd = filetree)",
+    function()
+      local dir = vim.fn.tempname()
+      vim.fn.mkdir(dir, "p")
+      vim.fn.writefile({ "" }, dir .. "/mod.lua")
+      vim.env.GOPATH_SPEC_PROBE_FT = dir
+      H.buf({ "open $GOPATH_SPEC_PROBE_FT/mod.lua now" }, { filetype = "text" })
+      vim.api.nvim_buf_set_mark(0, "<", 1, 5, {})
+      vim.api.nvim_buf_set_mark(0, ">", 1, 33, {})
+      H.with_modules({
+        ["gopath.resolvers.common.tailsearch"] = {
+          probe = function()
+            error("tailsearch must not run when the direct resolver already matched")
+          end,
+        },
+      }, function()
+        with_commands(nil, nil, function(commands, calls)
+          commands.probe_selection({ open_cmd = "filetree", selection = true })
+          H.eq(#calls.open, 1)
+          H.eq(calls.open[1].mode, "filetree")
+          H.eq(calls.open[1].res.kind, "file")
+        end)
+      end)
+      vim.env.GOPATH_SPEC_PROBE_FT = nil
+    end
+  )
 
   H.check(
     "probe_selection: falls back to tailsearch when the direct resolvers find nothing",

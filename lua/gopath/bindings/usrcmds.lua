@@ -6,7 +6,7 @@
 ---   :Gopath open [edit|split|vsplit|tab]   resolve & open
 ---   :Gopath copy                           copy path:line:col to clipboard
 ---   :Gopath debug                          show resolution info
----   :Gopath probe [edit|split|vsplit]      suffix/visual probe
+---   :Gopath probe [edit|split|vsplit|explorer|filetree]  suffix/visual probe
 ---   :Gopath cache build                    rebuild fs cache
 ---   :Gopath cache info                     show cache stats
 ---   :Gopath cache add-root <dir>           add cache root
@@ -32,7 +32,7 @@ local M = {}
 -- ── Subcommand table ─────────────────────────────────────────────────────────
 
 local OPEN_MODES = { "edit", "split", "vsplit", "tab", "explorer", "filetree" }
-local PROBE_MODES = { "edit", "split", "vsplit" }
+local PROBE_MODES = { "edit", "split", "vsplit", "explorer", "filetree" }
 
 ---Normalize open/probe mode strings to the keys used by commands.lua.
 ---@internal
