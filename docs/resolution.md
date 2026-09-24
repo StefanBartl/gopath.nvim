@@ -145,8 +145,12 @@ resolve_at_cursor()            -- fast: help/env/rtp/&path/cache only
 `tailsearch.resolve_async` itself is cache-first (instant) and only walks the
 filesystem on a miss — see [cache.md](./cache.md#live-fallback-search).
 
-The visual-selection / cursor **probe** (`:GopathProbe`, `<leader>pp`) uses the
-same async machinery and presents a `vim.ui.select` picker on ambiguity.
+The visual-selection / cursor **probe** (`:GopathProbe`, `<leader>pp`) first
+tries `gopath.resolve_selection` — a `$VAR/rest` reference or a URL, resolved
+directly against the selected text (this is what makes a PARTIAL selection of
+one of those resolve, not just a partial selection of a plain file path).
+Only when that finds nothing does it fall through to the same async
+tailsearch machinery as above, with a `vim.ui.select` picker on ambiguity.
 
 ---
 

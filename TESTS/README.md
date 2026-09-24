@@ -157,8 +157,8 @@ Two house rules:
 
 ## Coverage
 
-77 files under `lua/`. 17 spec files under `scripts/ci/specs/`, 485 checks and
-about 1741 executed assertions, plus the 38 checks in `functional_tests.lua`
+80 files under `lua/`. 18 spec files under `scripts/ci/specs/`, 500 checks and
+about 1779 executed assertions, plus the 38 checks in `functional_tests.lua`
 and the 8 in `headless_tests.lua`.
 
 | Spec | Covers |
@@ -177,7 +177,8 @@ and the 8 in `headless_tests.lua`.
 | `providers_spec` | `providers/token.lua`, `providers/builtin.lua`, `providers/treesitter.lua`, `providers/lsp.lua` |
 | `lua_resolvers_spec` | `resolvers/lua/`: `require_path`, `binding_index`, `alias_index` (including the per-buffer cache and its invalidation), `chain`, `identifier_locator`, `local_to_module`, `ts_lua_ast` |
 | `pipeline_spec` | `registry.lua` (per-language dispatch, custom resolvers, the `resolvers` allow-list) and `resolve.lua` (every phase, in order, with each one observable) |
-| `commands_spec` | `commands.lua`: window-mode routing, the async tailsearch fallback, the clipboard format per result kind, the existence check, the visual-selection probe, the debug report |
+| `commands_spec` | `commands.lua`: window-mode routing, the async tailsearch fallback, the clipboard format per result kind, the existence check, the visual-selection probe (direct URL/$VAR resolution before the tailsearch fallback), the debug report |
+| `resolve_selection_spec` | `resolve_selection.lua`: direct (non-cursor) URL and `$VAR` resolution of a raw string -- what lets `probe_selection` resolve a PARTIAL selection of either, not just a plain file path |
 | `alternate_spec` | `alternate/`: directory helpers, the similarity matcher, the selection UI on both backends, and the callback contract both entry points hang on |
 | `wiring_spec` | `bindings/` (keymaps incl. overrides/lists/`false`, `:Gopath` and every alias, the autocommands), `open/help.lua`, `health.lua`, and `init.lua`'s `setup()` |
 

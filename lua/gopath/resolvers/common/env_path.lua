@@ -10,6 +10,10 @@
 --- `env_variable_resolution.shorten_known_dirs` (default includes
 --- NVIM_CONFIG_DIR = vim.fn.stdpath("config")) -- see gopath.util.known_dirs.
 --- A real environment variable of the same name always wins.
+---
+--- `M.resolve_text(text)` resolves already-known text directly (no cursor
+--- involved) -- used for a visual selection that covers only part of a
+--- $VAR/rest reference; see gopath.commands.probe_selection.
 
 local U = require("gopath.util.path")
 local LOC = require("gopath.util.location")
@@ -147,22 +151,14 @@ end
 -- Public resolver
 -- ---------------------------------------------------------------------------
 
---- Main resolver entry point required by the GopathResult contract.
---- Returns a GopathResult when the token under the cursor starts with
---- a resolvable environment variable reference, nil otherwise.
+--- Resolve an already-known raw token (`$VAR/rest` etc.) -- the shared tail
+--- of `M.resolve()` (cursor-based) and `M.resolve_text()` (a caller already
+--- holds the text, e.g. a visual selection). Does NOT re-check the
+--- `enable` flag; both public entry points do that themselves first.
+---@internal
+---@param raw string
 ---@return GopathResult|nil
-function M.resolve()
-  -- Guard: respect the user's opt-in/opt-out flag.
-  local cfg = require("gopath.config").get()
-  local opt = cfg.env_variable_resolution
-  if not (opt and opt.enable) then return nil end
-
-  -- Read the raw token directly from the line buffer.
-  -- Do NOT use P.expand_cfile() here: vim.fn.expand() would resolve $VAR
-  -- relative to cwd before we can intercept it.
-  local raw = raw_token_at_cursor()
-  if not raw then return nil end
-
+local function resolve_raw(raw)
   local var_name, remainder = parse_env_token(raw)
   if not var_name then
     return nil -- Token does not start with an env-var reference.
@@ -209,6 +205,41 @@ function M.resolve()
     confidence = exists and 0.95 or 0.4,
     exists = exists,
   }
+end
+
+--- Main resolver entry point required by the GopathResult contract.
+--- Returns a GopathResult when the token under the cursor starts with
+--- a resolvable environment variable reference, nil otherwise.
+---@return GopathResult|nil
+function M.resolve()
+  -- Guard: respect the user's opt-in/opt-out flag.
+  local cfg = require("gopath.config").get()
+  local opt = cfg.env_variable_resolution
+  if not (opt and opt.enable) then return nil end
+
+  -- Read the raw token directly from the line buffer.
+  -- Do NOT use P.expand_cfile() here: vim.fn.expand() would resolve $VAR
+  -- relative to cwd before we can intercept it.
+  local raw = raw_token_at_cursor()
+  if not raw then return nil end
+
+  return resolve_raw(raw)
+end
+
+--- Resolve `text` directly, e.g. a visual selection that may cover only
+--- PART of a recognized `$VAR/rest` reference (a caller like
+--- `gopath.commands.probe_selection` already knows the exact substring, so
+--- there is no cursor/token to extract it from). Same rules as `M.resolve()`
+--- otherwise, including the `enable` flag.
+---@param text string
+---@return GopathResult|nil
+function M.resolve_text(text)
+  local cfg = require("gopath.config").get()
+  local opt = cfg.env_variable_resolution
+  if not (opt and opt.enable) then return nil end
+  if type(text) ~= "string" or text == "" then return nil end
+
+  return resolve_raw(text)
 end
 
 return M

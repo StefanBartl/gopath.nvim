@@ -241,8 +241,14 @@ end
 
 -- ── Probe command (pathprobe strategy) ───────────────────────────────────────
 
----Probe: resolve the path under cursor / in visual selection using suffix-based
----filesystem search.  Falls back to vim.ui.select when multiple matches found.
+---Probe: resolve the path under cursor / in visual selection.
+---
+---Tries direct recognizers first (`gopath.resolve_selection`: a `$VAR/rest`
+---reference or a URL, which tailsearch's filesystem suffix search has no way
+---to recognize on its own) -- this is what lets a PARTIAL selection of one of
+---those resolve, not just a partial selection of a plain file path. Falls
+---back to tailsearch (suffix-based filesystem search, with vim.ui.select
+---when multiple matches are found) for everything else.
 ---
 ---`opts.selection` is how a caller states that the `'<`/`'>` marks describe a
 ---selection made for THIS invocation — the marks alone can't say so, since they
@@ -251,10 +257,20 @@ end
 function M.probe_selection(opts)
   opts = opts or {}
   local open_cmd = opts.open_cmd or "edit"
+  local open_mode = open_cmd == "vsplit" and "vsplit"
+    or open_cmd == "split" and "window"
+    or open_cmd == "tab" and "tab"
+    or "edit"
 
   local raw = (opts.selection and get_visual_selection()) or get_normal_token()
   if not raw then
     LOG.warn("No path-like token under cursor / in selection")
+    return
+  end
+
+  local direct = require("gopath.resolve_selection").resolve_text(raw)
+  if direct then
+    open_for_kind(direct, open_mode)
     return
   end
 
@@ -272,13 +288,7 @@ function M.probe_selection(opts)
       LOG.warn("probe: no match found for '" .. raw .. "'")
       return
     end
-    open_for_kind(
-      res,
-      open_cmd == "vsplit" and "vsplit"
-        or open_cmd == "split" and "window"
-        or open_cmd == "tab" and "tab"
-        or "edit"
-    )
+    open_for_kind(res, open_mode)
   end)
 end
 
