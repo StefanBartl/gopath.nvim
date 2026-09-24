@@ -56,11 +56,24 @@ health.lua
 
 ## Visual selection probe
 
-Resolves a manually-selected span of text as a path via the same suffix
-search, for cases where the automatic token/line extraction picks the
-wrong span.
+Resolves a manually-selected span of text as a path, for cases where the
+automatic token/line extraction picks the wrong span — including a span
+that covers only PART of a longer recognizable reference (e.g. selecting
+just `sub/file.lua` out of a longer `$REPOS_DIR/sub/file.lua`, or just
+`github.com/x/y` out of a URL with surrounding text).
 
-- **Module:** `alternate/init.lua`, `resolvers/common/tailsearch.lua`
+Tries two things in order:
+1. Direct recognizers (`gopath.resolve_selection`): a `$VAR/rest` reference
+   or a URL, resolved the same way the main pipeline would — tailsearch's
+   filesystem suffix search has no way to recognize either of those on its
+   own, so without this step a partial selection of one never resolved.
+2. Falls back to tailsearch (suffix-based filesystem search, `vim.ui.select`
+   when several files match) for everything else, e.g. a partial plain file
+   path.
+
+- **Module:** `resolve_selection.lua`, `alternate/init.lua`,
+  `resolvers/common/tailsearch.lua`, `resolvers/common/env_path.lua`
+  (`resolve_text`), `util/url.lua`
 - **Keymaps:** `<leader>pp` in normal mode (path under cursor) and visual
   mode (selected text) — both open in a vertical split
 - **Usercmds:** `:Gopath probe [edit|split|vsplit]`, `:GopathProbe[!]`

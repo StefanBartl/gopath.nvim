@@ -478,6 +478,75 @@ return function(H)
     H.eq(record.probe.raw, "  lua/gopath/init.lua  ", "the first line of a multi-line selection")
   end)
 
+  H.check(
+    "probe_selection: a partial selection of a URL resolves directly, tailsearch is never consulted",
+    function()
+      H.buf({ "see github.com/neovim/neovim for the source" }, { filetype = "text" })
+      vim.api.nvim_buf_set_mark(0, "<", 1, 4, {})
+      vim.api.nvim_buf_set_mark(0, ">", 1, 27, {})
+      H.with_modules({
+        ["gopath.resolvers.common.tailsearch"] = {
+          probe = function()
+            error("tailsearch must not run when the direct resolver already matched")
+          end,
+        },
+      }, function()
+        with_commands(nil, nil, function(commands, calls)
+          commands.probe_selection({ selection = true })
+          H.eq(#calls.open, 1)
+          H.eq(calls.open[1].res.kind, "url")
+          H.eq(calls.open[1].res.path, "https://github.com/neovim/neovim")
+        end)
+      end)
+    end
+  )
+
+  H.check("probe_selection: a partial selection of a $VAR reference resolves directly", function()
+    local dir = vim.fn.tempname()
+    vim.fn.mkdir(dir, "p")
+    vim.fn.writefile({ "" }, dir .. "/mod.lua")
+    vim.env.GOPATH_SPEC_PROBE = dir
+    H.buf({ "open $GOPATH_SPEC_PROBE/mod.lua now" }, { filetype = "text" })
+    vim.api.nvim_buf_set_mark(0, "<", 1, 5, {})
+    vim.api.nvim_buf_set_mark(0, ">", 1, 30, {})
+    H.with_modules({
+      ["gopath.resolvers.common.tailsearch"] = {
+        probe = function()
+          error("tailsearch must not run when the direct resolver already matched")
+        end,
+      },
+    }, function()
+      with_commands(nil, nil, function(commands, calls)
+        commands.probe_selection({ selection = true })
+        H.eq(#calls.open, 1)
+        H.eq(calls.open[1].res.kind, "file")
+        H.eq(calls.open[1].res.exists, true)
+      end)
+    end)
+    vim.env.GOPATH_SPEC_PROBE = nil
+  end)
+
+  H.check(
+    "probe_selection: falls back to tailsearch when the direct resolvers find nothing",
+    function()
+      H.buf({ "prefix lua/gopath/init.lua suffix" }, { filetype = "text" })
+      vim.api.nvim_buf_set_mark(0, "<", 1, 7, {})
+      vim.api.nvim_buf_set_mark(0, ">", 1, 25, {})
+      local found = { kind = "file", path = "/found.lua", exists = true }
+      local record = {}
+      H.with_modules({
+        ["gopath.resolvers.common.tailsearch"] = fake_tailsearch(found, record),
+      }, function()
+        with_commands(nil, nil, function(commands, calls)
+          commands.probe_selection({ selection = true })
+          H.eq(record.probe.raw, "lua/gopath/init.lua", "tailsearch DID run this time")
+          H.eq(#calls.open, 1)
+          H.eq(calls.open[1].res, found)
+        end)
+      end)
+    end
+  )
+
   H.check("probe_selection: no token at all is reported without searching", function()
     H.buf({ "" }, { filetype = "text" })
     vim.api.nvim_win_set_cursor(0, { 1, 0 })

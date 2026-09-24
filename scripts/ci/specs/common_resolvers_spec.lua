@@ -620,6 +620,34 @@ return function(H)
     end)
   end)
 
+  H.check("env_path.resolve_text: resolves a raw string with no cursor/buffer involved", function()
+    H.config_sandbox(function()
+      local dir = H.tmpdir()
+      H.write(dir .. "/x.lua", { "" })
+      vim.env.GOPATH_SPEC_TEXT = dir
+      local r = env_path.resolve_text("$GOPATH_SPEC_TEXT/x.lua")
+      H.truthy(r, "resolved directly from the string, without a buffer")
+      H.eq(r.exists, true)
+      vim.env.GOPATH_SPEC_TEXT = nil
+    end)
+  end)
+
+  H.check("env_path.resolve_text: nil for a non-string, empty string, or non-$ text", function()
+    H.is_nil(env_path.resolve_text(nil))
+    H.is_nil(env_path.resolve_text(""))
+    H.is_nil(env_path.resolve_text("plain/path.md"))
+  end)
+
+  H.check("env_path.resolve_text: respects the enable flag, same as M.resolve()", function()
+    H.config_sandbox(function(c)
+      local dir = H.tmpdir()
+      vim.env.GOPATH_SPEC_TEXT = dir
+      c.setup({ env_variable_resolution = { enable = false } })
+      H.is_nil(env_path.resolve_text("$GOPATH_SPEC_TEXT/x.lua"), "switched off")
+      vim.env.GOPATH_SPEC_TEXT = nil
+    end)
+  end)
+
   H.check("env_path: $NVIM_CONFIG_DIR resolves via stdpath('config') by default", function()
     H.config_sandbox(function()
       vim.env.NVIM_CONFIG_DIR = nil
