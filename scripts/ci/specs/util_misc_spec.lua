@@ -1,7 +1,8 @@
 -- scripts/ci/specs/util_misc_spec.lua
 -- The small utility layer: gopath.util.cross (separators / drive detection),
 -- gopath.util.location (line/col parsing and range normalisation),
--- gopath.util.log, gopath.util.safe and gopath.util.safe_notify.
+-- gopath.util.log, gopath.util.safe, gopath.util.safe_notify and
+-- gopath.util.selection.
 --
 -- cross/log/safe_notify each bind their lib.nvim dependency to an upvalue in a
 -- top-level `do ... end` block, so both the "lib.nvim is there" and the
@@ -257,5 +258,67 @@ return function(H)
       H.eq(calls[2].delay, 0, "a missing delay becomes 0, never nil")
     end, { unload = { "gopath.util.safe_notify" } })
     H.fresh("gopath.util.safe_notify")
+  end)
+
+  -- ── selection ──────────────────────────────────────────────────────────────
+
+  local SEL = require("gopath.util.selection")
+
+  H.check("selection.span: a single-line charwise selection, 1-indexed inclusive", function()
+    H.buf({ "hello world here" })
+    vim.api.nvim_buf_set_mark(0, "<", 1, 6, {})
+    vim.api.nvim_buf_set_mark(0, ">", 1, 10, {})
+    local span = SEL.span()
+    H.truthy(span)
+    H.eq(span.row, 1)
+    H.eq(span.line:sub(span.start_col, span.end_col), "world")
+  end)
+
+  H.check(
+    "selection.span: '<' after '>' is still ordered start-before-end in the result",
+    function()
+      -- Real Visual-mode marks always have '<' at the earlier position, but
+      -- nothing stops a caller (or a test) from setting them the other way
+      -- around -- this mirrors commands.lua's own get_visual_selection() in
+      -- swapping rather than returning a backwards span.
+      H.buf({ "hello world here" })
+      vim.api.nvim_buf_set_mark(0, "<", 1, 10, {}) -- 'd' of "world", the later end
+      vim.api.nvim_buf_set_mark(0, ">", 1, 6, {}) -- 'w' of "world", the earlier end
+      local span = SEL.span()
+      H.truthy(span)
+      H.truthy(
+        span.start_col <= span.end_col,
+        "start_col/end_col are ordered regardless of mark order"
+      )
+      H.eq(span.line:sub(span.start_col, span.end_col), "world")
+    end
+  )
+
+  H.check("selection.span: no marks set at all is nil", function()
+    H.buf({ "hello" })
+    H.is_nil(SEL.span())
+  end)
+
+  H.check("selection.span: a multi-line selection is nil (single-line only)", function()
+    H.buf({ "first", "second" })
+    vim.api.nvim_buf_set_mark(0, "<", 1, 0, {})
+    vim.api.nvim_buf_set_mark(0, ">", 2, 0, {})
+    H.is_nil(SEL.span())
+  end)
+
+  H.check("selection.span: a whitespace-only selection is nil", function()
+    H.buf({ "a    b" })
+    vim.api.nvim_buf_set_mark(0, "<", 1, 1, {})
+    vim.api.nvim_buf_set_mark(0, ">", 1, 4, {})
+    H.is_nil(SEL.span())
+  end)
+
+  H.check("selection.span: a linewise selection's MAXCOL end is clamped in range", function()
+    H.buf({ "short" })
+    vim.api.nvim_buf_set_mark(0, "<", 1, 0, {})
+    vim.api.nvim_buf_set_mark(0, ">", 1, 2147483647, {})
+    local span = SEL.span()
+    H.truthy(span)
+    H.eq(span.line:sub(span.start_col, span.end_col), "short", "clamped to the actual line length")
   end)
 end

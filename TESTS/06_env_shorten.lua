@@ -16,9 +16,9 @@
 --
 -- HOW TO TEST
 -- ===========
--- Cases 1-10 (flavour 1): place the cursor anywhere on one of those lines
--- (it operates on the whole line, not just the token under the cursor) and
--- run :GopathToReposDir.
+-- Cases 1-10 (flavour 1, whole line): place the cursor anywhere on one of
+-- those lines (it operates on the whole line, not just the token under the
+-- cursor) and run :GopathToReposDir.
 --
 -- Configurable via env_variable_resolution.shorten_dirs (default
 -- { repos = "REPOS_DIR" }); toggle the command off via commands.to_repos_dir
@@ -35,6 +35,26 @@
 -- Configurable via env_variable_resolution.shorten_known_dirs (default
 -- { NVIM_CONFIG_DIR = function() return vim.fn.stdpath('config') end });
 -- toggle the command off via commands.to_nvim_dir = false.
+--
+-- Case 12 (visual range -- either flavour): visually select just the path
+-- PORTION of case 1's line (e.g. `E:\repos\gopath.nvim\lua\...`, leaving
+-- "see " unselected) and run :'<,'>GopathToReposDir (or
+-- :'<,'>Gopath to-repos-dir). Only the selected span is rewritten; "see "
+-- stays untouched. Selecting only PART of the path (e.g. just
+-- `repos\gopath.nvim`) works too, tried as a literal match first and then,
+-- if that finds nothing, as a path relative to the current buffer's
+-- directory.
+--
+-- Case 13 (relative Markdown link, either flavour): in a real Markdown file
+-- that lives somewhere under one of your configured roots -- e.g.
+-- nvim/docs/ROADMAP/note.md, with an image at
+-- nvim/docs/ROADMAP/assets/pic.png -- write a relative link:
+--   ![alt](./assets/pic.png)
+-- and run :GopathToNvimDir on that line (no selection needed). The relative
+-- path is resolved against the buffer's own directory first; only once that
+-- resolves under a configured root does it get rewritten, to
+-- ![alt]($NVIM_CONFIG_DIR/docs/ROADMAP/assets/pic.png) -- an unrelated
+-- relative link (resolving outside every configured root) is left alone.
 
 -- ── 1. Windows drive, backslash ───────────────────────────────────────────────
 -- Expected: "see $REPOS_DIR\gopath.nvim\lua\gopath\env_shorten.lua"

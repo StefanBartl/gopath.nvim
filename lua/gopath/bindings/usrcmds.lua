@@ -159,17 +159,21 @@ local function register_gopath_cmd(config, commands)
 
     {
       path = { "to-repos-dir" },
-      desc = "Rewrite the current line's repos-root path to $VAR (see env_variable_resolution.shorten_dirs)",
-      run = function()
-        commands.shorten_to_env()
+      -- `range` is what makes `:'<,'>Gopath to-repos-dir` shorten just the
+      -- selection instead of the whole line -- see `probe`'s route above.
+      range = true,
+      desc = "Rewrite the current line's repos-root path to $VAR, or just a visual selection of it (see env_variable_resolution.shorten_dirs)",
+      run = function(ctx)
+        commands.shorten_to_env({ selection = ctx.range.range > 0 })
       end,
     },
 
     {
       path = { "to-nvim-dir" },
-      desc = "Rewrite the current line's stdpath('config') occurrences to $VAR (see env_variable_resolution.shorten_known_dirs)",
-      run = function()
-        commands.shorten_to_known_dir()
+      range = true,
+      desc = "Rewrite the current line's stdpath('config') occurrences to $VAR, or just a visual selection of it (see env_variable_resolution.shorten_known_dirs)",
+      run = function(ctx)
+        commands.shorten_to_known_dir({ selection = ctx.range.range > 0 })
       end,
     },
   }
@@ -250,20 +254,20 @@ local function register_individual(config, commands)
   end
 
   if cmds.to_repos_dir ~= false then
-    usercmd.create(
-      "GopathToReposDir",
-      function()
-        commands.shorten_to_env()
-      end,
-      { desc = "Gopath: shorten line's repos-root path to $VAR (alias for :Gopath to-repos-dir)" }
-    )
+    usercmd.create("GopathToReposDir", function(o)
+      commands.shorten_to_env({ selection = (o.range or 0) > 0 })
+    end, {
+      range = true,
+      desc = "Gopath: shorten line's repos-root path to $VAR, or just a visual selection of it (alias for :Gopath to-repos-dir)",
+    })
   end
 
   if cmds.to_nvim_dir ~= false then
-    usercmd.create("GopathToNvimDir", function()
-      commands.shorten_to_known_dir()
+    usercmd.create("GopathToNvimDir", function(o)
+      commands.shorten_to_known_dir({ selection = (o.range or 0) > 0 })
     end, {
-      desc = "Gopath: shorten line's stdpath('config') occurrences to $VAR (alias for :Gopath to-nvim-dir)",
+      range = true,
+      desc = "Gopath: shorten line's stdpath('config') occurrences to $VAR, or just a visual selection of it (alias for :Gopath to-nvim-dir)",
     })
   end
 

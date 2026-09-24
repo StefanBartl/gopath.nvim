@@ -126,6 +126,7 @@ local KNOWN = {
   env_variable_resolution = {
     enable = true,
     shorten_dirs = true,
+    shorten_known_dirs = true,
   },
   create_on_missing = {
     enable = true,

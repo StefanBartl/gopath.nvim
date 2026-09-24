@@ -362,4 +362,226 @@ return function(H)
       H.match(H.notify_text(notes), "no known directories configured")
     end)
   end)
+
+  -- ── Markdown-link relative paths, resolved against the buffer's directory ──
+
+  H.check(
+    "shorten_current_line_known: a relative Markdown image link under the known dir is rewritten",
+    function()
+      H.config_sandbox(function(c)
+        local dir = H.tmpdir()
+        H.write(dir .. "/docs/ROADMAP/assets/ROADMAP-123.png", { "" })
+        local note = H.write(dir .. "/docs/ROADMAP/note.md", {
+          "![no symlink because not focused filetree](./assets/ROADMAP-123.png)",
+        })
+        c.setup({ env_variable_resolution = { shorten_known_dirs = { NVIM_CONFIG_DIR = dir } } })
+        vim.cmd.edit(vim.fn.fnameescape(note))
+        vim.api.nvim_win_set_cursor(0, { 1, 0 })
+
+        local notes = H.capture_notify(function()
+          ES.shorten_current_line_known()
+        end)
+        H.eq(
+          vim.api.nvim_get_current_line(),
+          "![no symlink because not focused filetree]($NVIM_CONFIG_DIR/docs/ROADMAP/assets/ROADMAP-123.png)"
+        )
+        H.match(H.notify_text(notes), "shortened 1 occurrence")
+      end)
+    end
+  )
+
+  H.check(
+    "shorten_current_line_known: two Markdown links on one line, both under the known dir",
+    function()
+      H.config_sandbox(function(c)
+        local dir = H.tmpdir()
+        local note = H.write(dir .. "/docs/note.md", {
+          "see [a](./assets/a.png) and [b](./assets/sub/b.png) here",
+        })
+        c.setup({ env_variable_resolution = { shorten_known_dirs = { NVIM_CONFIG_DIR = dir } } })
+        vim.cmd.edit(vim.fn.fnameescape(note))
+        vim.api.nvim_win_set_cursor(0, { 1, 0 })
+
+        ES.shorten_current_line_known()
+        H.eq(
+          vim.api.nvim_get_current_line(),
+          "see [a]($NVIM_CONFIG_DIR/docs/assets/a.png) and [b]($NVIM_CONFIG_DIR/docs/assets/sub/b.png) here"
+        )
+      end)
+    end
+  )
+
+  H.check(
+    "shorten_current_line_known: a relative Markdown link that resolves OUTSIDE every known dir is left untouched",
+    function()
+      H.config_sandbox(function(c)
+        -- The known dir and the buffer's own directory are unrelated trees,
+        -- so "./assets/x.png" resolves somewhere no configured root covers.
+        local known_dir = H.tmpdir()
+        local elsewhere = H.tmpdir()
+        local note = H.write(elsewhere .. "/docs/note.md", {
+          "see [x](./assets/x.png) here",
+        })
+        c.setup({
+          env_variable_resolution = { shorten_known_dirs = { NVIM_CONFIG_DIR = known_dir } },
+        })
+        vim.cmd.edit(vim.fn.fnameescape(note))
+        vim.api.nvim_win_set_cursor(0, { 1, 0 })
+
+        local line_before = vim.api.nvim_get_current_line()
+        local notes = H.capture_notify(function()
+          ES.shorten_current_line_known()
+        end)
+        H.eq(vim.api.nvim_get_current_line(), line_before, "unchanged")
+        H.match(H.notify_text(notes), "nothing to shorten")
+      end)
+    end
+  )
+
+  H.check(
+    "shorten_current_line_known: the Markdown pass and a literal absolute path on the same line both count",
+    function()
+      H.config_sandbox(function(c)
+        local dir = H.tmpdir()
+        local note = H.write(dir .. "/docs/note.md", {
+          "[rel](./assets/a.png) and " .. dir:gsub("\\", "/") .. "/README.md",
+        })
+        c.setup({ env_variable_resolution = { shorten_known_dirs = { NVIM_CONFIG_DIR = dir } } })
+        vim.cmd.edit(vim.fn.fnameescape(note))
+        vim.api.nvim_win_set_cursor(0, { 1, 0 })
+
+        local notes = H.capture_notify(function()
+          ES.shorten_current_line_known()
+        end)
+        H.eq(
+          vim.api.nvim_get_current_line(),
+          "[rel]($NVIM_CONFIG_DIR/docs/assets/a.png) and $NVIM_CONFIG_DIR/README.md"
+        )
+        H.match(H.notify_text(notes), "shortened 2 occurrences")
+      end)
+    end
+  )
+
+  H.check(
+    "shorten_current_line_known: an unnamed buffer skips relative resolution, no error",
+    function()
+      H.config_sandbox(function(c)
+        c.setup({
+          env_variable_resolution = { shorten_known_dirs = { NVIM_CONFIG_DIR = H.tmpdir() } },
+        })
+        H.buf({ "see [x](./assets/a.png) here" })
+        vim.api.nvim_win_set_cursor(0, { 1, 0 })
+        local notes = H.capture_notify(function()
+          ES.shorten_current_line_known()
+        end)
+        H.eq(vim.api.nvim_get_current_line(), "see [x](./assets/a.png) here", "unchanged")
+        H.match(H.notify_text(notes), "nothing to shorten")
+      end)
+    end
+  )
+
+  H.check(
+    "shorten_current_line: the structural (repos-dir) flavour gets the same Markdown-relative treatment",
+    function()
+      H.config_sandbox(function()
+        -- "repos" must be root-adjacent for the structural matcher (see the
+        -- "nested deeper than the root" case in the segment tests above), so
+        -- this fakes the buffer's own name rather than nesting under
+        -- H.tmpdir() (always deep inside the OS temp tree). expand("%:p:h")
+        -- works from the registered name alone -- the file need not exist.
+        -- The root prefix is taken from a REAL tmpdir so it matches
+        -- whatever absolute-path convention this platform actually uses
+        -- (a Windows drive letter is required for `:p` to treat a bare
+        -- leading "/" as already-absolute instead of cwd-relative).
+        local root = H.tmpdir():match("^(%a:[/\\])") or "/"
+        H.buf({ "see [x](../assets/logo.png) here" }, { name = root .. "repos/proj/docs/note.md" })
+
+        ES.shorten_current_line()
+        H.eq(vim.api.nvim_get_current_line(), "see [x]($REPOS_DIR/proj/assets/logo.png) here")
+      end)
+    end
+  )
+
+  -- ── Visual-selection range: shorten just the selected span ─────────────────
+
+  H.check(
+    "shorten_current_line_known: a selected literal span is rewritten, the rest is untouched",
+    function()
+      H.config_sandbox(function(c)
+        local dir = H.tmpdir()
+        c.setup({ env_variable_resolution = { shorten_known_dirs = { NVIM_CONFIG_DIR = dir } } })
+        local abs = dir:gsub("\\", "/") .. "/README.md"
+        local line = "prefix " .. abs .. " suffix"
+        H.buf({ line })
+        -- Select just the absolute path span (1-indexed, inclusive).
+        local scol, ecol = #"prefix ", #("prefix " .. abs) - 1
+        vim.api.nvim_buf_set_mark(0, "<", 1, scol, {})
+        vim.api.nvim_buf_set_mark(0, ">", 1, ecol, {})
+
+        ES.shorten_current_line_known({ selection = true })
+        H.eq(vim.api.nvim_get_current_line(), "prefix $NVIM_CONFIG_DIR/README.md suffix")
+      end)
+    end
+  )
+
+  H.check(
+    "shorten_current_line_known: a selected bare relative path resolves against the buffer dir",
+    function()
+      H.config_sandbox(function(c)
+        local dir = H.tmpdir()
+        local note = H.write(dir .. "/docs/note.md", { "prefix ./assets/a.png suffix" })
+        c.setup({ env_variable_resolution = { shorten_known_dirs = { NVIM_CONFIG_DIR = dir } } })
+        vim.cmd.edit(vim.fn.fnameescape(note))
+        local line = vim.api.nvim_get_current_line()
+        local scol, ecol = #"prefix ", #"prefix ./assets/a.png" - 1
+        vim.api.nvim_buf_set_mark(0, "<", 1, scol, {})
+        vim.api.nvim_buf_set_mark(0, ">", 1, ecol, {})
+        H.eq(line:sub(scol + 1, ecol + 1), "./assets/a.png", "selection sanity check")
+
+        ES.shorten_current_line_known({ selection = true })
+        H.eq(vim.api.nvim_get_current_line(), "prefix $NVIM_CONFIG_DIR/docs/assets/a.png suffix")
+      end)
+    end
+  )
+
+  H.check(
+    "shorten_current_line_known: opts.selection with no marks warns instead of erroring",
+    function()
+      H.config_sandbox(function(c)
+        c.setup({
+          env_variable_resolution = { shorten_known_dirs = { NVIM_CONFIG_DIR = H.tmpdir() } },
+        })
+        H.buf({ "nothing selected here" })
+        local notes = H.capture_notify(function()
+          ES.shorten_current_line_known({ selection = true })
+        end)
+        H.eq(vim.api.nvim_get_current_line(), "nothing selected here", "unchanged")
+        H.match(H.notify_text(notes), "no %(single%-line%) selection")
+      end)
+    end
+  )
+
+  H.check(
+    "shorten_current_line_known: opts.selection with a multi-line selection warns, does not fall back to the whole line",
+    function()
+      H.config_sandbox(function(c)
+        local dir = H.tmpdir()
+        c.setup({ env_variable_resolution = { shorten_known_dirs = { NVIM_CONFIG_DIR = dir } } })
+        local abs = dir:gsub("\\", "/") .. "/README.md"
+        H.buf({ abs, "second line" })
+        vim.api.nvim_buf_set_mark(0, "<", 1, 0, {})
+        vim.api.nvim_buf_set_mark(0, ">", 2, 0, {})
+
+        local notes = H.capture_notify(function()
+          ES.shorten_current_line_known({ selection = true })
+        end)
+        H.eq(
+          vim.api.nvim_get_current_line(),
+          abs,
+          "unchanged -- not silently widened to the whole line"
+        )
+        H.match(H.notify_text(notes), "no %(single%-line%) selection")
+      end)
+    end
+  )
 end
