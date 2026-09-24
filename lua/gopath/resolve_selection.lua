@@ -6,56 +6,29 @@
 --- but tailsearch has no idea what a `$VAR/rest` reference or a URL is, so
 --- selecting only PART of one of those never resolved, even though the whole
 --- point of a partial selection is "resolve just this much of a longer
---- line". This module tries the recognizers that already work on raw text
---- (`gopath.util.url`'s pure `is_strict_url`/`is_loose_url`/`normalize`, and
---- `gopath.resolvers.common.env_path`'s `resolve_text`) before probe_selection
---- falls back to tailsearch, so a partially selected env-var path or URL
---- resolves the same way a fully-recognized one would.
+--- line". This module tries the recognizers that already work on raw text --
+--- `gopath.resolvers.common.url` and `gopath.resolvers.common.env_path`,
+--- each exposing a `resolve_text(text)` entry point next to their existing
+--- cursor-based `M.resolve()` -- before probe_selection falls back to
+--- tailsearch, so a partially selected env-var path or URL resolves the same
+--- way a fully-recognized one would.
 ---
 --- Deliberately NOT included: the language-specific/LSP/treesitter pipeline
 --- and linepath's whole-line extraction -- both need much more than a bare
 --- substring (buffer context, cursor position) to mean anything, and
 --- tailsearch's filesystem suffix search already covers "part of a plain
 --- file path" well.
-
-local URL = require("gopath.util.url")
+---
+--- This module only orders the two recognizers; it does not re-implement
+--- their matching or GopathResult-building logic.
 
 local M = {}
-
----@internal
----@return { enable: boolean, bare_hosts: boolean, schemes: string[]|nil, tlds: string[]|nil }
-local function url_options()
-  local ok, C = pcall(require, "gopath.config")
-  local cfg = ok and C.get().url or nil
-  return {
-    enable = not cfg or cfg.enable ~= false,
-    bare_hosts = not cfg or cfg.bare_hosts ~= false,
-    schemes = cfg and cfg.schemes or nil,
-    tlds = cfg and cfg.tlds or nil,
-  }
-end
 
 ---@internal
 ---@param text string
 ---@return GopathResult|nil
 local function try_url(text)
-  local opts = url_options()
-  if not opts.enable then return nil end
-
-  local strict = URL.is_strict_url(text, opts)
-  if not strict and not opts.bare_hosts then return nil end
-  if not (strict or URL.is_loose_url(text, opts)) then return nil end
-
-  return {
-    language = vim.bo.filetype or "text",
-    kind = "url",
-    path = URL.normalize(text, opts),
-    range = nil,
-    chain = nil,
-    source = "url",
-    confidence = strict and 0.95 or 0.7,
-    exists = true,
-  }
+  return require("gopath.resolvers.common.url").resolve_text(text)
 end
 
 ---@internal

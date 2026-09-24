@@ -225,4 +225,65 @@ return function(H)
     end)
     vim.cmd("normal! \27")
   end)
+
+  H.check(
+    "items(): linewise Visual mode ('V') never reaches resolve_selection (no garbled column slice)",
+    function()
+      -- Regression: getpos("v") and getpos(".") report the SAME column in
+      -- linewise mode (the cursor's own), so slicing the line by column would
+      -- grab one arbitrary character. A single character never resolves as a
+      -- URL/$VAR either way, so asserting on the cursor-pipeline fallback
+      -- alone can't tell "correctly excluded" apart from "sliced to one
+      -- character that also happened to resolve to nothing" -- this asserts
+      -- directly that resolve_selection.resolve_text is never even called
+      -- for 'V', which only the mode-level exclusion guarantees.
+      H.buf({ "github.com/neovim/neovim" }, { filetype = "text" })
+      vim.api.nvim_win_set_cursor(0, { 1, 5 })
+      vim.cmd("normal! V")
+      H.eq(vim.fn.mode(), "V")
+
+      local resolve_text_called = false
+      H.with_modules({
+        ["ui.contextmenu"] = fake_contextmenu(),
+        ["gopath.resolve_selection"] = {
+          resolve_text = function()
+            resolve_text_called = true
+            return nil
+          end,
+        },
+        ["gopath.resolve"] = {
+          resolve_at_cursor = function()
+            return nil
+          end,
+        },
+      }, function()
+        MENU.items()
+        H.falsy(
+          resolve_text_called,
+          "linewise mode must not feed a column slice to resolve_selection"
+        )
+      end)
+      vim.cmd("normal! \27")
+    end
+  )
+
+  H.check("items(): the cursor pipeline is asked to skip the lsp provider", function()
+    H.buf({ "plain text" }, { filetype = "text" })
+    vim.api.nvim_win_set_cursor(0, { 1, 0 })
+
+    local seen_opts
+    H.with_modules({
+      ["ui.contextmenu"] = fake_contextmenu(),
+      ["gopath.resolve"] = {
+        resolve_at_cursor = function(opts)
+          seen_opts = opts
+          return nil
+        end,
+      },
+    }, function()
+      MENU.items()
+    end)
+    H.truthy(seen_opts, "resolve_at_cursor was called")
+    H.same(seen_opts.order, { "treesitter", "builtin" }, "lsp excluded -- see MENU_RESOLVE_OPTS")
+  end)
 end

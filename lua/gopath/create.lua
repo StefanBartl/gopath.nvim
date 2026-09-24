@@ -223,6 +223,25 @@ local CREATE_HERE = "Create file in this folder"
 local FILETREE = "Open in filetree"
 local CANCEL = "Cancel"
 
+---Whether `name` (a user-typed filename for "create in this folder") has a
+---`..` path-traversal segment -- either separator, since the prompt takes
+---whatever the user types verbatim. A subdirectory ("sub/new.lua") or even
+---an absolute/drive path is still honoured as-is here -- filetree.nvim's own
+---smart_create established that flexibility for the same kind of prompt, and
+---an absolute path is at least explicit about where it lands. `..` is
+---different: it silently walks OUT of the folder the dialog just named, into
+---wherever that happens to land relative to `dir` -- not a folder the user
+---ever saw or chose.
+---@internal
+---@param name string
+---@return boolean
+local function has_parent_traversal(name)
+  for seg in name:gsub("\\", "/"):gmatch("[^/]+") do
+    if seg == ".." then return true end
+  end
+  return false
+end
+
 ---Offer a choice for a resolved path that is itself an existing directory
 ---(gopath can't `:edit` a directory as a file). Always asks, independent of
 ---`create_on_missing.enable`/`confirm` — this is not a "missing file" case.
@@ -245,6 +264,10 @@ local function offer_for_directory(res, on_created)
       ask_input("New file name in " .. dir .. ": ", function(name)
         if not name or name == "" then
           LOG.warn("File not created: no name given")
+          return
+        end
+        if has_parent_traversal(name) then
+          LOG.warn("File not created: '" .. name .. "' contains '..' (would escape " .. dir .. ")")
           return
         end
         local target = PATH.join(dir, name)

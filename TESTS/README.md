@@ -157,8 +157,8 @@ Two house rules:
 
 ## Coverage
 
-81 files under `lua/`. 19 spec files under `scripts/ci/specs/`, 513 checks and
-about 1808 executed assertions, plus the 38 checks in `functional_tests.lua`
+81 files under `lua/`. 19 spec files under `scripts/ci/specs/`, 523 checks and
+about 1837 executed assertions, plus the 38 checks in `functional_tests.lua`
 and the 8 in `headless_tests.lua`.
 
 | Spec | Covers |
