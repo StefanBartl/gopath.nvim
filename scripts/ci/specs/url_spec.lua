@@ -265,4 +265,50 @@ return function(H)
       H.eq(loose.path, "https://wiki.internal/page")
     end)
   end)
+
+  -- ── resolve_text: same recognizers, no cursor involved ─────────────────────
+
+  H.check("resolve_text: a strict URL, same shape/confidence as resolve_strict", function()
+    local r = RES.resolve_text("https://example.com/a?q=1")
+    H.truthy(r)
+    H.eq(r.kind, "url")
+    H.eq(r.path, "https://example.com/a?q=1")
+    H.eq(r.confidence, 0.95)
+    H.eq(r.source, "url")
+    H.eq(r.exists, true)
+  end)
+
+  H.check("resolve_text: a loose/bare-host URL, same shape/confidence as resolve_loose", function()
+    local r = RES.resolve_text("github.com/neovim/neovim")
+    H.truthy(r)
+    H.eq(r.path, "https://github.com/neovim/neovim")
+    H.eq(r.confidence, 0.7)
+  end)
+
+  H.check("resolve_text: bare_hosts = false keeps strict text working but not loose", function()
+    H.config_sandbox(function(c)
+      c.setup({ url = { bare_hosts = false } })
+      H.truthy(RES.resolve_text("https://example.com/a"), "strict still resolves")
+      H.is_nil(RES.resolve_text("github.com/neovim/neovim"), "loose is switched off")
+    end)
+  end)
+
+  H.check("resolve_text: url.enable = false switches it off entirely", function()
+    H.config_sandbox(function(c)
+      c.setup({ url = { enable = false } })
+      H.is_nil(RES.resolve_text("https://example.com/a"))
+      H.is_nil(RES.resolve_text("github.com/a/b"))
+    end)
+  end)
+
+  H.check("resolve_text: neither a URL nor a plain word resolves to nil", function()
+    H.is_nil(RES.resolve_text("lua/gopath/init.lua"))
+    H.is_nil(RES.resolve_text("just some words"))
+  end)
+
+  H.check("resolve_text: a non-string or empty string is nil, never an error", function()
+    ---@diagnostic disable-next-line: param-type-mismatch
+    H.is_nil(RES.resolve_text(nil))
+    H.is_nil(RES.resolve_text(""))
+  end)
 end

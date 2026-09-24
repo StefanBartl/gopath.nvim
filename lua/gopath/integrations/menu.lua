@@ -25,7 +25,8 @@
 ---   - Otherwise: the normal cursor-based pipeline
 ---     (`gopath.resolve.resolve_at_cursor`) -- help/url/env/language
 ---     resolvers, a free-text path, a Markdown link, anything `gF` would
----     find.
+---     find. The "lsp" language provider is skipped (treesitter/builtin
+---     stay) -- see `MENU_RESOLVE_OPTS` for why.
 ---
 --- Self-gating: an empty list / nil submenu when ui.nvim is absent, or
 --- nothing resolves under the cursor/selection -- so a host can safely
@@ -53,11 +54,20 @@ end
 ---this module tell the difference on its own -- multi-line selections are
 ---deliberately not supported: a right-click menu is about "this one thing
 ---under/around the pointer", not a multi-line span.
+---
+---Charwise ("v") and blockwise ("\22", single line only -- multi-line is
+---already excluded above) both use column bounds that mean what they say.
+---Linewise ("V") does not: pressing `V` without moving the cursor further
+---reports the SAME column for both `getpos("v")` and `getpos(".")` (the
+---cursor's own), so slicing the line by column would grab one arbitrary
+---character instead of the whole selected line -- excluded here for that
+---reason, falling through to the cursor-based pipeline like the multi-line
+---case.
 ---@internal
 ---@return string|nil
 local function live_selection_text()
   local m = vim.fn.mode()
-  if m ~= "v" and m ~= "V" and m ~= "\22" then return nil end
+  if m ~= "v" and m ~= "\22" then return nil end
 
   local ok_v, spos = pcall(vim.fn.getpos, "v")
   local ok_c, cpos = pcall(vim.fn.getpos, ".")
@@ -73,6 +83,26 @@ local function live_selection_text()
   return text ~= "" and text or nil
 end
 
+---Cursor-pipeline options for a menu popup: same as the default except the
+---language pipeline skips the "lsp" provider. `resolve_at_cursor` would
+---otherwise try an LSP request (up to `lsp_timeout_ms`, 200ms by default)
+---*synchronously* whenever nothing cheaper already matched -- i.e. most
+---right-clicks on ordinary code, since help/url/env/filetoken/linepath all
+---come up empty there. gopath's own docs/FEATURES/INTEGRATIONS.md documents
+---this exact cost for hover.nvim's CursorHold trigger, worked around with a
+---caller-side gate; a context menu is at least as latency-sensitive as a
+---hover, and unlike CursorHold it fires on every click, not after idling.
+---treesitter/builtin stay in the order -- only the network/IPC-bound
+---provider is skipped.
+---
+---Only takes effect in the default "hybrid" mode: `gopath.resolve`'s own
+---precedence forces `order = {"lsp"}` outright when the user has configured
+---`mode = "lsp"`, ignoring any `opts.order` passed in -- a deliberate
+---per-user choice this does not fight.
+---@internal
+---@type GopathResolveOpts
+local MENU_RESOLVE_OPTS = { order = { "treesitter", "builtin" } }
+
 ---What a right-click here would act on.
 ---@internal
 ---@return GopathResult|nil
@@ -83,7 +113,7 @@ local function resolve_here()
     if direct then return direct end
   end
 
-  local ok, res = pcall(require("gopath.resolve").resolve_at_cursor, {})
+  local ok, res = pcall(require("gopath.resolve").resolve_at_cursor, MENU_RESOLVE_OPTS)
   return ok and res or nil
 end
 

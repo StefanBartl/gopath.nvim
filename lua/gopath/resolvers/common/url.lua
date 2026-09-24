@@ -84,4 +84,20 @@ function M.resolve()
   return M.resolve_strict()
 end
 
+---Resolve `text` directly (no cursor involved) -- strict, then loose, same
+---rules and confidences as `M.resolve_strict()`/`M.resolve_loose()`. Used for
+---a visual selection that covers only PART of a URL; see
+---`gopath.resolve_selection`.
+---@param text string
+---@return GopathResult|nil
+function M.resolve_text(text)
+  if type(text) ~= "string" or text == "" then return nil end
+  local opts = options()
+  if not opts.enable then return nil end
+
+  if URL.is_strict_url(text, opts) then return result(text, opts, "url", 0.95) end
+  if opts.bare_hosts and URL.is_loose_url(text, opts) then return result(text, opts, "url", 0.7) end
+  return nil
+end
+
 return M

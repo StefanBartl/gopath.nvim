@@ -390,6 +390,55 @@ return function(H)
   end)
 
   H.check(
+    "offer: a name containing '..' is refused, never escapes the folder (path traversal)",
+    function()
+      H.config_sandbox(function(c)
+        local dir = H.tmpdir()
+        c.setup({})
+        local called = false
+        for _, name in ipairs({ "../escaped.lua", "..\\escaped.lua", "sub/../../escaped.lua" }) do
+          H.with_field(vim.ui, "input", function(_, on_confirm)
+            on_confirm(name)
+          end, function()
+            local notes = H.capture_notify(function()
+              H.with_ui_select("Create file in this folder", function()
+                create.offer({ path = dir, exists = false }, function()
+                  called = true
+                end)
+              end)
+            end)
+            H.match(H.notify_text(notes), "contains '%.%.'", name)
+          end)
+        end
+        H.falsy(called, "on_created never ran for any of them")
+        H.eq(vim.fn.filereadable(dir .. "/../escaped.lua"), 0)
+      end)
+    end
+  )
+
+  H.check("offer: a name with a subdirectory is still honoured (not a traversal)", function()
+    H.config_sandbox(function(c)
+      local dir = H.tmpdir()
+      c.setup({})
+      local got
+      H.with_field(vim.ui, "input", function(_, on_confirm)
+        on_confirm("sub/newfile.lua")
+      end, function()
+        H.capture_notify(function()
+          H.with_ui_select("Create file in this folder", function()
+            create.offer({ path = dir, exists = false }, function(r)
+              got = r
+            end)
+          end)
+        end)
+      end)
+      H.truthy(got, "on_created ran")
+      H.eq(got.path, dir .. "/sub/newfile.lua")
+      H.eq(vim.fn.filereadable(dir .. "/sub/newfile.lua"), 1)
+    end)
+  end)
+
+  H.check(
     "offer: 'Open in filetree' for an existing directory hands it directly to filetree.nvim",
     function()
       H.config_sandbox(function(c)
