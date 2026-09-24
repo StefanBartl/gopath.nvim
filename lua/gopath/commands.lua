@@ -253,6 +253,12 @@ end
 ---`opts.selection` is how a caller states that the `'<`/`'>` marks describe a
 ---selection made for THIS invocation — the marks alone can't say so, since they
 ---outlive whatever set them. Without it, the cursor token is used.
+---
+---`open_cmd = "filetree"`/`"explorer"` reveal the resolved result instead of
+---opening a buffer for it — the same modes `gopath.open` already supports for
+---the cursor-based `gT`/`gM` keymaps, now reachable for a (possibly partial)
+---selection too. See `gopath.open.M.open` for what each mode does per result
+---kind (e.g. a URL is never "revealed", it opens externally regardless).
 ---@param opts { open_cmd?: string, ask?: boolean, roots?: string[], max_components?: integer, selection?: boolean }|nil
 function M.probe_selection(opts)
   opts = opts or {}
@@ -260,6 +266,8 @@ function M.probe_selection(opts)
   local open_mode = open_cmd == "vsplit" and "vsplit"
     or open_cmd == "split" and "window"
     or open_cmd == "tab" and "tab"
+    or open_cmd == "explorer" and "explorer"
+    or open_cmd == "filetree" and "filetree"
     or "edit"
 
   local raw = (opts.selection and get_visual_selection()) or get_normal_token()

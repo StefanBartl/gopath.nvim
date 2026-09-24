@@ -90,7 +90,7 @@ tab-completion works at every level. `cache *` subcommands only appear when
 | `open` | `[edit\|split\|vsplit\|tab\|explorer]` | Resolve and open (`explorer` reveals in the file manager instead) |
 | `copy` | — | Copy `path:line:col` to clipboard |
 | `debug` | — | Print resolution chain to `:messages` |
-| `probe` | `[edit\|split\|vsplit]` | Probe path under cursor / selection |
+| `probe` | `[edit\|split\|vsplit\|explorer\|filetree]` | Probe path under cursor / selection (partial or whole; `explorer`/`filetree` reveal instead of opening) |
 | `check` | — | Check path under cursor exists; offer to create if missing |
 | `cache build` | — | Rebuild filesystem index |
 | `cache info` | — | Show cache statistics |
