@@ -13,6 +13,17 @@
 --- letter/OS, and regardless of what the named var actually resolves to on
 --- this machine -- is rewritten to `$<value>`.
 --- Default: { repos = "REPOS_DIR" }.
+---@field shorten_known_dirs table<string, string|(fun(): string)>
+--- Var-name -> absolute-path-string-or-resolver-function map for
+--- "well-known" directories, e.g. `vim.fn.stdpath("config")`. Two uses:
+--- (1) :GopathToNvimDir / :Gopath to-nvim-dir rewrites literal occurrences
+--- of the resolved directory on the current line to `$<key>` (see
+--- gopath.env_shorten; unlike shorten_dirs this matches the full absolute
+--- path, not a bare folder name — a well-known directory has one correct
+--- value per machine rather than being a free-form user convention).
+--- (2) The forward $VAR resolver (this module) falls back here when no
+--- real environment variable of that name is set — a real env var always
+--- wins. Default: { NVIM_CONFIG_DIR = function() return vim.fn.stdpath("config") end }.
 
 ---@class EnvPathResult
 ---@field raw string    The original token before expansion (e.g., "$REPOS_DIR/foo.md")

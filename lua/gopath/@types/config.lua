@@ -29,6 +29,7 @@
 ---@field debug boolean Default: true (creates :GopathDebug)
 ---@field check boolean Default: true (creates :GopathCheck)
 ---@field to_repos_dir boolean Default: true (creates :GopathToReposDir)
+---@field to_nvim_dir boolean Default: true (creates :GopathToNvimDir)
 
 ---@class GopathAlternateOptions
 ---@field enable boolean Default: true

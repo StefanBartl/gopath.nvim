@@ -1,18 +1,40 @@
 -- TESTS/06_env_shorten.lua
--- Test the reverse of env_path resolution: :GopathToReposDir /
--- :Gopath to-repos-dir rewrite an absolute path on the CURRENT LINE whose
--- root segment is a configured directory name (default "repos") back into
--- a `$VAR` reference. Structural, not literal: it does NOT check the actual
--- value of $REPOS_DIR, so it works across any drive letter / OS.
+-- Test the reverse of env_path resolution, in its two flavours:
+--
+-- 1. :GopathToReposDir / :Gopath to-repos-dir rewrite an absolute path on
+--    the CURRENT LINE whose root segment is a configured directory name
+--    (default "repos") back into a `$VAR` reference. Structural, not
+--    literal: it does NOT check the actual value of $REPOS_DIR, so it
+--    works across any drive letter / OS.
+--
+-- 2. :GopathToNvimDir / :Gopath to-nvim-dir rewrite LITERAL occurrences of
+--    a configured "well-known" directory (default: this Neovim's own
+--    vim.fn.stdpath('config')) back into a `$VAR` reference. Unlike (1),
+--    no real environment variable needs to be set for the result to
+--    resolve again later -- the forward $VAR resolver falls back to
+--    calling stdpath('config') itself when the env var is absent.
 --
 -- HOW TO TEST
 -- ===========
--- Place the cursor anywhere on one of the lines below (it operates on the
--- whole line, not just the token under the cursor) and run :GopathToReposDir.
+-- Cases 1-10 (flavour 1): place the cursor anywhere on one of those lines
+-- (it operates on the whole line, not just the token under the cursor) and
+-- run :GopathToReposDir.
 --
 -- Configurable via env_variable_resolution.shorten_dirs (default
 -- { repos = "REPOS_DIR" }); toggle the command off via commands.to_repos_dir
 -- = false.
+--
+-- Case 11 (flavour 2): replace the placeholder below with YOUR actual
+-- stdpath('config') (run :lua print(vim.fn.stdpath('config')) to see it),
+-- place the cursor on that line, and run :GopathToNvimDir. Expected:
+-- "edit $NVIM_CONFIG_DIR/lua/plugins/personal/init.lua". Then place the
+-- cursor on the resulting line and run gP (or :Gopath open) -- it should
+-- open the same file, with no NVIM_CONFIG_DIR environment variable set
+-- anywhere.
+--
+-- Configurable via env_variable_resolution.shorten_known_dirs (default
+-- { NVIM_CONFIG_DIR = function() return vim.fn.stdpath('config') end });
+-- toggle the command off via commands.to_nvim_dir = false.
 
 -- ── 1. Windows drive, backslash ───────────────────────────────────────────────
 -- Expected: "see $REPOS_DIR\gopath.nvim\lua\gopath\env_shorten.lua"
@@ -54,3 +76,8 @@ local _i = "this line has no repos path at all, just words"
 
 -- ── 10. No match at all — line left untouched, a warning is shown ────────────
 local _j = "nothing path-like on this line whatsoever"
+
+-- ── 11. Flavour 2 — a literal stdpath('config') occurrence ───────────────────
+-- Replace this with YOUR real stdpath('config'), then run :GopathToNvimDir
+-- on it. Expected: "edit $NVIM_CONFIG_DIR/lua/plugins/personal/init.lua"
+local _k = "edit C:/Users/YOU/AppData/Local/nvim/lua/plugins/personal/init.lua"

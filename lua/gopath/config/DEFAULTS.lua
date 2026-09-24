@@ -73,6 +73,20 @@ return {
     -- regardless of drive letter/OS and regardless of what $REPOS_DIR
     -- actually resolves to on this machine.
     shorten_dirs = { repos = "REPOS_DIR" },
+
+    -- Var-name -> absolute-path-string-or-resolver-function map for
+    -- "well-known" directories: used by :GopathToNvimDir / :Gopath
+    -- to-nvim-dir (rewrites literal occurrences of the directory to `$VAR`)
+    -- AND by env_path's forward resolution ($VAR/rest -> absolute path) as
+    -- the fallback when no real environment variable of that name is set.
+    -- A function is called fresh each time (needed for stdpath(), only
+    -- knowable once Neovim is running); a real env var of the same name
+    -- still wins over this when resolving forward.
+    shorten_known_dirs = {
+      NVIM_CONFIG_DIR = function()
+        return vim.fn.stdpath("config")
+      end,
+    },
   },
 
   create_on_missing = {
@@ -139,6 +153,7 @@ return {
     debug = true,
     check = true,
     to_repos_dir = true,
+    to_nvim_dir = true,
   },
 
   -- which-key.nvim is a soft dependency: label registration for the

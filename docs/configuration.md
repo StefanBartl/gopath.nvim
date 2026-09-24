@@ -86,6 +86,21 @@ require("gopath").setup({
     -- into `$<value>`. Structural, not literal: it does NOT check what the
     -- named var actually resolves to on this machine.
     shorten_dirs = { repos = "REPOS_DIR" },
+
+    -- Var-name -> absolute-path-string-or-resolver-function map for
+    -- "well-known" directories -- no real environment variable needs to be
+    -- set for these. Two uses: :GopathToNvimDir / :Gopath to-nvim-dir
+    -- rewrite LITERAL occurrences of the resolved directory (not a bare
+    -- folder name -- avoids false positives) back to `$<key>`; and the
+    -- forward $VAR resolver above falls back here when no real environment
+    -- variable of that name is set (a real one always wins). A function is
+    -- called fresh each time -- needed for stdpath(), only known once
+    -- Neovim is running.
+    shorten_known_dirs = {
+      NVIM_CONFIG_DIR = function()
+        return vim.fn.stdpath("config")
+      end,
+    },
   },
 
   -- Offer to create a resolved-but-missing file instead of just erroring
