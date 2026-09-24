@@ -318,6 +318,118 @@ return function(H)
     end)
   end)
 
+  -- ── gopath.create: res.path is itself an existing directory ───────────────
+
+  H.check(
+    "offer: an existing directory offers 'create file here', ignoring create_on_missing.enable",
+    function()
+      H.config_sandbox(function(c)
+        local dir = H.tmpdir()
+        c.setup({ create_on_missing = { enable = false } }) -- must not suppress this dialog
+        local calls
+        local notes = H.capture_notify(function()
+          calls = H.with_ui_select("Cancel", function()
+            create.offer({ path = dir, exists = false }, function()
+              error("on_created must not run for Cancel")
+            end)
+          end)
+        end)
+        H.same(calls[1].items, { "Create file in this folder", "Cancel" }, "no filetree entry")
+        H.match(calls[1].opts.prompt, "is a directory")
+        H.match(H.notify_text(notes), "File not created")
+      end)
+    end
+  )
+
+  H.check(
+    "offer: 'Create file in this folder' asks for a name and creates it there",
+    function()
+      H.config_sandbox(function(c)
+        local dir = H.tmpdir()
+        c.setup({})
+        local got
+        H.with_field(vim.ui, "input", function(_, on_confirm)
+          on_confirm("newfile.lua")
+        end, function()
+          H.capture_notify(function()
+            H.with_ui_select("Create file in this folder", function()
+              create.offer(
+                { path = dir, exists = false, kind = "file", language = "lua" },
+                function(r)
+                  got = r
+                end
+              )
+            end)
+          end)
+        end)
+        H.truthy(got, "on_created ran")
+        H.eq(got.path, dir .. "/newfile.lua")
+        H.eq(got.exists, true)
+        H.eq(got.kind, "file")
+        H.eq(got.language, "lua", "unrelated GopathResult fields are preserved")
+        H.eq(vim.fn.filereadable(dir .. "/newfile.lua"), 1)
+      end)
+    end
+  )
+
+  H.check("offer: declining the name prompt creates nothing", function()
+    H.config_sandbox(function(c)
+      local dir = H.tmpdir()
+      c.setup({})
+      local called = false
+      H.with_field(vim.ui, "input", function(_, on_confirm)
+        on_confirm(nil) -- <Esc> in the real prompt
+      end, function()
+        H.capture_notify(function()
+          H.with_ui_select("Create file in this folder", function()
+            create.offer({ path = dir, exists = false }, function()
+              called = true
+            end)
+          end)
+        end)
+      end)
+      H.falsy(called)
+    end)
+  end)
+
+  H.check(
+    "offer: 'Open in filetree' for an existing directory hands it directly to filetree.nvim",
+    function()
+      H.config_sandbox(function(c)
+        local dir = H.tmpdir()
+        c.setup({})
+        local rooted = {}
+        H.with_modules({
+          filetree = {
+            is_initialized = function()
+              return true
+            end,
+            adapter = function()
+              return {
+                set_root = function(d)
+                  rooted[#rooted + 1] = d
+                  return true
+                end,
+              }
+            end,
+          },
+        }, function()
+          local calls
+          H.capture_notify(function()
+            calls = H.with_ui_select("Open in filetree", function()
+              create.offer({ path = dir, exists = false }, function()
+                error("on_created must not run for the filetree choice")
+              end)
+            end)
+          end)
+          H.same(calls[1].items, { "Create file in this folder", "Open in filetree", "Cancel" })
+          H.eq(#rooted, 1)
+          H.eq(rooted[1], dir, "the directory itself, not some ancestor of it")
+        end)
+      end)
+    end
+  )
+
   -- ── gopath.open ────────────────────────────────────────────────────────────
 
   local open = require("gopath.open")

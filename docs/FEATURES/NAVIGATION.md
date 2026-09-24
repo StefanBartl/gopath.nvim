@@ -110,6 +110,14 @@ creating a file. The `gC`/`:GopathCheck` keymap and command always offer
 creation explicitly, even when `create_on_missing.enable = false` disables
 it for the passive open keymaps.
 
+When the resolved path is itself an existing **directory** (gopath can't
+`:edit` a directory as a file), a different dialog appears instead: "Create
+file in this folder" (asks for a name via `ui.kit.input`/`vim.ui.input`,
+then creates `<dir>/<name>`) and, when filetree.nvim is installed, "Open in
+filetree" for that same directory. This dialog always asks — it is not
+gated on `create_on_missing.enable`/`confirm`, since a directory is not a
+"missing" path.
+
 - **Module:** `create.lua`
 - **Keymaps:** `gC` check path under cursor
 - **Usercmds:** `:Gopath check`, `:GopathCheck`

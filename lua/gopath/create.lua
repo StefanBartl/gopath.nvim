@@ -5,12 +5,18 @@
 --- and by the dedicated `check` keymap/command (explicit user action, always offers
 --- regardless of `create_on_missing.enable`; see `gopath.commands.check_under_cursor`).
 ---
---- A directory can't be opened in an editor buffer the way a file can, so when the
---- unresolved path has an existing ancestor directory, the confirm dialog offers a
---- second choice — "Open in filetree" — that hands the directory to filetree.nvim
---- (soft dependency; the button is only shown when it is installed and set up)
---- instead of silently `:edit`-ing the directory (which used to dump you into
---- netrw with no warning).
+--- A directory can't be opened in an editor buffer the way a file can. Two distinct
+--- cases fall out of that:
+---   1. The resolved path itself IS an existing directory (`M.offer` detects this
+---      up front, independent of `create_on_missing`/`confirm`, since it is not a
+---      "missing" case at all): the dialog offers "Create file in this folder"
+---      (asks for a name, then creates it there) and, when filetree.nvim is
+---      installed, "Open in filetree" for that same directory.
+---   2. The resolved path does not exist, but has an existing ANCESTOR directory:
+---      the dialog offers "Create file" (the resolved path itself) and, when
+---      filetree.nvim is installed, "Open in filetree" for the nearest existing
+---      ancestor — instead of silently `:edit`-ing a path that used to dump you
+---      into netrw with no warning.
 ---
 --- The confirm dialog itself prefers ui.nvim's `ui.kit.confirm` (declared
 --- dependency, same soft-fallback convention as `gopath.util.cross` /
@@ -196,13 +202,70 @@ local function ask(question, choices, on_choice)
   end)
 end
 
+---Ask the user for a single line of text (ui.kit's `input`, or vim.ui.input
+---when ui.kit is unavailable / too old to provide it).
+---@internal
+---@param question string
+---@param on_submit fun(text: string|nil)  nil = cancelled / empty
+---@return nil
+local function ask_input(question, on_submit)
+  if kit and type(kit.input) == "function" then
+    kit.input({ title = question, on_submit = on_submit })
+    return
+  end
+  vim.ui.input({ prompt = question }, on_submit)
+end
+
 -- ── Public API ────────────────────────────────────────────────────────────────
 
 local CREATE = "Create file"
+local CREATE_HERE = "Create file in this folder"
 local FILETREE = "Open in filetree"
 local CANCEL = "Cancel"
 
----Offer to create `res.path` when it does not exist.
+---Offer a choice for a resolved path that is itself an existing directory
+---(gopath can't `:edit` a directory as a file). Always asks, independent of
+---`create_on_missing.enable`/`confirm` — this is not a "missing file" case.
+---On "Create file in this folder": asks for a name, creates `<dir>/<name>`,
+---and calls `on_created` with a copy of `res` pointed at that new file.
+---On "Open in filetree" (only offered when filetree.nvim is installed + set
+---up): hands `dir` to filetree.nvim; `on_created` is not called.
+---@internal
+---@param res GopathResult  res.path is a directory that exists on disk
+---@param on_created fun(res: GopathResult)
+---@return nil
+local function offer_for_directory(res, on_created)
+  local dir = res.path
+  local choices = { CREATE_HERE }
+  if FILETREE_UTIL.adapter() then choices[#choices + 1] = FILETREE end
+  choices[#choices + 1] = CANCEL
+
+  ask("gopath: '" .. tostring(dir) .. "' is a directory", choices, function(choice)
+    if choice == CREATE_HERE then
+      ask_input("New file name in " .. dir .. ": ", function(name)
+        if not name or name == "" then
+          LOG.warn("File not created: no name given")
+          return
+        end
+        local target = PATH.join(dir, name)
+        local ok, err = touch(target)
+        if not ok then
+          LOG.error("Could not create file: " .. tostring(err))
+          return
+        end
+        LOG.info("Created: " .. target)
+        on_created(vim.tbl_extend("force", res, { path = target, exists = true, kind = "file" }))
+      end)
+    elseif choice == FILETREE then
+      open_in_filetree(dir)
+    else
+      LOG.warn("File not created: " .. tostring(dir))
+    end
+  end)
+end
+
+---Offer to create `res.path` when it does not exist, or (see
+---`offer_for_directory`) a choice for it when it exists but is a directory.
 ---On "Create file": creates the file (+ parent dirs), marks `res.exists = true`
 ---and calls `on_created(res)` so the caller can open/jump into it.
 ---On "Open in filetree" (only offered when a nearest existing ancestor
@@ -215,6 +278,12 @@ local CANCEL = "Cancel"
 --- (use for explicit user actions like the `check` keymap)
 function M.offer(res, on_created, opts)
   opts = opts or {}
+
+  if PATH.is_dir(res.path) then
+    offer_for_directory(res, on_created)
+    return
+  end
+
   local cfg = require("gopath.config").get().create_on_missing or {}
   if cfg.enable == false and not opts.force then
     LOG.error("File not found: " .. tostring(res.path))

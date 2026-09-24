@@ -259,6 +259,13 @@ directory and roots/focuses filetree.nvim's tree there. The button is only
 shown when both conditions hold; otherwise the dialog is just
 Create/Cancel.
 
+When the resolved path itself already exists **as a directory** (not an
+ancestor of a missing path — the path gopath resolved to actually is one),
+`gopath.create` asks a different question up front, independent of
+`create_on_missing.enable`/`confirm`: "Create file in this folder" (prompts
+for a filename, then creates it there) or, when filetree.nvim is set up,
+"Open in filetree" for that directory.
+
 ---
 
 ## Configuration & entry points
