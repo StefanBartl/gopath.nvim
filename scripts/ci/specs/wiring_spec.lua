@@ -186,8 +186,17 @@ return function(H)
   ---@param fn fun(calls: table)
   ---@return nil
   local function with_usrcmds(config_overrides, fn)
-    local calls =
-      { open = {}, copy = 0, debug = 0, check = 0, probe = {}, shorten = 0, shorten_known = 0 }
+    local calls = {
+      open = {},
+      copy = 0,
+      debug = 0,
+      check = 0,
+      probe = {},
+      shorten = 0,
+      shorten_known = 0,
+      shorten_opts = {},
+      shorten_known_opts = {},
+    }
     H.with_modules({
       ["gopath.commands"] = {
         goto_at_cursor = function(kind)
@@ -205,11 +214,13 @@ return function(H)
         probe_selection = function(opts)
           calls.probe[#calls.probe + 1] = opts
         end,
-        shorten_to_env = function()
+        shorten_to_env = function(opts)
           calls.shorten = calls.shorten + 1
+          calls.shorten_opts[#calls.shorten_opts + 1] = opts
         end,
-        shorten_to_known_dir = function()
+        shorten_to_known_dir = function(opts)
           calls.shorten_known = calls.shorten_known + 1
+          calls.shorten_known_opts[#calls.shorten_known_opts + 1] = opts
         end,
       },
     }, function()
@@ -282,6 +293,35 @@ return function(H)
       H.eq(calls.shorten_known, 1)
     end)
   end)
+
+  H.check(
+    ":Gopath to-repos-dir/to-nvim-dir and their aliases report selection = true only with a range",
+    function()
+      with_usrcmds({}, function(calls)
+        H.buf({ "one", "two", "three" }, { filetype = "text" })
+
+        vim.cmd("Gopath to-repos-dir")
+        H.eq(calls.shorten_opts[1].selection, false, "no range given")
+        vim.cmd("1,2Gopath to-repos-dir")
+        H.eq(calls.shorten_opts[2].selection, true, "a range was given")
+
+        vim.cmd("Gopath to-nvim-dir")
+        H.eq(calls.shorten_known_opts[1].selection, false)
+        vim.cmd("1,2Gopath to-nvim-dir")
+        H.eq(calls.shorten_known_opts[2].selection, true)
+
+        vim.cmd("GopathToReposDir")
+        H.eq(calls.shorten_opts[3].selection, false, "alias, no range")
+        vim.cmd("1,2GopathToReposDir")
+        H.eq(calls.shorten_opts[4].selection, true, "alias, with a range")
+
+        vim.cmd("GopathToNvimDir")
+        H.eq(calls.shorten_known_opts[3].selection, false, "alias, no range")
+        vim.cmd("1,2GopathToNvimDir")
+        H.eq(calls.shorten_known_opts[4].selection, true, "alias, with a range")
+      end)
+    end
+  )
 
   H.check(":Gopath probe knows whether a range was given", function()
     with_usrcmds({}, function(calls)

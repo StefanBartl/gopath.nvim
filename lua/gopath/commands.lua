@@ -445,19 +445,26 @@ function M.debug_under_cursor()
   LOG.info(table.concat(lines, "\n"))
 end
 
----Rewrite an absolute path on the current line whose root segment is a
----configured directory name (e.g. "repos") back into `$VAR` form -- any
----drive letter, any OS.
+---Rewrite an absolute path on the current line (or, with `opts.selection`,
+---just the visually selected span of it) whose root segment is a configured
+---directory name (e.g. "repos") back into `$VAR` form -- any drive letter,
+---any OS. Also recognises a relative Markdown-link path that resolves under
+---that root once joined to the buffer's own directory.
+---@param opts { selection?: boolean }|nil
 ---@see gopath.env_shorten
-function M.shorten_to_env()
-  require("gopath.env_shorten").shorten_current_line()
+function M.shorten_to_env(opts)
+  require("gopath.env_shorten").shorten_current_line(opts)
 end
 
 ---Rewrite literal occurrences of a configured "well-known" directory (e.g.
----vim.fn.stdpath("config")) on the current line back into `$VAR` form.
+---vim.fn.stdpath("config")) on the current line (or, with `opts.selection`,
+---just the visually selected span) back into `$VAR` form. Also recognises a
+---relative Markdown-link path that resolves under that directory once
+---joined to the buffer's own directory.
+---@param opts { selection?: boolean }|nil
 ---@see gopath.env_shorten
-function M.shorten_to_known_dir()
-  require("gopath.env_shorten").shorten_current_line_known()
+function M.shorten_to_known_dir(opts)
+  require("gopath.env_shorten").shorten_current_line_known(opts)
 end
 
 return M
