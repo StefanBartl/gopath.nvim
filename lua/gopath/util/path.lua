@@ -104,6 +104,15 @@ function M.exists(p)
   return st ~= nil and st.type == "file"
 end
 
+---Return true when `p` exists and is a directory.
+---@param p string
+---@return boolean
+function M.is_dir(p)
+  if not p or p == "" then return false end
+  local st = vim.uv.fs_stat((p:gsub("[/\\]+", "/")))
+  return st ~= nil and st.type == "directory"
+end
+
 ---Return the set of entry names directly inside `dir`, or nil when unreadable.
 ---@internal
 ---@param dir string
