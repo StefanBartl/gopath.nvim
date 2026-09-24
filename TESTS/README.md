@@ -157,8 +157,8 @@ Two house rules:
 
 ## Coverage
 
-80 files under `lua/`. 18 spec files under `scripts/ci/specs/`, 500 checks and
-about 1779 executed assertions, plus the 38 checks in `functional_tests.lua`
+81 files under `lua/`. 19 spec files under `scripts/ci/specs/`, 513 checks and
+about 1808 executed assertions, plus the 38 checks in `functional_tests.lua`
 and the 8 in `headless_tests.lua`.
 
 | Spec | Covers |
@@ -181,6 +181,7 @@ and the 8 in `headless_tests.lua`.
 | `resolve_selection_spec` | `resolve_selection.lua`: direct (non-cursor) URL and `$VAR` resolution of a raw string -- what lets `probe_selection` resolve a PARTIAL selection of either, not just a plain file path |
 | `alternate_spec` | `alternate/`: directory helpers, the similarity matcher, the selection UI on both backends, and the callback contract both entry points hang on |
 | `wiring_spec` | `bindings/` (keymaps incl. overrides/lists/`false`, `:Gopath` and every alias, the autocommands), `open/help.lua`, `health.lua`, and `init.lua`'s `setup()` |
+| `menu_spec` | `integrations/menu.lua`: the right-click "Paths" entry -- cursor vs. live-visual-selection resolution, per-kind entry gating, ui.nvim absence, `commands.open_result` wiring |
 
 ## Bugs pinned by a regression assertion
 
