@@ -117,6 +117,15 @@ local function resolve_here()
   return ok and res or nil
 end
 
+---Whether a host that asks first (ui.nvim's `ui.menu`) may show the "Paths"
+---entry: `integrations.ui_menu` is not false. `items()`/`submenu()` are not
+---affected, so other hosts keep working.
+---@return boolean
+function M.enabled()
+  local cfg = require("gopath.config").get()
+  return (cfg.integrations or {}).ui_menu ~= false
+end
+
 ---Build the gopath menu entries for the current cursor/selection context.
 ---Returns an empty list when ui.nvim is not installed or nothing resolves.
 ---@param _opts? table  reserved for future use

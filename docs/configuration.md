@@ -154,5 +154,11 @@ require("gopath").setup({
 
   -- Label the probe keymap via which-key.nvim, if installed (no-op otherwise)
   which_key = true,
+
+  -- Which hosts may drive this plugin: `ui_menu = false` keeps ui.nvim's
+  -- right-click menu (ui.menu) from composing the "Paths" entry.
+  integrations = {
+    ui_menu = true,
+  },
 })
 ```

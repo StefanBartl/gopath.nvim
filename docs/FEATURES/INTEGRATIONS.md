@@ -99,6 +99,10 @@ Tailsearch's filesystem suffix search is deliberately not tried from the
 menu — a right-click that silently kicks off a filesystem walk on every
 miss would be a bad trade; that is what `:GopathProbe` is for.
 
+`integrations = { ui_menu = false }` keeps ui.nvim's right-click menu (`ui.menu`)
+from showing the entry while `items()`/`submenu()` keep working for any other
+host. The module also answers `enabled()`, which is what `ui.menu` asks first.
+
 - **Module:** `lua/gopath/integrations/menu.lua`
 - **Entries:** "Open" (always, for anything resolved), "Reveal in File
   Manager" / "Reveal in filetree.nvim" (only for `kind == "file"` — a URL or

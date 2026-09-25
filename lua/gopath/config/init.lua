@@ -178,6 +178,7 @@ local KNOWN = {
   },
   which_key = true,
   deps_popup = true,
+  integrations = { ui_menu = true },
 }
 
 ---Top-level keys whose known-table entry also accepts a bare `false` instead

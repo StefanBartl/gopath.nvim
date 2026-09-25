@@ -165,4 +165,11 @@ return {
   -- this plugin specifically, right here in the spec passed to setup() —
   -- no vim.g needed. See README.
   deps_popup = true,
+
+  -- Which hosts may drive this plugin. `ui_menu = false` keeps ui.nvim's
+  -- right-click menu (ui.menu) from composing the Paths entry; `items()` stays
+  -- available to any other host.
+  integrations = {
+    ui_menu = true,
+  },
 }

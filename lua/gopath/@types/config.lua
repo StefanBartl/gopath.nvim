@@ -123,6 +123,9 @@
 --- Ask "create '<path>'?" via vim.ui.select before creating. Set to false to
 --- create missing files silently (no prompt) whenever offered.
 
+---@class GopathIntegrationsOptions
+---@field ui_menu? boolean Default: true. Let ui.nvim's right-click menu (`ui.menu`) compose the "Paths" entry.
+
 ---@class GopathOptions
 ---@field dev_mode? boolean # Print debug notifies
 ---@field mode? "builtin"|"treesitter"|"lsp"|"hybrid" Default: "hybrid"
@@ -137,6 +140,7 @@
 ---@field mappings? GopathKeymaps|false Keymaps (false = disable all)
 ---@field commands? GopathCommands|false User commands (false = disable all)
 ---@field which_key? boolean Default: true. Label the probe keymap via which-key.nvim, if installed.
+---@field integrations? GopathIntegrationsOptions Which hosts may drive this plugin (`ui_menu`).
 ---@field deps_popup? boolean Default: true. Show the lib.nvim.deps "declared tools" popup once, ever, on first setup() after install (needs lib.nvim.deps — a no-op without it).
 ---@field truncated? GopathTruncated
 ---@field linepath? GopathLinepath Whole-line path extraction
