@@ -23,6 +23,7 @@ return function(H)
     H.eq(type(cfg.commands), "table")
     H.eq(cfg.which_key, true)
     H.eq(cfg.deps_popup, true)
+    H.eq(cfg.integrations.ui_menu, true)
   end)
 
   H.check("defaults: every registered filetype has a language entry", function()

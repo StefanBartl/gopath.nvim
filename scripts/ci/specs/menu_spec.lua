@@ -32,6 +32,15 @@ return function(H)
     }
   end
 
+  H.check("enabled(): what ui.nvim's ui.menu asks first", function()
+    local config = require("gopath.config")
+    H.eq(MENU.enabled(), true, "on by default")
+    config.setup({ integrations = { ui_menu = false } })
+    H.eq(MENU.enabled(), false, "integrations.ui_menu = false")
+    config.setup({})
+    H.eq(MENU.enabled(), true, "and back on after a plain setup")
+  end)
+
   H.check("items(): empty list without ui.nvim installed (default test env)", function()
     H.same(MENU.items(), {})
   end)
