@@ -92,11 +92,14 @@ end
 ---language server or a link parser that extracted a Markdown link target.
 ---
 ---Same rules as the cursor-based resolvers, including the
----`env_variable_resolution.enable` and `url.enable` switches. `result.exists`
----says whether the resolved path is on disk; `result.path` is the absolute
----forward-slash path. nil when the text is neither an env reference nor a URL,
----or names a variable nothing defines. Plain relative paths are deliberately
----not resolved here -- there is no cursor or buffer to resolve them against.
+---`env_variable_resolution.enable` and `url.enable` switches. `result.path` is
+---the absolute forward-slash path. `result.exists` is true only for an existing
+---**regular file**: a directory reports `false`, exactly as for the cursor-based
+---resolvers (`gopath.util.path.exists`). A caller that needs "is anything
+---there" -- a link to a folder is valid -- checks `result.path` itself.
+---nil when the text is neither an env reference nor a URL, or names a variable
+---nothing defines. Plain relative paths are deliberately not resolved here --
+---there is no cursor or buffer to resolve them against.
 ---@param text string
 ---@return GopathResult|nil result
 function M.resolve_text(text)

@@ -76,6 +76,11 @@ return function(H)
       H.truthy(missing, "an env path that does not exist still resolves")
       H.eq(missing.exists, false)
 
+      -- Documented, and relied on by callers: `exists` means "regular file".
+      local as_dir = gopath.resolve_text("$GOPATH_SPEC_RS")
+      H.truthy(as_dir, "a bare $VAR resolves to the directory")
+      H.eq(as_dir.exists, false, "a directory is not a regular file")
+
       H.eq(gopath.resolve_text("https://example.com/x").kind, "url")
       H.is_nil(
         gopath.resolve_text("./relative/plain.md"),
