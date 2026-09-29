@@ -54,6 +54,42 @@ return function(H)
     end)
   end)
 
+  -- The top-level entry point is what other plugins call (lsp.nvim resolves
+  -- Markdown link targets through it); it must stay the same function of the
+  -- same text as the module underneath, and must be reachable without the
+  -- caller knowing that module's name.
+  H.check("gopath.resolve_text: public API delegates to the direct recognizers", function()
+    H.config_sandbox(function()
+      local dir = H.tmpdir()
+      H.write(dir .. "/x.lua", { "" })
+      vim.env.GOPATH_SPEC_RS = dir
+
+      local gopath = require("gopath")
+      H.eq(type(gopath.resolve_text), "function")
+
+      local r = gopath.resolve_text("${GOPATH_SPEC_RS}/x.lua")
+      H.truthy(r)
+      H.eq(r.exists, true)
+      H.match((r.path:gsub("\\", "/")), "/x%.lua$")
+
+      local missing = gopath.resolve_text("$GOPATH_SPEC_RS/nope.lua")
+      H.truthy(missing, "an env path that does not exist still resolves")
+      H.eq(missing.exists, false)
+
+      H.eq(gopath.resolve_text("https://example.com/x").kind, "url")
+      H.is_nil(
+        gopath.resolve_text("./relative/plain.md"),
+        "plain relative paths are not this API's job"
+      )
+      H.is_nil(
+        gopath.resolve_text("$GOPATH_SPEC_UNSET_VAR/x.lua"),
+        "an undefined variable does not resolve"
+      )
+      H.is_nil(gopath.resolve_text(""))
+      vim.env.GOPATH_SPEC_RS = nil
+    end)
+  end)
+
   H.check("resolve_text: env_variable_resolution.enable = false switches it off", function()
     H.config_sandbox(function(c)
       vim.env.GOPATH_SPEC_RS = H.tmpdir()

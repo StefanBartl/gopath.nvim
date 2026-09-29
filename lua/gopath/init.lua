@@ -85,6 +85,24 @@ function M.resolve(opts)
   return R.resolve_at_cursor(opts)
 end
 
+---Resolve a piece of TEXT -- not the token under the cursor -- without opening
+---anything: a `$VAR/rest` / `${VAR}/rest` reference (including the "well-known"
+---directories such as `$NVIM_CONFIG_DIR`, with or without a real environment
+---variable) or a URL. For integrations that already hold the text, e.g. a
+---language server or a link parser that extracted a Markdown link target.
+---
+---Same rules as the cursor-based resolvers, including the
+---`env_variable_resolution.enable` and `url.enable` switches. `result.exists`
+---says whether the resolved path is on disk; `result.path` is the absolute
+---forward-slash path. nil when the text is neither an env reference nor a URL,
+---or names a variable nothing defines. Plain relative paths are deliberately
+---not resolved here -- there is no cursor or buffer to resolve them against.
+---@param text string
+---@return GopathResult|nil result
+function M.resolve_text(text)
+  return require("gopath.resolve_selection").resolve_text(text)
+end
+
 ---Direct access to command implementations for custom keymaps.
 ---Example: `require("gopath").commands.goto_at_cursor("vsplit")`
 M.commands = require("gopath.commands")

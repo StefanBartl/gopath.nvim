@@ -274,7 +274,10 @@ for a filename, then creates it there) or, when filetree.nvim is set up,
 
 ## Configuration & entry points
 
-- Public API: `require("gopath").resolve(opts)` returns a `GopathResult` without
+- Public API: `require("gopath").resolve_text(text)` resolves a piece of text (a
+  `$VAR/...` reference, `$NVIM_CONFIG_DIR` included, or a URL) the same way, for
+  callers that already hold the text -- lsp.nvim uses it for Markdown link
+  targets. `require("gopath").resolve(opts)` returns a `GopathResult` without
   opening anything; `require("gopath").commands` exposes the open/copy/debug
   actions for custom keymaps.
 - Mode selection (`mode = "hybrid" | "lsp" | "treesitter" | "builtin"`) and the
