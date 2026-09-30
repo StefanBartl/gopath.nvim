@@ -277,7 +277,11 @@ for a filename, then creates it there) or, when filetree.nvim is set up,
 - Public API: `require("gopath").resolve_text(text)` resolves a piece of text (a
   `$VAR/...` reference, `$NVIM_CONFIG_DIR` included, or a URL) the same way, for
   callers that already hold the text -- lsp.nvim uses it for Markdown link
-  targets. `require("gopath").resolve(opts)` returns a `GopathResult` without
+  targets. `require("gopath").shorten_path(abs)` is the reverse for one absolute
+  path: `$NVIM_CONFIG_DIR/...` / `$REPOS_DIR/...` (the same logic as `:Gopath
+  to-nvim-dir` / `to-repos-dir`, driven by `shorten_known_dirs` / `shorten_dirs`),
+  or `nil` when no configured root contains it -- images.nvim's `:Image paste env`
+  uses it. `require("gopath").resolve(opts)` returns a `GopathResult` without
   opening anything; `require("gopath").commands` exposes the open/copy/debug
   actions for custom keymaps.
 - Mode selection (`mode = "hybrid" | "lsp" | "treesitter" | "builtin"`) and the

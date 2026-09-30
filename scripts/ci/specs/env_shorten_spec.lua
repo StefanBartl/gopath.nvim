@@ -20,6 +20,39 @@ return function(H)
     return ES.shorten(line, PAIRS)
   end
 
+  -- ── shorten_path: one absolute path, the API behind `:Image paste env` ──────
+
+  H.check("shorten_path: structural repos root, either slash style, any drive", function()
+    H.eq(ES.shorten_path([[E:\repos\lib.nvim\README.md]]), "$REPOS_DIR/lib.nvim/README.md")
+    H.eq(ES.shorten_path("C:/repos/lib.nvim/README.md"), "$REPOS_DIR/lib.nvim/README.md")
+    H.eq(ES.shorten_path("/repos/lib.nvim/README.md"), "$REPOS_DIR/lib.nvim/README.md")
+    local _, var = ES.shorten_path("E:/repos/x.md")
+    H.eq(var, "REPOS_DIR", "second return is the variable name")
+  end)
+
+  H.check("shorten_path: the literal known directory wins, and needs no env var", function()
+    H.config_sandbox(function(c)
+      local dir = H.tmpdir():gsub("\\", "/")
+      c.setup({ env_variable_resolution = { shorten_known_dirs = { NVIM_CONFIG_DIR = dir } } })
+      local out, var = ES.shorten_path(dir .. "/docs/a.md")
+      H.eq(out, "$NVIM_CONFIG_DIR/docs/a.md")
+      H.eq(var, "NVIM_CONFIG_DIR")
+    end)
+  end)
+
+  H.check("shorten_path: nil under no configured root, for relative paths and URLs", function()
+    H.is_nil(ES.shorten_path("C:/Users/me/Documents/a.md"), "outside every root")
+    H.is_nil(
+      ES.shorten_path("C:/Users/me/repos/a.md"),
+      "a nested folder named repos is not the root"
+    )
+    H.is_nil(ES.shorten_path("./assets/a.png"), "relative")
+    H.is_nil(ES.shorten_path("https://example.com/repos/a"), "a URL")
+    H.is_nil(ES.shorten_path(""), "empty")
+    ---@diagnostic disable-next-line: param-type-mismatch
+    H.is_nil(ES.shorten_path(nil), "nil")
+  end)
+
   -- ── the four recognised root forms ─────────────────────────────────────────
 
   H.check("Windows drive root, backslashes", function()

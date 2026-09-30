@@ -471,4 +471,32 @@ function M.shorten_current_line_known(opts)
   end)
 end
 
+---Shorten ONE absolute path to its `$VAR` form: the same two passes the
+---`:Gopath to-nvim-dir` / `:Gopath to-repos-dir` commands apply to a buffer
+---line, for a caller that holds the path as a string (images.nvim's
+---`:Image paste env` builds its link path this way). The literal well-known
+---directories (`shorten_known_dirs`, default `NVIM_CONFIG_DIR`) are tried
+---first -- they name one exact machine-local directory, so they are the more
+---specific claim -- then the structural repos root (`shorten_dirs`, default
+---`REPOS_DIR`). Separators are normalized to `/` first. A relative path, a
+---URL, or a path under no configured root yields nil: nothing to shorten.
+---@param abs string An absolute file-system path (either slash style)
+---@return string|nil shortened `$VAR/rest`, or nil when no configured root matches
+---@return string|nil var The variable name used (e.g. "REPOS_DIR"), when shortened
+function M.shorten_path(abs)
+  if type(abs) ~= "string" or abs == "" then return nil, nil end
+  local path = (abs:gsub("\\", "/"))
+  if not (path:match("^%a:/") or path:match("^/") or path:match("^~/")) then return nil, nil end
+
+  local known = known_dir_pairs()
+  if #known > 0 then
+    local out, n = M.shorten_known(path, known)
+    if n > 0 then return out, out:match("^%$([%w_]+)") end
+  end
+
+  local out, n = M.shorten(path, repos_dir_pairs())
+  if n > 0 then return out, out:match("^%$([%w_]+)") end
+  return nil, nil
+end
+
 return M
