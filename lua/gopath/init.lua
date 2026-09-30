@@ -106,6 +106,18 @@ function M.resolve_text(text)
   return require("gopath.resolve_selection").resolve_text(text)
 end
 
+---Shorten one absolute path to its `$VAR` form (`$NVIM_CONFIG_DIR/...` for the
+---configured well-known directories, `$REPOS_DIR/...` for the repos root): the
+---same logic as `:Gopath to-nvim-dir` / `:Gopath to-repos-dir`, for a caller
+---that holds the path as a string. See `env_variable_resolution.shorten_dirs`
+---and `shorten_known_dirs`.
+---@param abs string An absolute path (either slash style)
+---@return string|nil shortened nil when no configured root contains `abs`
+---@return string|nil var The variable name used, e.g. "REPOS_DIR"
+function M.shorten_path(abs)
+  return require("gopath.env_shorten").shorten_path(abs)
+end
+
 ---Direct access to command implementations for custom keymaps.
 ---Example: `require("gopath").commands.goto_at_cursor("vsplit")`
 M.commands = require("gopath.commands")
