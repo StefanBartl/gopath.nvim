@@ -87,6 +87,20 @@ return {
         return vim.fn.stdpath("config")
       end,
     },
+
+    -- :GopathToReposDir / :GopathToNvimDir also place a BARE RELATIVE path
+    -- that was abbreviated from the middle, e.g.
+    -- `wkdbook-myplugins/casedesk.nvim/ROADMAP/ROADMAP.md`: the directory
+    -- named by its first segment is searched for below the command's root
+    -- ($REPOS_DIR / $NVIM_CONFIG_DIR / any shorten_known_dirs entry), and
+    -- when the whole path exists there it becomes
+    -- `$REPOS_DIR/WKDBooks/Development/wkdbook-myplugins/casedesk.nvim/...`.
+    -- `enable = false` turns the search off.
+    root_search = {
+      enable = true,
+      max_depth = 3, -- levels below the root the first segment may sit at
+      max_dirs = 4000, -- directories scanned per lookup, at most
+    },
   },
 
   create_on_missing = {

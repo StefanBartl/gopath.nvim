@@ -95,8 +95,8 @@ tab-completion works at every level. `cache *` subcommands only appear when
 | `cache build` | — | Rebuild filesystem index |
 | `cache info` | — | Show cache statistics |
 | `cache add-root` | `<dir>` | Add directory to cache search roots |
-| `to-repos-dir` | — | Rewrite a repos-root path (any drive/OS) on the current line — or, with a visual range (`:'<,'>Gopath to-repos-dir`), just the selection — back to `$VAR` (reverse of `env_variable_resolution.shorten_dirs`). Also recognises a relative Markdown-link path that resolves under that root once joined to the buffer's own directory. |
-| `to-nvim-dir` | — | Same as `to-repos-dir`, for a "well-known" directory (default: `vim.fn.stdpath('config')`) matched literally (reverse of `env_variable_resolution.shorten_known_dirs`) |
+| `to-repos-dir` | — | Rewrite a repos-root path (any drive/OS) on the current line — or, with a visual range (`:'<,'>Gopath to-repos-dir`), just the selection — back to `$VAR` (reverse of `env_variable_resolution.shorten_dirs`). Also recognises a relative Markdown-link path that resolves under that root once joined to the buffer's own directory. And a *bare* relative path abbreviated from the middle (`wkdbook-myplugins/casedesk.nvim/ROADMAP/ROADMAP.md`) is looked up a few levels below `$REPOS_DIR` and prefixed with the directory it was found in (`$REPOS_DIR/WKDBooks/Development/wkdbook-myplugins/…`) — only when the whole path exists; see `env_variable_resolution.root_search`. |
+| `to-nvim-dir` | — | Same as `to-repos-dir`, for a "well-known" directory (default: `vim.fn.stdpath('config')`) matched literally (reverse of `env_variable_resolution.shorten_known_dirs`); also prefixes a bare relative path found below that directory, like `to-repos-dir` does for `$REPOS_DIR` |
 
 `<Tab>` completes subcommands throughout, and `cache add-root`'s `<dir>`
 completes directories — it is declared as a `DIR` argument, so the composer

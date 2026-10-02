@@ -127,6 +127,11 @@ local KNOWN = {
     enable = true,
     shorten_dirs = true,
     shorten_known_dirs = true,
+    root_search = {
+      enable = true,
+      max_depth = "number",
+      max_dirs = "number",
+    },
   },
   create_on_missing = {
     enable = true,

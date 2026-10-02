@@ -111,6 +111,14 @@
 --- When true, tokens starting with $VAR or ${VAR} are expanded
 --- using the current process environment before file resolution.
 --- Applies to all filetypes. Default: true.
+---@field shorten_dirs? table<string, string> Segment-name -> env-var-name map for :GopathToReposDir. Default: { repos = "REPOS_DIR" }.
+---@field shorten_known_dirs? table<string, string|(fun(): string)> Var-name -> directory (or resolver) map for :GopathToNvimDir. Default: { NVIM_CONFIG_DIR = stdpath("config") }.
+---@field root_search? GopathRootSearch Locate bare relative paths below the shorten roots. Default: enabled.
+
+---@class GopathRootSearch
+---@field enable? boolean Default: true. Let :GopathToReposDir / :GopathToNvimDir prefix a bare relative path (`wkdbook-x/proj/README.md`) found below a root.
+---@field max_depth? integer Default: 3. How many directory levels below a root the path's first segment may sit.
+---@field max_dirs? integer Default: 4000. Upper bound on directories scanned per lookup.
 
 ---@class GopathCreateOnMissing
 ---@field enable boolean Default: true.
