@@ -702,4 +702,145 @@ return function(H)
       end)
     end
   )
+
+  -- ── bare relative paths located below a root ───────────────────────────────
+
+  ---A root with `wkdbooks/dev/wkdbook-x/proj/ROADMAP/ROADMAP.md` and
+  ---`proj-b/README.md` below it, configured as both the repos var and a known dir.
+  ---@param fn fun(root: string, set: fun(extra: table|nil))
+  local function with_root(fn)
+    H.config_sandbox(function(c)
+      local root = H.tmpdir()
+      H.write(root .. "/wkdbooks/dev/wkdbook-x/proj/ROADMAP/ROADMAP.md", { "x" })
+      H.write(root .. "/proj-b/README.md", { "x" })
+      H.write(root .. "/deep/a/b/c/hidden-dir/f.md", { "x" })
+      local old = vim.env.REPOS_DIR
+      vim.env.REPOS_DIR = root
+      local function set(extra)
+        c.setup(vim.tbl_deep_extend("force", {
+          env_variable_resolution = { shorten_known_dirs = { NVIM_CONFIG_DIR = root } },
+        }, extra or {}))
+      end
+      set()
+      local ok, err = pcall(fn, root, set)
+      vim.env.REPOS_DIR = old
+      if not ok then error(err, 0) end
+    end)
+  end
+
+  H.check("to-repos-dir: a bare relative path found below $REPOS_DIR gets its prefix", function()
+    with_root(function()
+      H.buf({ "see wkdbook-x/proj/ROADMAP/ROADMAP.md for details" })
+      ES.shorten_current_line()
+      H.eq(
+        vim.api.nvim_get_current_line(),
+        "see $REPOS_DIR/wkdbooks/dev/wkdbook-x/proj/ROADMAP/ROADMAP.md for details"
+      )
+    end)
+  end)
+
+  H.check("to-nvim-dir: the same lookup against the known directory", function()
+    with_root(function()
+      H.buf({ "wkdbook-x/proj/ROADMAP/ROADMAP.md" })
+      ES.shorten_current_line_known()
+      H.eq(
+        vim.api.nvim_get_current_line(),
+        "$NVIM_CONFIG_DIR/wkdbooks/dev/wkdbook-x/proj/ROADMAP/ROADMAP.md"
+      )
+    end)
+  end)
+
+  H.check("a direct child of the root is found, backslashes are kept", function()
+    with_root(function()
+      H.buf({ [[proj-b\README.md]] })
+      ES.shorten_current_line()
+      H.eq(vim.api.nvim_get_current_line(), [[$REPOS_DIR\proj-b\README.md]])
+    end)
+  end)
+
+  H.check("a trailing sentence dot is not part of the path", function()
+    with_root(function()
+      H.buf({ "open proj-b/README.md." })
+      ES.shorten_current_line()
+      H.eq(vim.api.nvim_get_current_line(), "open $REPOS_DIR/proj-b/README.md.")
+    end)
+  end)
+
+  H.check("the whole path must exist: an unrelated 'proj-b/nope.md' stays", function()
+    with_root(function()
+      H.buf({ "proj-b/nope.md" })
+      local notes = H.capture_notify(function()
+        ES.shorten_current_line()
+      end)
+      H.eq(vim.api.nvim_get_current_line(), "proj-b/nope.md")
+      H.match(H.notify_text(notes), "nothing to shorten")
+    end)
+  end)
+
+  H.check("URLs, ./ paths, $VAR paths and plain words are never candidates", function()
+    with_root(function()
+      local line =
+        "https://example.com/proj-b/README.md ./proj-b/README.md and/or $REPOS_DIR/proj-b/README.md"
+      H.buf({ line })
+      ES.shorten_current_line()
+      H.eq(vim.api.nvim_get_current_line(), line)
+    end)
+  end)
+
+  H.check("the search depth is bounded by root_search.max_depth", function()
+    with_root(function(_, set)
+      H.buf({ "hidden-dir/f.md" })
+      ES.shorten_current_line()
+      H.eq(vim.api.nvim_get_current_line(), "hidden-dir/f.md", "depth 5 is out of reach by default")
+
+      set({ env_variable_resolution = { root_search = { max_depth = 5 } } })
+      ES.shorten_current_line()
+      H.eq(vim.api.nvim_get_current_line(), "$REPOS_DIR/deep/a/b/c/hidden-dir/f.md")
+    end)
+  end)
+
+  H.check("root_search.enable = false switches the lookup off", function()
+    with_root(function(_, set)
+      set({ env_variable_resolution = { root_search = { enable = false } } })
+      H.buf({ "proj-b/README.md" })
+      H.capture_notify(function()
+        ES.shorten_current_line()
+      end)
+      H.eq(vim.api.nvim_get_current_line(), "proj-b/README.md")
+    end)
+  end)
+
+  H.check("an unset $REPOS_DIR contributes no root", function()
+    with_root(function()
+      vim.env.REPOS_DIR = nil
+      H.buf({ "proj-b/README.md" })
+      H.capture_notify(function()
+        ES.shorten_current_line()
+      end)
+      H.eq(vim.api.nvim_get_current_line(), "proj-b/README.md")
+    end)
+  end)
+
+  H.check("a selection holding a path with spaces is looked up as one path", function()
+    with_root(function(root)
+      H.write(root .. "/proj-b/my notes.md", { "x" })
+      H.buf({ "see proj-b/my notes.md ok" })
+      vim.api.nvim_buf_set_mark(0, "<", 1, #"see ", {})
+      vim.api.nvim_buf_set_mark(0, ">", 1, #"see proj-b/my notes.md" - 1, {})
+      ES.shorten_current_line({ selection = true })
+      H.eq(vim.api.nvim_get_current_line(), "see $REPOS_DIR/proj-b/my notes.md ok")
+    end)
+  end)
+
+  H.check("a path that exists next to the buffer is rewritten from its real location", function()
+    with_root(function(root)
+      local note = H.write(root .. "/wkdbooks/dev/wkdbook-x/note.md", { "proj/ROADMAP/ROADMAP.md" })
+      vim.cmd.edit(vim.fn.fnameescape(note))
+      ES.shorten_current_line_known()
+      H.eq(
+        vim.api.nvim_get_current_line(),
+        "$NVIM_CONFIG_DIR/wkdbooks/dev/wkdbook-x/proj/ROADMAP/ROADMAP.md"
+      )
+    end)
+  end)
 end

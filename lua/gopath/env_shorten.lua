@@ -311,6 +311,157 @@ local function shorten_markdown_links(line, bufdir, apply)
   return table.concat(out), count
 end
 
+-- ── Bare relative paths located under a root ────────────────────────────────
+
+local uv = vim.uv or vim.loop
+
+-- A path-ish token in running text: no spaces, no brackets/quotes/commas.
+local TOKEN_CLASS = "[%w_%.%-%+@/\\]+"
+
+---Search limits for `find_dir_under`, from `env_variable_resolution.root_search`.
+---nil when the feature is switched off.
+---@internal
+---@return { max_depth: integer, max_dirs: integer, excluded: table<string, true> }|nil
+local function root_search_opts()
+  local cfg = require("gopath.config").get()
+  local rs = (cfg.env_variable_resolution or {}).root_search
+  if type(rs) == "table" and rs.enable == false then return nil end
+  rs = type(rs) == "table" and rs or {}
+  local excluded = {}
+  for _, name in ipairs((cfg.truncated or {}).excluded_dirs or {}) do
+    excluded[name:lower()] = true
+  end
+  return {
+    max_depth = tonumber(rs.max_depth) or 3,
+    max_dirs = tonumber(rs.max_dirs) or 4000,
+    excluded = excluded,
+  }
+end
+
+---Breadth-first search below `root` for a directory named `name` (compared
+---case-insensitively) for which `accept(rel)` holds, `rel` being its path
+---relative to `root` with `/` separators. Shallowest candidates are tried
+---first, so `root/name` beats `root/x/y/name`. Directory symlinks are matched
+---but never descended into (no cycles, no wandering off the root), and a
+---directory is only scanned while the scan budget lasts.
+---@internal
+---@param root string  absolute directory, `/` separators, no trailing slash
+---@param name string
+---@param o { max_depth: integer, max_dirs: integer, excluded: table<string, true> }
+---@param accept fun(rel: string): boolean
+---@return string|nil rel
+local function find_dir_under(root, name, o, accept)
+  local lname = name:lower()
+  local queue, head, scanned = { { rel = "", depth = 0 } }, 1, 0
+  while head <= #queue and scanned < o.max_dirs do
+    local item = queue[head]
+    head = head + 1
+    local handle = uv.fs_scandir(item.rel == "" and root or (root .. "/" .. item.rel))
+    scanned = scanned + 1
+    while handle do
+      local entry, etype = uv.fs_scandir_next(handle)
+      if not entry then break end
+      if etype == "directory" or etype == "link" or etype == "junction" then
+        local rel = item.rel == "" and entry or (item.rel .. "/" .. entry)
+        if entry:lower() == lname then
+          if accept(rel) then return rel end
+        elseif etype == "directory" and item.depth + 1 < o.max_depth then
+          if not o.excluded[entry:lower()] then
+            queue[#queue + 1] = { rel = rel, depth = item.depth + 1 }
+          end
+        end
+      end
+    end
+  end
+  return nil
+end
+
+---Locate a bare relative path (`first/rest`, e.g.
+---`wkdbook-myplugins/casedesk.nvim/ROADMAP/ROADMAP.md`) below one of
+---`roots`: the directory named by its first segment is searched for under
+---each root (a few levels deep -- the path was typically abbreviated from the
+---middle), and the whole path must then exist. Existence is required on
+---purpose: a short relative path like `src/main.lua` otherwise "matches" any
+---unrelated `src` directory somewhere below a root.
+---@internal
+---@param tok string  relative path with at least one separator
+---@param roots { var: string, dir: string }[]
+---@return string|nil shortened  `$VAR/<found dir>/<rest>`, same separator style as `tok`
+local function locate_under_roots(tok, roots)
+  local first = tok:match("^([^/\\]+)")
+  if not first or first == "." or first == ".." then return nil end
+  local o = root_search_opts()
+  if not o then return nil end
+
+  local rest = tok:sub(#first + 1)
+  local rest_slash = rest:gsub("\\", "/")
+  local sep = (tok:find("/", 1, true) or not tok:find("\\", 1, true)) and "/" or "\\"
+
+  for _, root in ipairs(roots) do
+    local dir = vim.fs.normalize(root.dir):gsub("/+$", "")
+    if dir ~= "" and uv.fs_stat(dir) then
+      local rel = find_dir_under(dir, first, o, function(candidate)
+        return uv.fs_stat(dir .. "/" .. candidate .. rest_slash) ~= nil
+      end)
+      if rel then return "$" .. root.var .. sep .. rel:gsub("/", sep) .. rest:gsub("[/\\]", sep) end
+    end
+  end
+  return nil
+end
+
+---Shortened form of ONE bare relative path `tok`, or nil. Tried in order:
+---(1) it exists relative to `bufdir` and that resolves under a configured
+---root (`apply`) -- the actual file the writer meant; (2) it is found below a
+---root by `locate_under_roots`. An absolute path, a URL, or anything starting
+---with `./`/`../` is never a candidate.
+---@internal
+---@param tok string
+---@param bufdir string
+---@param apply fun(abs: string): string, integer
+---@param roots { var: string, dir: string }[]
+---@return string|nil
+local function shorten_bare_relative(tok, bufdir, apply, roots)
+  if not tok:find("[/\\]") or skip_relative_resolution(tok) then return nil end
+  if bufdir ~= "" and uv.fs_stat(bufdir .. "/" .. tok:gsub("\\", "/")) then
+    local viabuf = shorten_relative_candidate(tok, bufdir, apply)
+    if viabuf then return viabuf end
+  end
+  return locate_under_roots(tok, roots)
+end
+
+---Rewrite every bare relative path token in `line` that
+---`shorten_bare_relative` can place under a root. Tokens that already start
+---with `$`/`~`, follow a drive colon, or are a URL are left alone.
+---@internal
+---@param line string
+---@param bufdir string
+---@param apply fun(abs: string): string, integer
+---@param roots { var: string, dir: string }[]
+---@return string result
+---@return integer replacements
+local function shorten_bare_tokens(line, bufdir, apply, roots)
+  if #roots == 0 then return line, 0 end
+  local out, count, last, init = {}, 0, 1, 1
+  while true do
+    local s, e = line:find(TOKEN_CLASS, init)
+    if not s then break end
+    init = e + 1
+    local tok = line:sub(s, e):gsub("%.+$", "")
+    local prev = s > 1 and line:sub(s - 1, s - 1) or ""
+    if tok ~= "" and not prev:match("[:~%$]") then
+      local replacement = shorten_bare_relative(tok, bufdir, apply, roots)
+      if replacement then
+        out[#out + 1] = line:sub(last, s - 1)
+        out[#out + 1] = replacement
+        last = s + #tok
+        count = count + 1
+      end
+    end
+  end
+  out[#out + 1] = line:sub(last)
+  return table.concat(out), count
+end
+
 -- ── Buffer-facing entry points ──────────────────────────────────────────────
 
 ---Replace the whole line at `row`, reporting the replacement count or why
@@ -376,6 +527,21 @@ local function repos_dir_pairs()
   return pairs_list
 end
 
+---The `{var, dir}` roots for the structural repos map: `dir` is what the
+---variable actually holds on THIS machine, so a variable that is not set
+---here contributes no root (nothing to search under).
+---@internal
+---@param pairs_list { segment: string, var: string }[]
+---@return { var: string, dir: string }[]
+local function repos_dir_roots(pairs_list)
+  local roots = {}
+  for _, p in ipairs(pairs_list) do
+    local dir = vim.env[p.var]
+    if type(dir) == "string" and dir ~= "" then roots[#roots + 1] = { var = p.var, dir = dir } end
+  end
+  return roots
+end
+
 ---@internal
 ---@return { var: string, dir: string }[]
 local function known_dir_pairs()
@@ -403,6 +569,7 @@ function M.shorten_current_line(opts)
   local apply = function(abs)
     return M.shorten(abs, pairs_list)
   end
+  local roots = repos_dir_roots(pairs_list)
 
   if opts.selection then
     local span = SELECTION.span()
@@ -413,8 +580,11 @@ function M.shorten_current_line(opts)
     replace_span(span.row, span.start_col, span.end_col, function(text)
       local literal, n = M.shorten(text, pairs_list)
       if n > 0 then return literal, n end
-      local relative = shorten_relative_candidate(text, vim.fn.expand("%:p:h"), apply)
+      local bufdir = vim.fn.expand("%:p:h")
+      local relative = shorten_relative_candidate(text, bufdir, apply)
       if relative then return relative, 1 end
+      local bare = shorten_bare_relative(vim.trim(text), bufdir, apply, roots)
+      if bare then return bare, 1 end
       return text, 0
     end)
     return
@@ -423,8 +593,9 @@ function M.shorten_current_line(opts)
   local bufdir = vim.fn.expand("%:p:h")
   replace_line(vim.api.nvim_win_get_cursor(0)[1], function(line)
     local after_md, n_md = shorten_markdown_links(line, bufdir, apply)
-    local result, n_lit = M.shorten(after_md, pairs_list)
-    return result, n_md + n_lit
+    local after_lit, n_lit = M.shorten(after_md, pairs_list)
+    local result, n_bare = shorten_bare_tokens(after_lit, bufdir, apply, roots)
+    return result, n_md + n_lit + n_bare
   end)
 end
 
@@ -456,8 +627,11 @@ function M.shorten_current_line_known(opts)
     replace_span(span.row, span.start_col, span.end_col, function(text)
       local literal, n = M.shorten_known(text, pairs_list)
       if n > 0 then return literal, n end
-      local relative = shorten_relative_candidate(text, vim.fn.expand("%:p:h"), apply)
+      local bufdir = vim.fn.expand("%:p:h")
+      local relative = shorten_relative_candidate(text, bufdir, apply)
       if relative then return relative, 1 end
+      local bare = shorten_bare_relative(vim.trim(text), bufdir, apply, pairs_list)
+      if bare then return bare, 1 end
       return text, 0
     end)
     return
@@ -466,8 +640,9 @@ function M.shorten_current_line_known(opts)
   local bufdir = vim.fn.expand("%:p:h")
   replace_line(vim.api.nvim_win_get_cursor(0)[1], function(line)
     local after_md, n_md = shorten_markdown_links(line, bufdir, apply)
-    local result, n_lit = M.shorten_known(after_md, pairs_list)
-    return result, n_md + n_lit
+    local after_lit, n_lit = M.shorten_known(after_md, pairs_list)
+    local result, n_bare = shorten_bare_tokens(after_lit, bufdir, apply, pairs_list)
+    return result, n_md + n_lit + n_bare
   end)
 end
 

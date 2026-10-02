@@ -105,3 +105,13 @@ local _j = "nothing path-like on this line whatsoever"
 -- Replace this with YOUR real stdpath('config'), then run :GopathToNvimDir
 -- on it. Expected: "edit $NVIM_CONFIG_DIR/lua/plugins/personal/init.lua"
 local _k = "edit C:/Users/YOU/AppData/Local/nvim/lua/plugins/personal/init.lua"
+
+-- ── 14. Bare relative path abbreviated from the middle (either flavour) ──────
+-- With $REPOS_DIR set, :GopathToReposDir on this line looks for a directory
+-- named "wkdbook-myplugins" a few levels below $REPOS_DIR and, because the
+-- whole path exists there, prefixes it. Expected:
+-- "$REPOS_DIR/WKDBooks/Development/wkdbook-myplugins/casedesk.nvim/ROADMAP/ROADMAP.md"
+-- (:GopathToNvimDir does the same below stdpath('config').) A path that does
+-- not exist there, a URL, a "./x" path and a "$VAR/x" path stay untouched.
+-- Tune or disable via env_variable_resolution.root_search.
+local _l = "see wkdbook-myplugins/casedesk.nvim/ROADMAP/ROADMAP.md"
