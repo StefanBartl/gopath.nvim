@@ -843,4 +843,64 @@ return function(H)
       )
     end)
   end)
+
+  H.check(
+    "a path that exists next to the buffer but outside every root is not 'found' elsewhere",
+    function()
+      with_root(function()
+        -- Same relative text exists below the root (proj-b/README.md) AND next to
+        -- the buffer, which sits outside every root: the buffer's one is the file.
+        local other = H.tmpdir()
+        local note = H.write(other .. "/note.md", { "proj-b/README.md" })
+        H.write(other .. "/proj-b/README.md", { "x" })
+        vim.cmd.edit(vim.fn.fnameescape(note))
+        H.capture_notify(function()
+          ES.shorten_current_line()
+        end)
+        H.eq(vim.api.nvim_get_current_line(), "proj-b/README.md")
+      end)
+    end
+  )
+
+  H.check("a '..' segment never walks the existence check out of the root", function()
+    with_root(function()
+      H.buf({ "proj-b/../proj-b/README.md" })
+      H.capture_notify(function()
+        ES.shorten_current_line()
+      end)
+      H.eq(vim.api.nvim_get_current_line(), "proj-b/../proj-b/README.md")
+    end)
+  end)
+
+  H.check("dot directories are not searched", function()
+    with_root(function(root)
+      H.write(root .. "/.claude/worktrees/hidden-dot/f.md", { "x" })
+      H.buf({ "hidden-dot/f.md" })
+      H.capture_notify(function()
+        ES.shorten_current_line()
+      end)
+      H.eq(vim.api.nvim_get_current_line(), "hidden-dot/f.md")
+    end)
+  end)
+
+  H.check("a selection keeps the whitespace around the path it rewrites", function()
+    with_root(function()
+      H.buf({ "a  proj-b/README.md  b" })
+      vim.api.nvim_buf_set_mark(0, "<", 1, 1, {})
+      vim.api.nvim_buf_set_mark(0, ">", 1, #"a  proj-b/README.md " - 1, {})
+      ES.shorten_current_line({ selection = true })
+      H.eq(vim.api.nvim_get_current_line(), "a  $REPOS_DIR/proj-b/README.md  b")
+    end)
+  end)
+
+  H.check("several tokens on one line are all placed", function()
+    with_root(function()
+      H.buf({ "proj-b/README.md and wkdbook-x/proj/ROADMAP/ROADMAP.md" })
+      ES.shorten_current_line()
+      H.eq(
+        vim.api.nvim_get_current_line(),
+        "$REPOS_DIR/proj-b/README.md and $REPOS_DIR/wkdbooks/dev/wkdbook-x/proj/ROADMAP/ROADMAP.md"
+      )
+    end)
+  end)
 end

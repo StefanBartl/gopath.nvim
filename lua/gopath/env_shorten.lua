@@ -338,35 +338,66 @@ local function root_search_opts()
   }
 end
 
+---Per-command search state: the resolved limits plus every directory listing
+---read so far, so a line with several path tokens scans each directory once.
+---@class GopathRootSearchCtx
+---@field o? { max_depth: integer, max_dirs: integer, excluded: table<string, true> }|false  nil = not resolved yet, false = switched off
+---@field listing table<string, { name: string, type: string|nil }[]|false>
+
+---@internal
+---@return GopathRootSearchCtx
+local function new_search_ctx()
+  return { o = nil, listing = {} }
+end
+
+---@internal
+---@param ctx GopathRootSearchCtx
+---@param dir string
+---@return { name: string, type: string|nil }[]
+local function list_dir(ctx, dir)
+  local hit = ctx.listing[dir]
+  if hit then return hit end
+  local out = {}
+  local handle = uv.fs_scandir(dir)
+  while handle do
+    local entry, etype = uv.fs_scandir_next(handle)
+    if not entry then break end
+    out[#out + 1] = { name = entry, type = etype }
+  end
+  ctx.listing[dir] = out
+  return out
+end
+
 ---Breadth-first search below `root` for a directory named `name` (compared
 ---case-insensitively) for which `accept(rel)` holds, `rel` being its path
 ---relative to `root` with `/` separators. Shallowest candidates are tried
 ---first, so `root/name` beats `root/x/y/name`. Directory symlinks are matched
----but never descended into (no cycles, no wandering off the root), and a
----directory is only scanned while the scan budget lasts.
+---but never descended into (no cycles, no wandering off the root), neither is
+---a dot directory (`.git`, `.venv`, `.claude/worktrees` -- full of copies of
+---the very paths being looked up), and a directory is only scanned while the
+---scan budget lasts.
 ---@internal
 ---@param root string  absolute directory, `/` separators, no trailing slash
 ---@param name string
+---@param ctx GopathRootSearchCtx
 ---@param o { max_depth: integer, max_dirs: integer, excluded: table<string, true> }
 ---@param accept fun(rel: string): boolean
 ---@return string|nil rel
-local function find_dir_under(root, name, o, accept)
+local function find_dir_under(root, name, ctx, o, accept)
   local lname = name:lower()
   local queue, head, scanned = { { rel = "", depth = 0 } }, 1, 0
   while head <= #queue and scanned < o.max_dirs do
     local item = queue[head]
     head = head + 1
-    local handle = uv.fs_scandir(item.rel == "" and root or (root .. "/" .. item.rel))
     scanned = scanned + 1
-    while handle do
-      local entry, etype = uv.fs_scandir_next(handle)
-      if not entry then break end
+    for _, e in ipairs(list_dir(ctx, item.rel == "" and root or (root .. "/" .. item.rel))) do
+      local etype = e.type
       if etype == "directory" or etype == "link" or etype == "junction" then
-        local rel = item.rel == "" and entry or (item.rel .. "/" .. entry)
-        if entry:lower() == lname then
+        local rel = item.rel == "" and e.name or (item.rel .. "/" .. e.name)
+        if e.name:lower() == lname then
           if accept(rel) then return rel end
         elseif etype == "directory" and item.depth + 1 < o.max_depth then
-          if not o.excluded[entry:lower()] then
+          if e.name:sub(1, 1) ~= "." and not o.excluded[e.name:lower()] then
             queue[#queue + 1] = { rel = rel, depth = item.depth + 1 }
           end
         end
@@ -386,11 +417,18 @@ end
 ---@internal
 ---@param tok string  relative path with at least one separator
 ---@param roots { var: string, dir: string }[]
+---@param ctx GopathRootSearchCtx
 ---@return string|nil shortened  `$VAR/<found dir>/<rest>`, same separator style as `tok`
-local function locate_under_roots(tok, roots)
+local function locate_under_roots(tok, roots, ctx)
   local first = tok:match("^([^/\\]+)")
   if not first or first == "." or first == ".." then return nil end
-  local o = root_search_opts()
+  -- A `..` anywhere would let the existence check below walk out of the root
+  -- and report a file that is not under it at all.
+  for seg in tok:gmatch("[^/\\]+") do
+    if seg == ".." then return nil end
+  end
+  if ctx.o == nil then ctx.o = root_search_opts() or false end
+  local o = ctx.o
   if not o then return nil end
 
   local rest = tok:sub(#first + 1)
@@ -399,9 +437,10 @@ local function locate_under_roots(tok, roots)
 
   for _, root in ipairs(roots) do
     local dir = vim.fs.normalize(root.dir):gsub("/+$", "")
+    if dir:match("^%a:$") then dir = dir .. "/" end -- a drive root: "E:" alone means "cwd on E:"
     if dir ~= "" and uv.fs_stat(dir) then
-      local rel = find_dir_under(dir, first, o, function(candidate)
-        return uv.fs_stat(dir .. "/" .. candidate .. rest_slash) ~= nil
+      local rel = find_dir_under(dir, first, ctx, o, function(candidate)
+        return uv.fs_stat((dir:gsub("/$", "")) .. "/" .. candidate .. rest_slash) ~= nil
       end)
       if rel then return "$" .. root.var .. sep .. rel:gsub("/", sep) .. rest:gsub("[/\\]", sep) end
     end
@@ -419,14 +458,18 @@ end
 ---@param bufdir string
 ---@param apply fun(abs: string): string, integer
 ---@param roots { var: string, dir: string }[]
+---@param ctx? GopathRootSearchCtx
 ---@return string|nil
-local function shorten_bare_relative(tok, bufdir, apply, roots)
+local function shorten_bare_relative(tok, bufdir, apply, roots, ctx)
   if not tok:find("[/\\]") or skip_relative_resolution(tok) then return nil end
-  if bufdir ~= "" and uv.fs_stat(bufdir .. "/" .. tok:gsub("\\", "/")) then
-    local viabuf = shorten_relative_candidate(tok, bufdir, apply)
-    if viabuf then return viabuf end
+  -- A path that exists next to the buffer IS that file: either it falls under
+  -- a root (rewritten from where it really is) or it does not, and then a
+  -- same-named path somewhere below a root is a different file -- not a
+  -- candidate.
+  if bufdir ~= "" and uv.fs_stat(bufdir .. "/" .. (tok:gsub("\\", "/"))) then
+    return shorten_relative_candidate(tok, bufdir, apply)
   end
-  return locate_under_roots(tok, roots)
+  return locate_under_roots(tok, roots, ctx or new_search_ctx())
 end
 
 ---Rewrite every bare relative path token in `line` that
@@ -441,6 +484,7 @@ end
 ---@return integer replacements
 local function shorten_bare_tokens(line, bufdir, apply, roots)
   if #roots == 0 then return line, 0 end
+  local ctx = new_search_ctx()
   local out, count, last, init = {}, 0, 1, 1
   while true do
     local s, e = line:find(TOKEN_CLASS, init)
@@ -449,7 +493,7 @@ local function shorten_bare_tokens(line, bufdir, apply, roots)
     local tok = line:sub(s, e):gsub("%.+$", "")
     local prev = s > 1 and line:sub(s - 1, s - 1) or ""
     if tok ~= "" and not prev:match("[:~%$]") then
-      local replacement = shorten_bare_relative(tok, bufdir, apply, roots)
+      local replacement = shorten_bare_relative(tok, bufdir, apply, roots, ctx)
       if replacement then
         out[#out + 1] = line:sub(last, s - 1)
         out[#out + 1] = replacement
@@ -583,8 +627,9 @@ function M.shorten_current_line(opts)
       local bufdir = vim.fn.expand("%:p:h")
       local relative = shorten_relative_candidate(text, bufdir, apply)
       if relative then return relative, 1 end
-      local bare = shorten_bare_relative(vim.trim(text), bufdir, apply, roots)
-      if bare then return bare, 1 end
+      local lead, core, trail = text:match("^(%s*)(.-)(%s*)$")
+      local bare = shorten_bare_relative(core, bufdir, apply, roots)
+      if bare then return lead .. bare .. trail, 1 end
       return text, 0
     end)
     return
@@ -630,8 +675,9 @@ function M.shorten_current_line_known(opts)
       local bufdir = vim.fn.expand("%:p:h")
       local relative = shorten_relative_candidate(text, bufdir, apply)
       if relative then return relative, 1 end
-      local bare = shorten_bare_relative(vim.trim(text), bufdir, apply, pairs_list)
-      if bare then return bare, 1 end
+      local lead, core, trail = text:match("^(%s*)(.-)(%s*)$")
+      local bare = shorten_bare_relative(core, bufdir, apply, pairs_list)
+      if bare then return lead .. bare .. trail, 1 end
       return text, 0
     end)
     return
