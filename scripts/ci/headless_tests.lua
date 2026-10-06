@@ -44,9 +44,11 @@ local tests_dir = root .. "/TESTS"
 -- which glob tries to resolve as a home-directory reference and answers an
 -- empty list for, no error (XP-01). `vim.fs.dir` takes `tests_dir` as an
 -- actual path, so no directory spelling can be misread as pattern syntax.
+--
+-- `minimal_init.lua` is the test runner's init (scripts/test.sh), not a guide.
 local fixtures = {}
 for name, typ in vim.fs.dir(tests_dir) do
-  if typ == "file" and name:sub(-4) == ".lua" then
+  if typ == "file" and name:sub(-4) == ".lua" and name ~= "minimal_init.lua" then
     fixtures[#fixtures + 1] = tests_dir .. "/" .. name
   end
 end
