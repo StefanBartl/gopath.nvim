@@ -38,7 +38,8 @@ return {
   },
   guard_allow = {
     -- lua_resolvers_spec and util_path_spec run `git` (repository root lookup) through vim.system.
-    spawn = { "git" },
+    -- The python resolver specs probe the interpreter (python3 -c "import ...") through vim.system.
+    spawn = { "git", "python3" },
     fs = {},
     network = {},
   },
