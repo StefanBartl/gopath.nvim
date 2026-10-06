@@ -24,4 +24,22 @@ return {
   -- vim.fn.expand("<cfile>"), which raises under `nvim -l`.
   isolated = "file",
   host = "c",
+  -- Guards (testing.nvim docs/GUARDS.md). The suite passes the fs, state, scheduled-error, prompt
+  -- and process guards cleanly (each spec file runs in an editor of its own), so those are errors.
+  guards = {
+    fs = "error",
+    state = "error",
+    scheduled_error = "error",
+    prompt = "error",
+    -- Real finding: lua/gopath/health.lua evaluates the deprecated vim.lsp.get_active_clients()
+    -- eagerly although it is meant to be reached only when vim.lsp.get_clients is absent.
+    deprecation = "warn",
+    process_net = "error",
+  },
+  guard_allow = {
+    -- lua_resolvers_spec and util_path_spec run `git` (repository root lookup) through vim.system.
+    spawn = { "git" },
+    fs = {},
+    network = {},
+  },
 }
