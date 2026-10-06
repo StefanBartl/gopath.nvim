@@ -34,7 +34,9 @@ return {
     -- Real finding: lua/gopath/health.lua evaluates the deprecated vim.lsp.get_active_clients()
     -- eagerly although it is meant to be reached only when vim.lsp.get_clients is absent.
     deprecation = "warn",
-    process_net = "error",
+    -- warn, not error: the python resolver probes whichever interpreter the machine has (python,
+    -- python3, python3.12, python3.14 ...); allow_exec matches exact names, so it cannot be listed.
+    process_net = "warn",
   },
   guard_allow = {
     -- lua_resolvers_spec and util_path_spec run `git` (repository root lookup) through vim.system.
