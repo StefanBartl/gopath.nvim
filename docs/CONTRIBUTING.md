@@ -74,16 +74,17 @@ require("gopath").setup({ mode = "hybrid" })
 
 ## Tests
 
-There is no plenary/busted dependency: the suites are plain Lua run by headless
-Neovim, with their own `check()` + assertion helpers
-(`scripts/ci/harness.lua`). Nothing they do needs an LSP server, a build tool,
-a subprocess or the network.
+The suites run on [testing.nvim](https://github.com/StefanBartl/testing.nvim)
+(`bash scripts/test.sh`, configured by `.testing.lua`); there is no
+plenary/busted dependency. The specs are plain Lua with their own `check()` +
+assertion helpers (`scripts/ci/harness.lua`). Nothing they do needs an LSP
+server, a build tool, a subprocess or the network.
 
-| Runner | What it covers |
+| Suite | What it covers |
 | --- | --- |
 | `scripts/ci/headless_tests.lua` | The plugin loads, `setup({})` runs, and every guide under `TESTS/` is still valid Lua |
 | `scripts/ci/functional_tests.lua` | End-to-end resolution: the Lua resolvers, URLs, alternate frecency, the config merge |
-| `scripts/ci/unit_tests.lua` | Every spec in `scripts/ci/specs/` — per-module behaviour for the rest of the plugin |
+| `scripts/ci/specs/*_spec.lua` | Per-module behaviour for the rest of the plugin |
 
 [GitHub Actions](../.github/workflows/ci.yml) runs all three on every push and
 PR to `main`. [`TESTS/README.md`](../TESTS/README.md) documents how to run them

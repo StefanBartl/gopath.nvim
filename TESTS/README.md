@@ -11,13 +11,15 @@ split, what the create-on-missing dialog looks like, whether the PDF chooser
 appears. CI only checks that they are still valid, side-effect-free Lua.
 
 **`scripts/ci/` holds the automated suites.** They are plain Lua run by
-headless Neovim with their own assertion helpers — there is no plenary/busted
-dependency, and no spec here starts a subprocess or touches the network.
+[testing.nvim](https://github.com/StefanBartl/testing.nvim) (`bash scripts/test.sh`,
+configured by `.testing.lua`) with their own assertion helpers — there is no
+plenary/busted dependency, and no spec here starts a subprocess or touches the
+network.
 
 ## Table of contents
 
 - [Running them](#running-them)
-- [The three runners](#the-three-runners)
+- [The three suites](#the-three-suites)
 - [No subprocesses, no network](#no-subprocesses-no-network)
 - [Writing a spec](#writing-a-spec)
 - [Coverage](#coverage)
@@ -26,45 +28,41 @@ dependency, and no spec here starts a subprocess or touches the network.
 
 ## Running them
 
-`lib.nvim` is a hard dependency and must be on the runtimepath. CI checks it
-out to `deps/lib.nvim`; locally, point at wherever you have it.
+`lib.nvim` is a hard dependency. `scripts/test.sh` looks for it (and for
+testing.nvim) in `$LIB_NVIM_DIR` / `$TESTING_NVIM_DIR`, `.deps/<name>`, a
+sibling checkout `../<name>` and `stdpath("data")/lazy/<name>`, and exits 1
+naming all four places when one is missing. CI checks both out to `.deps/`.
 
 ```sh
-LIB=../lib.nvim   # or E:/repos/lib.nvim, or deps/lib.nvim
-
-nvim --headless --noplugin -u NONE --cmd "set runtimepath+=$LIB" \
-  -c "lua dofile('scripts/ci/headless_tests.lua')"
-
-nvim --headless --noplugin -u NONE --cmd "set runtimepath+=$LIB" \
-  -c "lua dofile('scripts/ci/functional_tests.lua')"
-
-nvim --headless --noplugin -u NONE --cmd "set runtimepath+=$LIB" \
-  -c "lua dofile('scripts/ci/unit_tests.lua')"
+bash scripts/test.sh                       # every suite below
+bash scripts/test.sh --file tailsearch     # only files whose name contains "tailsearch"
+bash scripts/test.sh --json ir.json        # also write the machine-readable result
 ```
 
-Each exits non-zero on the first failing check, so they drop straight into a
-shell `&&` chain or a git hook.
+Exit code 0 only when everything passed. `.testing.lua` runs every file in an
+editor of its own, started like the old CI line (`-c "lua dofile(...)"`), and
+`TESTS/minimal_init.lua` puts the plugin and `lib.nvim` on the runtimepath and
+calls `require("gopath").setup({})` first, as the old unit runner did.
 
-While working on one area, `GOPATH_SPEC` filters the unit suite to the spec
-files whose name contains the given substring:
-
-```sh
-GOPATH_SPEC=tailsearch nvim --headless --noplugin -u NONE \
-  --cmd "set runtimepath+=$LIB" -c "lua dofile('scripts/ci/unit_tests.lua')"
-```
+Known issue: two checks of `env_shorten_spec.lua` ("a selection holding a path
+with spaces ...", "a selection keeps the whitespace ...") rely on the working
+directory not lying below a directory named `repos`. The old single-process
+runner hid that, because `create_open_spec.lua` leaves the cwd in a temp
+directory; run per file they are red in a checkout such as `E:/repos/gopath.nvim`
+and green in CI (checkout paths without a `repos` segment).
 
 `ui.nvim` is **not** required. Where a module prefers `ui.kit` (the
 create-on-missing dialog, the alternate picker, the PDF chooser, the ambiguous
 probe) the specs supply a stand-in and assert what it was offered, so the
 suites behave the same whether or not ui.nvim happens to be installed.
 
-## The three runners
+## The three suites
 
-| Runner | What it is for |
+| Suite | What it is for |
 | --- | --- |
 | `scripts/ci/headless_tests.lua` | The plugin loads, `setup({})` runs, and no guide under `TESTS/` has bit-rotted into a syntax error or a `require` of a module that no longer exists. |
 | `scripts/ci/functional_tests.lua` | End-to-end resolution, written as one flat file: the Lua table/symbol locators (Treesitter-first *and* the no-parser fallback), the URL phases as they behave inside the real pipeline, the alternate frecency ceiling against a real store, and the two curated-array config cases. |
-| `scripts/ci/unit_tests.lua` | Runs every `scripts/ci/specs/*_spec.lua`. Per-module behaviour for everything else. |
+| `scripts/ci/specs/*_spec.lua` | One file per module (dialect `h` of testing.nvim, on `scripts/ci/harness.lua`). Per-module behaviour for everything else. |
 
 A spec file is a module returning `function(H)`, where `H` is
 `scripts/ci/harness.lua`: `H.check` / `H.eq` / `H.same` / `H.match` /

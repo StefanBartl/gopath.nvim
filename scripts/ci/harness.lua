@@ -4,8 +4,8 @@
 -- Deliberately the same shape as the `check()` + `assert_eq()` pair that
 -- scripts/ci/functional_tests.lua has always used -- this is that harness,
 -- lifted out so more than one file can use it, not a new framework. Specs are
--- plain Lua modules returning `function(H) ... end`; scripts/ci/unit_tests.lua
--- discovers and runs them.
+-- plain Lua modules returning `function(H) ... end`; testing.nvim (dialect h,
+-- see .testing.lua) discovers and runs them via scripts/test.sh.
 --
 -- What it adds over the inline version:
 --   * fixture helpers that write real files under vim.fn.tempname()
