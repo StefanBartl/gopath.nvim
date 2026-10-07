@@ -625,6 +625,28 @@ return function(H)
     H.match(joined, "lib%.nvim detected", "lib.nvim is on the runtimepath in this run")
   end)
 
+  H.check("health.check: never touches the deprecated vim.lsp.get_active_clients", function()
+    local called = false
+    local function no_op() end
+    local recorder = { start = no_op, ok = no_op, warn = no_op, error = no_op, info = no_op }
+    local real = vim.lsp.get_active_clients
+    H.fresh("gopath.health") -- it binds vim.health.* at load time
+    -- Neovim 0.12 raises a deprecation warning on the CALL, not on the lookup.
+    vim.lsp.get_active_clients = function()
+      called = true
+      return {}
+    end
+    local ok, err = pcall(function()
+      H.with_field(vim, "health", recorder, function()
+        require("gopath.health").check()
+      end)
+    end)
+    vim.lsp.get_active_clients = real
+    H.fresh("gopath.health")
+    if not ok then error(err, 0) end
+    H.falsy(called, "get_clients exists, so the legacy name is not called")
+  end)
+
   -- ── setup ──────────────────────────────────────────────────────────────────
 
   H.check("setup: merges the config and wires the bindings exactly once", function()
