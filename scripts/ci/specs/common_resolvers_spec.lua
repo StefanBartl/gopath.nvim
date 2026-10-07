@@ -650,11 +650,16 @@ return function(H)
 
   H.check("env_path: $NVIM_CONFIG_DIR resolves via stdpath('config') by default", function()
     H.config_sandbox(function()
+      local saved = vim.env.NVIM_CONFIG_DIR
       vim.env.NVIM_CONFIG_DIR = nil
-      H.line_at("open $NVIM_CONFIG_DIR", "NVIM_CONFIG", { filetype = "lua" })
-      local r = env_path.resolve()
-      H.truthy(r, "resolved without any env var being set")
-      H.eq((r.path:gsub("\\", "/")), (vim.fn.stdpath("config"):gsub("\\", "/")))
+      local ok, err = pcall(function()
+        H.line_at("open $NVIM_CONFIG_DIR", "NVIM_CONFIG", { filetype = "lua" })
+        local r = env_path.resolve()
+        H.truthy(r, "resolved without any env var being set")
+        H.eq((r.path:gsub("\\", "/")), (vim.fn.stdpath("config"):gsub("\\", "/")))
+      end)
+      vim.env.NVIM_CONFIG_DIR = saved
+      if not ok then error(err, 0) end
     end)
   end)
 

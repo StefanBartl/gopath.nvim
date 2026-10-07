@@ -600,6 +600,16 @@ local function known_dir_pairs()
   return pairs_list
 end
 
+---Directory of the current buffer's file, or "" for a buffer without a name:
+---`expand("%:p:h")` would answer the cwd there, and a relative path is not
+---relative to the cwd of whatever process happens to run.
+---@internal
+---@return string
+local function buffer_dir()
+  if vim.api.nvim_buf_get_name(0) == "" then return "" end
+  return vim.fn.expand("%:p:h")
+end
+
 ---Apply `M.shorten` to the current line (or, with `opts.selection`, just the
 ---visually selected span of it -- `:'<,'>GopathToReposDir`) in place, using
 ---the configured `env_variable_resolution.shorten_dirs` map (default
@@ -624,10 +634,10 @@ function M.shorten_current_line(opts)
     replace_span(span.row, span.start_col, span.end_col, function(text)
       local literal, n = M.shorten(text, pairs_list)
       if n > 0 then return literal, n end
-      local bufdir = vim.fn.expand("%:p:h")
-      local relative = shorten_relative_candidate(text, bufdir, apply)
-      if relative then return relative, 1 end
+      local bufdir = buffer_dir()
       local lead, core, trail = text:match("^(%s*)(.-)(%s*)$")
+      local relative = shorten_relative_candidate(core, bufdir, apply)
+      if relative then return lead .. relative .. trail, 1 end
       local bare = shorten_bare_relative(core, bufdir, apply, roots)
       if bare then return lead .. bare .. trail, 1 end
       return text, 0
@@ -635,7 +645,7 @@ function M.shorten_current_line(opts)
     return
   end
 
-  local bufdir = vim.fn.expand("%:p:h")
+  local bufdir = buffer_dir()
   replace_line(vim.api.nvim_win_get_cursor(0)[1], function(line)
     local after_md, n_md = shorten_markdown_links(line, bufdir, apply)
     local after_lit, n_lit = M.shorten(after_md, pairs_list)
@@ -672,10 +682,10 @@ function M.shorten_current_line_known(opts)
     replace_span(span.row, span.start_col, span.end_col, function(text)
       local literal, n = M.shorten_known(text, pairs_list)
       if n > 0 then return literal, n end
-      local bufdir = vim.fn.expand("%:p:h")
-      local relative = shorten_relative_candidate(text, bufdir, apply)
-      if relative then return relative, 1 end
+      local bufdir = buffer_dir()
       local lead, core, trail = text:match("^(%s*)(.-)(%s*)$")
+      local relative = shorten_relative_candidate(core, bufdir, apply)
+      if relative then return lead .. relative .. trail, 1 end
       local bare = shorten_bare_relative(core, bufdir, apply, pairs_list)
       if bare then return lead .. bare .. trail, 1 end
       return text, 0
@@ -683,7 +693,7 @@ function M.shorten_current_line_known(opts)
     return
   end
 
-  local bufdir = vim.fn.expand("%:p:h")
+  local bufdir = buffer_dir()
   replace_line(vim.api.nvim_win_get_cursor(0)[1], function(line)
     local after_md, n_md = shorten_markdown_links(line, bufdir, apply)
     local after_lit, n_lit = M.shorten_known(after_md, pairs_list)

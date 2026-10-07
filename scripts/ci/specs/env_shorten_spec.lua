@@ -883,6 +883,23 @@ return function(H)
     end)
   end)
 
+  H.check("an unnamed buffer does not resolve relative paths against the cwd", function()
+    with_root(function(root)
+      local old = vim.fn.getcwd()
+      -- A cwd below a folder named like a shorten_dirs segment: resolving
+      -- "proj-b/..." against it would yield $REPOS_DIR/<cwd dirs>/proj-b/....
+      local cwd = H.write(root .. "/repos/work/keep", { "x" }):gsub("/keep$", "")
+      vim.cmd.cd(vim.fn.fnameescape(cwd))
+      local ok, err = pcall(function()
+        H.buf({ "see proj-b/README.md ok" })
+        ES.shorten_current_line()
+        H.eq(vim.api.nvim_get_current_line(), "see $REPOS_DIR/proj-b/README.md ok")
+      end)
+      vim.cmd.cd(vim.fn.fnameescape(old))
+      if not ok then error(err, 0) end
+    end)
+  end)
+
   H.check("a selection keeps the whitespace around the path it rewrites", function()
     with_root(function()
       H.buf({ "a  proj-b/README.md  b" })

@@ -31,7 +31,11 @@ H.assertions = 0
 ---@return nil
 function H.check(name, fn)
   H.checks = H.checks + 1
+  -- A check may legitimately move the cwd (create.lua's "open in filetree"
+  -- does `:cd`); the next check must not inherit that.
+  local cwd = vim.fn.getcwd()
   local ok, err = pcall(fn)
+  if vim.fn.getcwd() ~= cwd then pcall(vim.cmd.cd, vim.fn.fnameescape(cwd)) end
   if ok then
     print(("[ OK ] %s"):format(name))
   else

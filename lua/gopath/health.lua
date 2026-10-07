@@ -91,12 +91,15 @@ end
 ---@internal
 local function check_lsp()
   start_s("LSP")
-  -- `get_active_clients` is the pre-0.10 name and deprecated since; it is
-  -- reached only when `get_clients` is absent, which is the whole point of
-  -- the fallback.
-  ---@diagnostic disable-next-line: deprecated
-  local fallback = vim.lsp.get_active_clients and vim.lsp.get_active_clients()
-  local clients = (vim.lsp.get_clients and vim.lsp.get_clients()) or fallback or {}
+  local clients
+  if vim.lsp.get_clients then
+    clients = vim.lsp.get_clients()
+  else
+    -- `get_active_clients` is the pre-0.10 name, deprecated since; it is only
+    -- looked at (and only called) when `get_clients` is absent.
+    ---@diagnostic disable-next-line: deprecated
+    clients = vim.lsp.get_active_clients and vim.lsp.get_active_clients() or {}
+  end
   if #clients > 0 then
     local names = {}
     for _, c in ipairs(clients) do
