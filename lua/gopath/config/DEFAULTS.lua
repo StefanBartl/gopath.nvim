@@ -121,6 +121,11 @@ return {
     similarity_threshold = 75,
     cache_roots = nil,
     max_depth = 6,
+    -- Most file paths one cache build indexes (breadth-first, so the shallow
+    -- levels of every root survive). Bounds the size of the cache file and the
+    -- startup cost of loading it when a root is huge (e.g. a session started in
+    -- %TEMP%); beyond the cap the live search takes over.
+    max_paths = 300000,
     excluded_dirs = {
       ".git",
       ".github",

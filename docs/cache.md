@@ -94,7 +94,14 @@ conservative — we do **not** index a whole drive by default):
 
 Each root is walked up to `truncated.max_depth` levels deep (default **6**),
 skipping `truncated.excluded_dirs` (`.git`, `node_modules`, `target`, `build`,
-`.cache`, …).
+`.cache`, …). One build indexes at most `truncated.max_paths` files (default
+**300000**). The walk is breadth-first, so when a root is huge — a session
+started in `%TEMP%` or in the profile directory, say — the shallow levels of
+every root survive the cut, the deeper ones are left to the live search, and a
+one-time warning names the cap. For scale: a normal session indexes ~35,000
+paths, a working directory of the profile directory ~207,000, and an unbounded
+walk of a `%TEMP%` full of agent worktrees reached 727,000 paths (a 122 MB file
+whose load blocked startup for ~3 s).
 
 A build is triggered:
 
@@ -144,6 +151,12 @@ needs no external tools (`fd`/`rg` are used only by the synchronous
   different project is never adopted, even on a hash collision or a
   hand-copied file. It is rewritten after each build and loaded on startup so
   the very first lookup of a session is already fast.
+- **Pruning:** every distinct root set owns a file, so every new working
+  directory would leave one behind. After each successful write, the
+  `gopath_fs_cache*.json` files next to the live one that nobody has rewritten
+  for **14 days** are deleted (asynchronously; files of any other name are never
+  touched, and nothing is deleted unless the live file really landed on disk).
+  A root set that is used again after that simply rescans once.
 
 ---
 
@@ -266,6 +279,7 @@ require("gopath").setup({
     similarity_threshold   = 75,     -- 0–100; filename similarity for disambiguation
     cache_roots            = nil,    -- nil = auto-detect (cwd, stdpaths, git root)
     max_depth              = 6,      -- max directory depth per root
+    max_paths              = 300000, -- most files one build indexes (shallow levels first)
     excluded_dirs          = { ".git", "node_modules", "target", "build", ".cache" },
     auto_rebuild_on_save   = false,  -- rebuild (debounced) on BufWritePost
   },
@@ -300,6 +314,10 @@ limit) — see the [configuration.md](configuration.md).
   `similarity_threshold`.
 - **Build feels heavy.** Lower `max_depth`, extend `excluded_dirs`, or pin
   `cache_roots` to just the directories you care about.
+- **"The path cache stopped at … files".** A scan root is huge (usually the
+  working directory: `%TEMP%`, the profile directory). Pin `cache_roots` to the
+  project instead, or raise `max_paths` if you really want the whole tree
+  indexed — at the price of a bigger JSON file and a slower startup load.
 - **Want a wider net.** Set `cache_roots` explicitly (e.g. a whole project
   drive) — but note a bigger index means slower builds and a larger JSON file.
 

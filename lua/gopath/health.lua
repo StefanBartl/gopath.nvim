@@ -394,6 +394,7 @@ local function check_truncated()
     end
     info_s("  use_cache  = " .. tostring(cfg.truncated.use_cache ~= false))
     info_s("  max_depth  = " .. tostring(cfg.truncated.max_depth or 6))
+    info_s("  max_paths  = " .. tostring(cfg.truncated.max_paths or 300000))
   else
     warn_s("Could not load cache from disk", { "Run :Gopath cache build" })
   end

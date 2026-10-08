@@ -140,6 +140,7 @@ require("gopath").setup({
     similarity_threshold   = 75,
     cache_roots            = nil,   -- nil = auto-detect drives/stdpaths
     max_depth              = 6,
+    max_paths              = 300000, -- most files one cache build indexes
     excluded_dirs          = { ".git", "node_modules", "target", "build", ".cache" },
     auto_rebuild_on_save   = false,
   },

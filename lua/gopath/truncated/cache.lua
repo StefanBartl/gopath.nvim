@@ -54,12 +54,22 @@ end
 ---@field excluded_dirs? string[] Directories to skip during scan
 ---@field cache_file? string Path to persistent cache file
 ---@field scan_roots? string[] Directories/drives to scan
+---@field max_paths? integer Most file paths one build indexes (shallow levels first)
 
 ---Default cache configuration
 ---User can override via gopath.setup({ truncated = { cache_roots = {...} } })
 ---@type CacheConfig
 local config = {
   max_depth = 6, -- Don't descend too deep (performance)
+
+  -- Most file paths one build indexes. Without a bound, a scan root that
+  -- happens to be huge (the cwd of a session started in %TEMP% or the profile
+  -- directory) produced a 122 MB cache file of 727,000 paths whose load, decode
+  -- and `reindex` blocked startup for ~3 s, and every rebuild again for ~2 s.
+  -- The scan is breadth-first, so what survives the cap are the shallow levels
+  -- of every root; the live search still covers a miss. Measured: a normal
+  -- session indexes ~35,000 paths, a cwd of the profile directory ~207,000.
+  max_paths = 300000,
 
   -- Maximum number of directories scanned concurrently. Bounding this prevents
   -- libuv threadpool / open-file-handle exhaustion (EMFILE) on huge trees.
@@ -118,13 +128,18 @@ end
 ---once per index rather than per query. `M.search` used to derive it inline for
 ---every cached path on every lookup — two string allocations × 20k+ paths ×
 ---every keystroke-triggered resolve. Keep the two arrays index-aligned.
----@type { paths: string[], norm: string[], last_built: integer|nil, building: boolean }
+---@type { paths: string[], norm: string[], last_built: integer|nil, building: boolean, capped: boolean }
 local state = {
   paths = {}, -- All indexed file paths
   norm = {}, -- paths[i] lowercased with "/" separators
   last_built = nil, -- Unix timestamp of last cache build
   building = false, -- Flag to prevent concurrent builds
+  capped = false, -- The last build stopped at `config.max_paths`
 }
+
+---Whether the "path cache is capped" warning was already shown this session.
+---@type boolean
+local cap_warned = false
 
 ---Rebuild the `norm` mirror of `state.paths`.
 ---@internal
@@ -203,6 +218,10 @@ function M.setup(opts)
   -- === Apply Other Config Options ===
   if opts.max_depth then config.max_depth = opts.max_depth end
 
+  if type(opts.max_paths) == "number" and opts.max_paths > 0 then
+    config.max_paths = opts.max_paths
+  end
+
   if opts.excluded_dirs then config.excluded_dirs = opts.excluded_dirs end
 end
 
@@ -225,12 +244,15 @@ end
 ---
 ---@internal
 ---@param roots string[] Root directories to scan
----@param on_done fun(paths: string[]) Called once with every discovered file path
+---@param on_done fun(paths: string[], capped: boolean) Called once with every discovered file path;
+---  `capped` is true when the scan stopped at `config.max_paths` before it had seen everything
 local function scan_roots_bounded(roots, on_done)
   local queue = {} -- pending { dir=string, depth=integer } items
   local results = {} -- accumulated file paths
   local active = 0 -- in-flight fs_scandir operations
   local qhead = 1 -- queue read cursor (avoids table.remove shifts)
+  local capped = false -- `config.max_paths` reached: collect and descend no further
+  local max_paths = config.max_paths
 
   for i = 1, #roots do
     queue[#queue + 1] = { dir = roots[i], depth = 0 }
@@ -255,7 +277,11 @@ local function scan_roots_bounded(roots, on_done)
 
         local full_path = item.dir .. "/" .. name
         if typ == "file" then
-          results[#results + 1] = full_path
+          if #results < max_paths then
+            results[#results + 1] = full_path
+          else
+            capped = true
+          end
         elseif typ == "directory" and not is_excluded(name) and item.depth < config.max_depth then
           queue[#queue + 1] = { dir = full_path, depth = item.depth + 1 }
         end
@@ -269,6 +295,10 @@ local function scan_roots_bounded(roots, on_done)
   ---Fill available concurrency slots from the queue; finish when fully drained.
   ---@internal
   pump = function()
+    -- At the cap nothing queued can add a path any more: drop the rest of the
+    -- queue instead of listing every remaining directory for nothing.
+    if capped then qhead = #queue + 1 end
+
     while active < config.max_concurrency and qhead <= #queue do
       local item = queue[qhead]
       qhead = qhead + 1
@@ -276,13 +306,13 @@ local function scan_roots_bounded(roots, on_done)
       scan_one(item)
     end
 
-    if active == 0 and qhead > #queue then on_done(results) end
+    if active == 0 and qhead > #queue then on_done(results, capped) end
   end
 
   -- Empty input → complete immediately on next tick.
   if #queue == 0 then
     vim.schedule(function()
-      on_done(results)
+      on_done(results, false)
     end)
   else
     pump()
@@ -317,8 +347,9 @@ function M.build_async(callback)
   end
 
   -- === Single bounded-concurrency scan across all roots ===
-  scan_roots_bounded(roots, function(paths)
+  scan_roots_bounded(roots, function(paths, capped)
     state.paths = paths
+    state.capped = capped
     reindex()
     M._finalize_build(callback)
   end)
@@ -337,6 +368,19 @@ function M._finalize_build(callback)
     state.last_built = os.time()
     state.building = false
 
+    -- Said once per session, not per build: the periodic refresh would repeat it
+    -- every few minutes for as long as the roots stay too big.
+    if state.capped and not cap_warned then
+      cap_warned = true
+      LOG.warn(
+        string.format(
+          "the path cache stopped at %d files (truncated.max_paths) -- deeper levels are left "
+            .. "to the live search; narrow truncated.cache_roots to index the project itself",
+          config.max_paths
+        )
+      )
+    end
+
     M._save_to_disk()
 
     -- Build completion is reported by the caller (setup / :GopathCacheBuild);
@@ -344,6 +388,45 @@ function M._finalize_build(callback)
     LOG.debug(string.format("Cache built: %d files indexed", #state.paths))
 
     callback(true)
+  end)
+end
+
+---How long an idle roots set's cache file may sit untouched before it is
+---deleted. Every distinct scan-roots set owns its own file (PERF-46), so every
+---new working directory, agent worktree or scratch folder used to leave one
+---behind for good: 131 files and 564 MB had piled up. A root set that is used
+---again just rescans once.
+local PRUNE_AFTER_SECONDS = 14 * 24 * 3600
+
+---Delete the per-roots cache files next to the live one that nothing has
+---rewritten for `PRUNE_AFTER_SECONDS`. Does nothing unless the live file really
+---is on disk, so a faked or failed write never reaches into the directory.
+---
+---Asynchronous (`uv.fs_scandir` with a callback) and free of Vimscript, since
+---the callback runs in a libuv fast context. Only names of the exact shape this
+---module writes (`gopath_fs_cache.json`, `gopath_fs_cache_<hex>.json`) are
+---candidates, so `.tmp` leftovers and foreign files are never touched.
+---@internal
+---@return nil
+local function prune_stale_cache_files()
+  local live = config.cache_file
+  local dir, keep = live:match("^(.*)[/\\]([^/\\]+)$")
+  if not dir or not uv.fs_stat(live) then return end
+
+  uv.fs_scandir(dir, function(err, handle)
+    if err or not handle then return end
+    local now = os.time()
+    while true do
+      local name = uv.fs_scandir_next(handle)
+      if not name then break end
+      if name ~= keep and name:match("^gopath_fs_cache_?%x*%.json$") then
+        local full = dir .. "/" .. name
+        local st = uv.fs_stat(full)
+        if st and st.type == "file" and now - st.mtime.sec > PRUNE_AFTER_SECONDS then
+          uv.fs_unlink(full)
+        end
+      end
+    end
   end)
 end
 
@@ -358,7 +441,11 @@ function M._save_to_disk()
   }
 
   local ok, err = require("lib.nvim.fs.json").write(config.cache_file, data)
-  if not ok then LOG.error("Failed to write cache file: " .. tostring(err)) end
+  if ok then
+    prune_stale_cache_files()
+  else
+    LOG.error("Failed to write cache file: " .. tostring(err))
+  end
 end
 
 ---Load cache from disk

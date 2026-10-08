@@ -91,6 +91,7 @@
 ---@field similarity_threshold number For multiple match selection
 ---@field cache_roots table|nil
 ---@field max_depth number Maximum directory depth to scan
+---@field max_paths number Most file paths one cache build indexes (default 300000)
 ---@field excluded_dirs string[]|nil Directories to skip
 ---@field watch_patterns string[]|nil
 ---@field auto_rebuild_on_save boolean

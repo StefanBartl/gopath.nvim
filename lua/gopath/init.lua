@@ -29,6 +29,7 @@ local function _setup_cache(config)
   cache.setup({
     roots = tcfg.cache_roots,
     max_depth = tcfg.max_depth,
+    max_paths = tcfg.max_paths,
     excluded_dirs = tcfg.excluded_dirs,
   })
 
