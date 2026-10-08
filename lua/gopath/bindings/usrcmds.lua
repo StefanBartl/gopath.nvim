@@ -34,21 +34,27 @@ local M = {}
 local OPEN_MODES = { "edit", "split", "vsplit", "tab", "explorer", "filetree" }
 local PROBE_MODES = { "edit", "split", "vsplit", "explorer", "filetree" }
 
----Texts for the `mode` values that are not obvious from their spelling. The
----two reveal modes behave the same for `open` and `probe`; the default mode
----differs (`edit` for `open`, `vsplit` for `probe`), so each route gets its own
----table with the default marked.
+---Texts for the `mode` values a route offers (all of them, so the float shows no
+---bare rows). The two reveal modes behave the same for `open` and `probe`; the
+---default mode differs (`edit` for `open`, `vsplit` for `probe`), so each route
+---gets its own table with the default marked.
 ---@internal
+---@param values string[]  the modes the route offers (`probe` has no `tab`)
 ---@param default "edit"|"vsplit"
 ---@return table<string, string>
-local function mode_texts(default)
-  local texts = {
+local function mode_texts(values, default)
+  local all = {
     edit = "In the current window",
+    split = "In a horizontal split",
     vsplit = "In a vertical split",
+    tab = "In a new tab",
     explorer = "Reveal in the system file explorer",
     filetree = "Reveal in filetree.nvim (soft dependency)",
   }
-  texts[default] = texts[default] .. " (default)"
+  local texts = {}
+  for _, mode in ipairs(values) do
+    texts[mode] = all[mode] .. (mode == default and " (default)" or "")
+  end
   return texts
 end
 
@@ -134,7 +140,7 @@ local function register_gopath_cmd(config, commands)
           optional = true,
           enum = OPEN_MODES,
           desc = "Where to open the target; default: edit",
-          enum_desc = mode_texts("edit"),
+          enum_desc = mode_texts(OPEN_MODES, "edit"),
         },
       },
       desc = "Resolve & open the path under the cursor",
@@ -176,7 +182,7 @@ local function register_gopath_cmd(config, commands)
           optional = true,
           enum = PROBE_MODES,
           desc = "Where to open the match; default: vsplit",
-          enum_desc = mode_texts("vsplit"),
+          enum_desc = mode_texts(PROBE_MODES, "vsplit"),
         },
       },
       -- `range` is what makes `:'<,'>Gopath probe` reach the selection at all:
