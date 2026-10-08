@@ -883,22 +883,37 @@ return function(H)
     end)
   end)
 
-  H.check("an unnamed buffer does not resolve relative paths against the cwd", function()
+  -- An unnamed buffer has no directory: `expand("%:p:h")` answers the cwd there, and resolving
+  -- "proj-b/README.md" against it would yield `$NVIM_CONFIG_DIR/<cwd below the root>/proj-b/...`
+  -- whenever the cwd sits below a known directory. The cwd is `<root>/work` in both cases; the
+  -- harness restores it after each check.
+  H.check("an unnamed buffer: a selection is not resolved against the cwd", function()
     with_root(function(root)
-      local old = vim.fn.getcwd()
-      -- A cwd below a folder named like a shorten_dirs segment: resolving
-      -- "proj-b/..." against it would yield $REPOS_DIR/<cwd dirs>/proj-b/....
-      local cwd = H.write(root .. "/repos/work/keep", { "x" }):gsub("/keep$", "")
+      local cwd = H.write(root .. "/work/keep", { "x" }):gsub("/keep$", "")
       vim.cmd.cd(vim.fn.fnameescape(cwd))
-      local ok, err = pcall(function()
-        H.buf({ "see proj-b/README.md ok" })
-        ES.shorten_current_line()
-        H.eq(vim.api.nvim_get_current_line(), "see $REPOS_DIR/proj-b/README.md ok")
-      end)
-      vim.cmd.cd(vim.fn.fnameescape(old))
-      if not ok then error(err, 0) end
+      H.buf({ "proj-b/README.md" })
+      vim.api.nvim_buf_set_mark(0, "<", 1, 0, {})
+      vim.api.nvim_buf_set_mark(0, ">", 1, #"proj-b/README.md" - 1, {})
+      ES.shorten_current_line_known({ selection = true })
+      H.eq(vim.api.nvim_get_current_line(), "$NVIM_CONFIG_DIR/proj-b/README.md")
     end)
   end)
+
+  H.check(
+    "an unnamed buffer: a path that exists below the cwd is not taken for the file",
+    function()
+      with_root(function(root)
+        -- <cwd>/proj-b/README.md exists too: with the cwd as the buffer's directory it would be
+        -- "the file next to the buffer" and win over the one below the root.
+        local cwd = root .. "/work"
+        H.write(cwd .. "/proj-b/README.md", { "x" })
+        vim.cmd.cd(vim.fn.fnameescape(cwd))
+        H.buf({ "see proj-b/README.md ok" })
+        ES.shorten_current_line_known()
+        H.eq(vim.api.nvim_get_current_line(), "see $NVIM_CONFIG_DIR/proj-b/README.md ok")
+      end)
+    end
+  )
 
   H.check("a selection keeps the whitespace around the path it rewrites", function()
     with_root(function()
