@@ -20,6 +20,9 @@ return {
     ["*"] = "script",
   },
   deps = { "lib.nvim" },
+  -- gopath switches its whole keymap preset off with `mappings = false` (covered by the
+  -- "mappings = false binds nothing at all" case of scripts/ci/specs/wiring_spec.lua).
+  conformance = { keymaps_off = { mappings = false } },
   -- One editor per file, started like the old CI line (`-c "lua dofile(...)"`): the specs use
   -- vim.fn.expand("<cfile>"), which raises under `nvim -l`.
   isolated = "file",
