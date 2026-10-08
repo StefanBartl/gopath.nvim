@@ -28,15 +28,14 @@ return {
   isolated = "file",
   host = "c",
   -- Guards (testing.nvim docs/GUARDS.md). The suite passes the fs, state, scheduled-error, prompt
-  -- and process guards cleanly (each spec file runs in an editor of its own), so those are errors.
+  -- and deprecation guards cleanly (each spec file runs in an editor of its own), so those are
+  -- errors: a new call of a deprecated API turns the run red.
   guards = {
     fs = "error",
     state = "error",
     scheduled_error = "error",
     prompt = "error",
-    -- Real finding: lua/gopath/health.lua evaluates the deprecated vim.lsp.get_active_clients()
-    -- eagerly although it is meant to be reached only when vim.lsp.get_clients is absent.
-    deprecation = "warn",
+    deprecation = "error",
     -- warn, not error: the python resolver probes whichever interpreter the machine has (python,
     -- python3, python3.12, python3.14 ...); allow_exec matches exact names, so it cannot be listed.
     process_net = "warn",
