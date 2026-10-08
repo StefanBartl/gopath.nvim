@@ -147,6 +147,7 @@ local KNOWN = {
     similarity_threshold = true,
     cache_roots = "string_list",
     max_depth = "number",
+    max_paths = "number",
     excluded_dirs = "string_list",
     watch_patterns = true,
     auto_rebuild_on_save = true,

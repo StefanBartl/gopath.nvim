@@ -25,7 +25,9 @@ filesystem live.
   handler runs. The alias sets `complete = "dir"` for the same effect.
 - **Config:** `opts.truncated.enable` (default `true`),
   `opts.truncated.cache_roots` (default: auto-detected), `opts.truncated.
-  max_depth` (default `6`), `opts.truncated.excluded_dirs` (`.git`,
+  max_depth` (default `6`), `opts.truncated.max_paths` (default `300000`;
+  breadth-first, a huge root is cut at this many files and a one-time warning
+  says so), `opts.truncated.excluded_dirs` (`.git`,
   `.github`, `node_modules`, `target`, `build`, `.cache`, `venv`)
 
 ## Tail reconstruction
@@ -45,9 +47,11 @@ broken toward the shortest absolute path, or a `vim.ui.select` picker when
 ## On-disk persistence
 
 The in-memory index (`state.paths`) is mirrored to a versioned JSON file
-at `stdpath("cache") .. "/gopath_fs_cache.json"`, loaded on startup so the
-very first lookup of a session is already fast, and rewritten after every
-rebuild.
+at `stdpath("cache") .. "/gopath_fs_cache_<hash>.json"` (one file per set of
+scan roots), loaded on startup so the very first lookup of a session is
+already fast, and rewritten after every rebuild. After each successful write,
+sibling `gopath_fs_cache*.json` files that nobody has rewritten for 14 days are
+deleted, so abandoned working directories do not pile up.
 
 - **Module:** `truncated/cache.lua`
 

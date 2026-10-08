@@ -43,6 +43,7 @@ return function(H)
   -- check left behind.
   local BASE_SETUP = {
     max_depth = 6,
+    max_paths = 300000,
     excluded_dirs = { ".git", ".github", "node_modules", "target", "build", ".cache", "venv" },
   }
 
@@ -109,6 +110,39 @@ return function(H)
       .concat(build_over({ root }, { excluded_dirs = { ".git", "node_modules", "vendor" } }), "\n")
       :gsub("\\", "/")
     H.no_match(with_vendor, "/vendor/", "and excluding it explicitly does work")
+  end)
+
+  -- A huge root (a session started in %TEMP%) produced a 122 MB cache file of
+  -- 727,000 paths whose load blocked startup for ~3 s. `max_paths` bounds one
+  -- build; the scan is breadth-first, so the shallow levels survive the cap.
+  H.check("build_async: stops at max_paths and keeps the shallow levels", function()
+    local root = H.tmpdir()
+    H.write(root .. "/top1.lua", { "" })
+    H.write(root .. "/top2.lua", { "" })
+    for i = 1, 5 do
+      H.write(("%s/sub1/f%d.lua"):format(root, i), { "" })
+      H.write(("%s/sub2/f%d.lua"):format(root, i), { "" })
+    end
+
+    local paths
+    local notes = H.capture_notify(function()
+      paths = build_over({ root }, { max_paths = 4 })
+    end)
+    H.eq(#paths, 4, "the build stopped at the cap")
+    H.eq(cache._get_state().capped, true, "and says it was cut short")
+    H.match(H.notify_text(notes), "max_paths", "the cut-off is reported to the user")
+    local joined = table.concat(paths, "\n"):gsub("\\", "/")
+    H.match(joined, "/top1%.lua", "the root's own files are listed before anything deeper")
+    H.match(joined, "/top2%.lua")
+
+    local again = H.capture_notify(function()
+      build_over({ root }, { max_paths = 4 })
+    end)
+    H.eq(H.notify_text(again), "", "the warning is shown once per session, not per build")
+
+    local all = build_over({ root })
+    H.eq(#all, 12, "the default cap does not cut a small tree")
+    H.eq(cache._get_state().capped, false, "and a complete build is not flagged")
   end)
 
   H.check("build_async: a user-supplied exclusion list replaces the default one", function()
@@ -341,6 +375,56 @@ return function(H)
       H.eq(#store.written.paths, 1)
     end
   )
+
+  -- Every distinct scan-roots set owns its own cache file (PERF-46), so every new
+  -- working directory used to leave one behind for good: 131 files, 564 MB.
+  H.check("_save_to_disk: a cache file nobody rewrote for two weeks is pruned", function()
+    local dir = H.tmpdir()
+    local live = dir .. "/gopath_fs_cache_aaaaaaaa.json"
+    local old = H.write(dir .. "/gopath_fs_cache_deadbeef.json", { "{}" })
+    local old_legacy = H.write(dir .. "/gopath_fs_cache.json", { "{}" })
+    local fresh = H.write(dir .. "/gopath_fs_cache_cafebabe.json", { "{}" })
+    local old_tmp = H.write(dir .. "/gopath_fs_cache_deadbeef.json.tmp", { "{}" })
+    local foreign = H.write(dir .. "/notes.json", { "{}" })
+
+    local month_ago = os.time() - 30 * 24 * 3600
+    for _, f in ipairs({ old, old_legacy, old_tmp, foreign }) do
+      vim.uv.fs_utime(f, month_ago, month_ago)
+    end
+
+    H.with_field(cache._get_config(), "cache_file", live, function()
+      cache._save_to_disk()
+      H.truthy(
+        H.wait(function()
+          return vim.uv.fs_stat(old) == nil
+        end),
+        "the stale per-roots file was deleted"
+      )
+    end)
+
+    H.truthy(vim.uv.fs_stat(live), "the file just written is kept")
+    H.eq(vim.uv.fs_stat(old_legacy), nil, "the legacy fixed-name file is pruned the same way")
+    H.truthy(vim.uv.fs_stat(fresh), "a recently written file is kept")
+    H.truthy(vim.uv.fs_stat(old_tmp), "a name of another shape is never a candidate")
+    H.truthy(vim.uv.fs_stat(foreign), "a foreign file is never touched")
+  end)
+
+  H.check("_save_to_disk: a write that did not land prunes nothing", function()
+    local dir = H.tmpdir()
+    local live = dir .. "/gopath_fs_cache_aaaaaaaa.json" -- never created
+    local old = H.write(dir .. "/gopath_fs_cache_deadbeef.json", { "{}" })
+    local month_ago = os.time() - 30 * 24 * 3600
+    vim.uv.fs_utime(old, month_ago, month_ago)
+
+    H.with_modules(fake_persistence({ readable = false, write_ok = true }), function()
+      H.with_field(cache._get_config(), "cache_file", live, function()
+        cache._save_to_disk()
+        vim.wait(200) -- the prune is asynchronous; give a wrong one time to run
+      end)
+    end)
+
+    H.truthy(vim.uv.fs_stat(old), "no live file on disk, so nothing is deleted next to it")
+  end)
 
   -- ── cache: staleness and roots ─────────────────────────────────────────────
 

@@ -393,6 +393,7 @@ truncated = {
   live_search_fallback   = true,
   cache_roots            = nil,
   max_depth              = 6,
+  max_paths              = 300000,
   excluded_dirs          = { ".git", "node_modules", ... },
   auto_rebuild_on_save   = false,
 }
