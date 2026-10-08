@@ -34,6 +34,24 @@ local M = {}
 local OPEN_MODES = { "edit", "split", "vsplit", "tab", "explorer", "filetree" }
 local PROBE_MODES = { "edit", "split", "vsplit", "explorer", "filetree" }
 
+---Texts for the `mode` values that are not obvious from their spelling. The
+---two reveal modes behave the same for `open` and `probe`; the default mode
+---differs (`edit` for `open`, `vsplit` for `probe`), so each route gets its own
+---table with the default marked.
+---@internal
+---@param default "edit"|"vsplit"
+---@return table<string, string>
+local function mode_texts(default)
+  local texts = {
+    edit = "In the current window",
+    vsplit = "In a vertical split",
+    explorer = "Reveal in the system file explorer",
+    filetree = "Reveal in filetree.nvim (soft dependency)",
+  }
+  texts[default] = texts[default] .. " (default)"
+  return texts
+end
+
 ---Normalize open/probe mode strings to the keys used by commands.lua.
 ---@internal
 ---@param raw string
@@ -109,7 +127,16 @@ local function register_gopath_cmd(config, commands)
   local routes = {
     {
       path = { "open" },
-      args = { { name = "mode", type = "STRING", optional = true, enum = OPEN_MODES } },
+      args = {
+        {
+          name = "mode",
+          type = "STRING",
+          optional = true,
+          enum = OPEN_MODES,
+          desc = "Where to open the target; default: edit",
+          enum_desc = mode_texts("edit"),
+        },
+      },
       desc = "Resolve & open the path under the cursor",
       run = function(ctx)
         commands.goto_at_cursor(norm_mode(ctx.args.mode))
@@ -142,7 +169,16 @@ local function register_gopath_cmd(config, commands)
 
     {
       path = { "probe" },
-      args = { { name = "mode", type = "STRING", optional = true, enum = PROBE_MODES } },
+      args = {
+        {
+          name = "mode",
+          type = "STRING",
+          optional = true,
+          enum = PROBE_MODES,
+          desc = "Where to open the match; default: vsplit",
+          enum_desc = mode_texts("vsplit"),
+        },
+      },
       -- `range` is what makes `:'<,'>Gopath probe` reach the selection at all:
       -- without it the command is registered range-less, so ctx.range.range is
       -- always 0 and the probe can never tell a selection from a bare call.

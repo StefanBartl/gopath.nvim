@@ -6,7 +6,7 @@ return {
   plugin = "gopath",
   -- The automated suites live in scripts/ci (TESTS/ holds manual guides, see TESTS/README.md).
   roots = { "scripts/ci" },
-  -- The 19 `return function(H)` specs are named *_spec.lua; the two self-running scripts that the
+  -- The 20 `return function(H)` specs are named *_spec.lua; the two self-running scripts that the
   -- CI used to start one by one are named explicitly.
   spec_pattern = {
     "_spec%.lua$",

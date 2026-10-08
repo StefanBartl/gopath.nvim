@@ -155,7 +155,7 @@ Two house rules:
 
 ## Coverage
 
-82 files under `lua/`. 19 spec files under `scripts/ci/specs/`, 544 checks and
+82 files under `lua/`. 20 spec files under `scripts/ci/specs/`, 546 checks and
 about 1880 executed assertions, plus the 38 checks in `functional_tests.lua`
 and the 8 in `headless_tests.lua`.
 
@@ -180,6 +180,7 @@ and the 8 in `headless_tests.lua`.
 | `alternate_spec` | `alternate/`: directory helpers, the similarity matcher, the selection UI on both backends, and the callback contract both entry points hang on |
 | `wiring_spec` | `bindings/` (keymaps incl. overrides/lists/`false`, `:Gopath` and every alias, the autocommands), `open/help.lua`, `health.lua`, and `init.lua`'s `setup()` |
 | `menu_spec` | `integrations/menu.lua`: the right-click "Paths" entry -- cursor vs. live-visual-selection resolution, per-kind entry gating, ui.nvim absence, `commands.open_result` wiring |
+| `usrcmds_help_spec` | `bindings/usrcmds.lua` and lib.nvim's option float: `composer.help.undocumented("Gopath", { args = true })` is empty (the `mode` texts of `open`/`probe`), the texts stay one line / no trailing period / at most 80 characters, and every `enum_desc` key is a real value |
 
 ## Bugs pinned by a regression assertion
 
