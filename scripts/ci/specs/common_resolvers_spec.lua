@@ -178,6 +178,14 @@ return function(H)
     end
   )
 
+  H.check("by_extension: a link to a mail file is found like one to a PDF", function()
+    local out = find.by_extension("[SolMan](docs/mail/Anfrage.msg)")
+    H.truthy(#out >= 1, "the .msg candidate was extracted")
+    H.eq(out[1].path, "docs/mail/Anfrage.msg", "and the unbalanced ')' was dropped")
+    -- A field of that name in code has no separator in front of it: not path-like, not a candidate.
+    H.same(find.by_extension("print(err.msg)"), {}, "err.msg in code is no path")
+  end)
+
   H.check("by_extension: a user's external.extensions reach the line extractor too", function()
     H.config_sandbox(function(c)
       H.same(find.by_extension("[b](books/x.epub)"), {}, "not known yet")

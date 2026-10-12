@@ -60,6 +60,20 @@ return function(H)
     H.eq(detector.is_external_file("x.pdf", { "epub" }), true, "built-ins still apply")
   end)
 
+  H.check("detector: mail files go to the mail client, never into a buffer", function()
+    for _, name in ipairs({ "inbox/case.msg", "case.EML", [[C:\mail\template.oft]] }) do
+      H.eq(detector.is_external_file(name), true, name)
+    end
+    H.contains(detector.extensions(), "msg")
+    H.eq(detector.is_external_file("src/msg.lua"), false, "'msg' in the name is not the extension")
+    H.eq(
+      detector.is_external_file("opts.msgpack"),
+      false,
+      "nor is an extension that starts with it"
+    )
+    H.eq(detector.is_external_file("opts.msg_handler"), false, "nor a field name that does")
+  end)
+
   -- ── external.should_open_externally ────────────────────────────────────────
 
   H.check("should_open_externally reads the live config", function()
