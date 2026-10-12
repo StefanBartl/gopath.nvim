@@ -48,7 +48,9 @@ require("gopath").setup({
     },
   },
 
-  -- External file opener (images, PDFs, etc.)
+  -- External file opener (images, PDFs, Office files, archives, media, mail
+  -- files .msg/.eml/.oft — the last open in the mail client, never as a
+  -- binary buffer)
   external = {
     enable     = true,
     extensions = nil,  -- string[] of extra extensions, EXTENDS the built-in list
