@@ -28,6 +28,10 @@ local EXTERNAL_EXTENSIONS = {
   "odt",
   "ods",
   "odp",
+  -- Mail files: binary containers that only their mail client can show
+  "msg",
+  "eml",
+  "oft",
   -- Archives
   "zip",
   "tar",
