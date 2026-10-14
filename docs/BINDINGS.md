@@ -130,12 +130,14 @@ dispatcher itself.
 
 ## Autocommands
 
-Two autocommands, registered from `lua/gopath/bindings/autocmds.lua`:
+Four autocommands. The first two are registered from `lua/gopath/bindings/autocmds.lua`, the last two by the Lua resolvers when they load:
 
 | Event | Group | Enabled when | Action |
 | --- | --- | --- | --- |
 | `BufWritePost` | `GopathPathCacheInvalidate` | always | Drop the path-lookup directory caches (`path.invalidate_caches`) |
 | `BufWritePost` | `GopathCacheAutoRebuild` | `truncated.auto_rebuild_on_save = true` | Debounced (≤ once/5min) filesystem cache rebuild, matching `truncated.watch_patterns` (default `*.lua`, `*.vim`) |
+| `BufDelete`, `BufWipeout` | `GopathAliasIndexCleanup` | always | Drop the cached alias map of the deleted buffer (`resolvers.lua.alias_index`) |
+| `BufDelete`, `BufWipeout` | `GopathBindingIndexCleanup` | always | Drop the cached binding map of the deleted buffer (`resolvers.lua.binding_index`) |
 
 The second is disabled by default (`auto_rebuild_on_save = false`).
 

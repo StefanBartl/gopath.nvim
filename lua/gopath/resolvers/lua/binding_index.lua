@@ -76,12 +76,11 @@ function M.get_map()
   return map
 end
 
-autocmd.create(
-  { "BufDelete", "BufWipeout" },
-  function(args)
-    cache[args.buf] = nil
-  end,
-  { desc = "gopath.resolvers.lua.binding_index: drop the cached binding map for a deleted buffer" }
-)
+autocmd.create({ "BufDelete", "BufWipeout" }, function(args)
+  cache[args.buf] = nil
+end, {
+  group = autocmd.group("GopathBindingIndexCleanup", true),
+  desc = "gopath.resolvers.lua.binding_index: drop the cached binding map for a deleted buffer",
+})
 
 return M
