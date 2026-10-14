@@ -81,6 +81,9 @@ end
 
 autocmd.create({ "BufDelete", "BufWipeout" }, function(args)
   cache[args.buf] = nil
-end, { desc = "gopath.resolvers.lua.alias_index: drop the cached alias map for a deleted buffer" })
+end, {
+  group = autocmd.group("GopathAliasIndexCleanup", true),
+  desc = "gopath.resolvers.lua.alias_index: drop the cached alias map for a deleted buffer",
+})
 
 return M
