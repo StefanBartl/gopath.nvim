@@ -106,11 +106,11 @@ require("gopath").setup({
 
     -- Both reverse commands also place a BARE RELATIVE path that was
     -- abbreviated from the middle -- e.g.
-    -- `wkdbook-myplugins/casedesk.nvim/ROADMAP/ROADMAP.md`: the directory
+    -- `team-notes/project.nvim/ROADMAP/ROADMAP.md`: the directory
     -- named by its first segment is searched for below the command's root
     -- ($REPOS_DIR's value / the known dir), and when the WHOLE path exists
     -- there it becomes
-    -- `$REPOS_DIR/WKDBooks/Development/wkdbook-myplugins/casedesk.nvim/...`.
+    -- `$REPOS_DIR/Notes/team-notes/casedesk.nvim/...`.
     -- URLs, `./`-paths and `$VAR` paths are never touched. A variable that
     -- is not set on this machine has no root to search under.
     root_search = {

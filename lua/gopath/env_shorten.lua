@@ -408,7 +408,7 @@ local function find_dir_under(root, name, ctx, o, accept)
 end
 
 ---Locate a bare relative path (`first/rest`, e.g.
----`wkdbook-myplugins/casedesk.nvim/ROADMAP/ROADMAP.md`) below one of
+---`team-notes/project.nvim/ROADMAP/ROADMAP.md`) below one of
 ---`roots`: the directory named by its first segment is searched for under
 ---each root (a few levels deep -- the path was typically abbreviated from the
 ---middle), and the whole path must then exist. Existence is required on
