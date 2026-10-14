@@ -26,6 +26,29 @@ return {
     -- gated: a failed check makes `scripts/test.sh conformance` exit 1
     gate = true,
     keymaps_off = { mappings = false },
+    waivers = {
+      {
+        check = "K1",
+        level = "warn",
+        file = "lua/gopath/init.lua",
+        reason = "the 4 autocmds are cache invalidation (BufDelete/BufWipeout) of the lua alias and binding indexes, created when those resolver modules load via gopath.commands; deferring them would change when stale entries are dropped",
+        expires = "2027-04-14",
+      },
+      {
+        check = "K6",
+        level = "warn",
+        text = "Cache is empty",
+        reason = "the minimal conformance editor has never run :Gopath cache build; an empty filesystem index is a normal state there",
+        expires = "2027-04-14",
+      },
+      {
+        check = "K13",
+        level = "warn",
+        text = ":Gopath is a prefix of",
+        reason = ":Gopath is the plugin's own compound command and GopathXxx its per-subcommand commands (same family); renaming either would break users",
+        expires = "2027-04-14",
+      },
+    },
   },
   -- One editor per file, started like the old CI line (`-c "lua dofile(...)"`): the specs use
   -- vim.fn.expand("<cfile>"), which raises under `nvim -l`.

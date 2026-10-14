@@ -117,7 +117,7 @@
 ---@field root_search? GopathRootSearch Locate bare relative paths below the shorten roots. Default: enabled.
 
 ---@class GopathRootSearch
----@field enable? boolean Default: true. Let :GopathToReposDir / :GopathToNvimDir prefix a bare relative path (`wkdbook-x/proj/README.md`) found below a root.
+---@field enable? boolean Default: true. Let :GopathToReposDir / :GopathToNvimDir prefix a bare relative path (`team-notes/proj/README.md`) found below a root.
 ---@field max_depth? integer Default: 3. How many directory levels below a root the path's first segment may sit.
 ---@field max_dirs? integer Default: 4000. Upper bound on directories scanned per lookup.
 
