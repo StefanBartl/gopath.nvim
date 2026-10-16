@@ -143,8 +143,11 @@ require("gopath").setup({
     cache_roots            = nil,   -- nil = auto-detect drives/stdpaths
     max_depth              = 6,
     max_paths              = 300000, -- most files one cache build indexes
-    excluded_dirs          = { ".git", "node_modules", "target", "build", ".cache" },
+    excluded_dirs          = { ".git", ".github", "node_modules", "target", "build", ".cache", "venv" },
     auto_rebuild_on_save   = false,
+    -- Which saves rebuild the cache when auto_rebuild_on_save is on. DEFAULTS.lua holds nil here and
+    -- bindings/autocmds.lua applies { "*.lua", "*.vim" }, so that is the effective default.
+    watch_patterns         = nil,   -- nil = { "*.lua", "*.vim" }
   },
 
   -- Keymaps (false = disabled, string | string[] = key(s))
@@ -168,6 +171,8 @@ require("gopath").setup({
     copy    = true,
     debug   = true,
     check   = true,
+    to_repos_dir = true,
+    to_nvim_dir  = true,
   },
 
   -- Label the probe keymap via which-key.nvim, if installed (no-op otherwise)
