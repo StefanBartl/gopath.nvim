@@ -93,8 +93,8 @@ conservative — we do **not** index a whole drive by default):
 | Git repository root | nearest ancestor holding a `.git` marker, via `lib.nvim.fs.find_root` (if inside a repo) |
 
 Each root is walked up to `truncated.max_depth` levels deep (default **6**),
-skipping `truncated.excluded_dirs` (`.git`, `node_modules`, `target`, `build`,
-`.cache`, …). One build indexes at most `truncated.max_paths` files (default
+skipping `truncated.excluded_dirs` (`.git`, `.github`, `node_modules`, `target`,
+`build`, `.cache`, `venv`). One build indexes at most `truncated.max_paths` files (default
 **300000**). The walk is breadth-first, so when a root is huge — a session
 started in `%TEMP%` or in the profile directory, say — the shallow levels of
 every root survive the cut, the deeper ones are left to the live search, and a
@@ -280,7 +280,7 @@ require("gopath").setup({
     cache_roots            = nil,    -- nil = auto-detect (cwd, stdpaths, git root)
     max_depth              = 6,      -- max directory depth per root
     max_paths              = 300000, -- most files one build indexes (shallow levels first)
-    excluded_dirs          = { ".git", "node_modules", "target", "build", ".cache" },
+    excluded_dirs          = { ".git", ".github", "node_modules", "target", "build", ".cache", "venv" },
     auto_rebuild_on_save   = false,  -- rebuild (debounced) on BufWritePost
   },
 })
