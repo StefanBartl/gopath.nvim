@@ -369,10 +369,13 @@ end
 -- ── Async probe (for commands) ───────────────────────────────────────────────
 
 ---Full probe flow: sanitize → search → disambiguate (vim.ui.select on ambiguity).
----Calls `on_done(GopathResult|nil)` when finished (may be async if user sees picker).
+---Calls `on_done(GopathResult|nil, reason?)` when finished (may be async if user
+---sees picker). `reason` is `"cancelled"` when the user dismissed the
+---disambiguation picker, so a caller can tell that apart from "nothing found"
+---(nil result, no reason).
 ---@param raw     string  raw token from visual selection or <cfile>
 ---@param opts    { roots?: string[], max_components?: integer, limit?: integer, ask?: boolean }
----@param on_done fun(result: table|nil)
+---@param on_done fun(result: table|nil, reason: "cancelled"|nil)
 function M.probe(raw, opts, on_done)
   if not raw or raw == "" then
     on_done(nil)
@@ -442,7 +445,7 @@ function M.probe(raw, opts, on_done)
           on_done(probe_result(choice, 0.85))
         end,
         on_cancel = function()
-          on_done(nil)
+          on_done(nil, "cancelled")
         end,
       })
       return
@@ -452,7 +455,11 @@ function M.probe(raw, opts, on_done)
       prompt = "gopath: multiple matches — pick one",
       format_item = format_item,
     }, function(choice)
-      on_done(choice and probe_result(choice, 0.85) or nil)
+      if choice == nil then
+        on_done(nil, "cancelled")
+        return
+      end
+      on_done(probe_result(choice, 0.85))
     end)
   end
 

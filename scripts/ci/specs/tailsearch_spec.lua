@@ -569,14 +569,15 @@ return function(H)
       ["gopath.truncated.cache"] = fake_cache({ ["c.lua"] = { "/x/c.lua", "/y/c.lua" } }),
       ["ui.kit"] = false,
     }, function()
-      local got = "unset"
+      local got, why = "unset", nil
       H.with_ui_select(nil, function()
-        TS.probe("c.lua", { ask = true }, function(r)
+        TS.probe("c.lua", { ask = true }, function(r, reason)
           calls = calls + 1
-          got = r
+          got, why = r, reason
         end)
       end)
       H.is_nil(got)
+      H.eq(why, "cancelled", "a dismissal is flagged, not 'nothing found'")
     end)
     H.eq(calls, 1, "on_done fires exactly once")
   end)
@@ -591,12 +592,13 @@ return function(H)
         end,
       },
     }, function()
-      local got = "unset"
-      TS.probe("c.lua", { ask = true }, function(r)
+      local got, why = "unset", nil
+      TS.probe("c.lua", { ask = true }, function(r, reason)
         calls = calls + 1
-        got = r
+        got, why = r, reason
       end)
       H.is_nil(got)
+      H.eq(why, "cancelled", "a dismissal is flagged, not 'nothing found'")
     end)
     H.eq(calls, 1, "on_done fires exactly once, as the contract promises")
   end)

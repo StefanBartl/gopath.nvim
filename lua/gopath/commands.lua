@@ -302,7 +302,11 @@ function M.probe_selection(opts)
     max_components = opts.max_components or ts_cfg.max_components or 6,
     limit = ts_cfg.limit or 100,
     ask = opts.ask ~= false and ts_cfg.ask_on_ambiguous ~= false,
-  }, function(res)
+  }, function(res, reason)
+    if reason == "cancelled" then
+      -- The user dismissed the disambiguation picker: not a failed search.
+      return
+    end
     if not res then
       LOG.warn("probe: no match found for '" .. raw .. "'")
       return
