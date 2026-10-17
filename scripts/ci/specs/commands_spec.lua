@@ -44,7 +44,7 @@ return function(H)
   ---@param found any
   ---@param record table
   ---@return table
-  local function fake_tailsearch(found, record)
+  local function fake_tailsearch(found, record, reason)
     local TS = require("gopath.resolvers.common.tailsearch")
     return {
       sanitize = TS.sanitize,
@@ -56,7 +56,7 @@ return function(H)
       end,
       probe = function(raw, opts, on_done)
         record.probe = { raw = raw, opts = opts }
-        on_done(found)
+        on_done(found, reason)
       end,
     }
   end
@@ -612,6 +612,21 @@ return function(H)
         end)
         H.eq(#calls.open, 0)
         H.match(H.notify_text(notes), "probe: no match found for 'a/b%.lua'")
+      end)
+    end)
+  end)
+
+  H.check("probe_selection: a cancelled choice is not reported as 'no match found'", function()
+    H.line_at("see a/b.lua now", "a/b", { filetype = "text" })
+    H.with_modules({
+      ["gopath.resolvers.common.tailsearch"] = fake_tailsearch(nil, {}, "cancelled"),
+    }, function()
+      with_commands(nil, nil, function(commands, calls)
+        local notes = H.capture_notify(function()
+          commands.probe_selection({})
+        end)
+        H.eq(#calls.open, 0)
+        H.eq(H.notify_text(notes):find("no match found", 1, true), nil, "a dismissal is silent")
       end)
     end)
   end)
