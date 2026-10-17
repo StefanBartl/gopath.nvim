@@ -94,10 +94,16 @@ require("gopath").setup({
     -- set for these. Two uses: :GopathToNvimDir / :Gopath to-nvim-dir
     -- rewrite LITERAL occurrences of the resolved directory (not a bare
     -- folder name -- avoids false positives) back to `$<key>`; and the
-    -- forward $VAR resolver above falls back here when no real environment
-    -- variable of that name is set (a real one always wins). A function is
-    -- called fresh each time -- needed for stdpath(), only known once
-    -- Neovim is running.
+    -- forward $VAR resolver above falls back here when neither a root of
+    -- lib.nvim's registry (lib.nvim.fs.roots) nor a real environment
+    -- variable of that name is set. A function is called fresh each time --
+    -- needed for stdpath(), only known once Neovim is running.
+    -- The values are resolved by that registry (passed per call, nobody
+    -- else sees them): a leading `~`, `$VAR` or `%VAR%` is expanded; a
+    -- relative path (on Windows also `/x`, which means "on the current
+    -- drive"), the filesystem root and a bare drive are refused, and so are
+    -- names other than letters, digits and `_`. A root of the same name in
+    -- your own `require("lib.nvim.fs.roots").setup({ extra = ... })` wins.
     shorten_known_dirs = {
       NVIM_CONFIG_DIR = function()
         return vim.fn.stdpath("config")
@@ -108,11 +114,12 @@ require("gopath").setup({
     -- abbreviated from the middle -- e.g.
     -- `team-notes/project.nvim/ROADMAP/ROADMAP.md`: the directory
     -- named by its first segment is searched for below the command's root
-    -- ($REPOS_DIR's value / the known dir), and when the WHOLE path exists
-    -- there it becomes
+    -- (the registry's root for each `shorten_dirs` variable -- your own
+    -- root of that name, else the environment variable -- / the known dir),
+    -- and when the WHOLE path exists there it becomes
     -- `$REPOS_DIR/Notes/team-notes/casedesk.nvim/...`.
-    -- URLs, `./`-paths and `$VAR` paths are never touched. A variable that
-    -- is not set on this machine has no root to search under.
+    -- URLs, `./`-paths and `$VAR` paths are never touched. A variable with
+    -- no usable root on this machine has nothing to search under.
     root_search = {
       enable = true,
       max_depth = 3, -- levels below the root the first segment may sit at

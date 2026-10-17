@@ -6,10 +6,12 @@
 --- and reads the raw line text directly. expand() would corrupt tokens like
 --- $REPOS_DIR\foo by prepending cwd before env_path ever runs.
 ---
---- A name not set in the real environment falls back to
---- `env_variable_resolution.shorten_known_dirs` (default includes
---- NVIM_CONFIG_DIR = vim.fn.stdpath("config")) -- see gopath.util.known_dirs.
---- A real environment variable of the same name always wins.
+--- A name is looked up in this order: a root of lib.nvim's registry
+--- (`lib.nvim.fs.roots`: the user's `setup` roots, roots other plugins
+--- registered, `$REPOS_DIR`, and `$NVIM_CONFIG_DIR` = `stdpath("config")`),
+--- then the real environment (any variable, `$HOME`, `$TEMP`, ...), then
+--- `env_variable_resolution.shorten_known_dirs` -- see gopath.util.known_dirs.
+--- A real environment variable wins over a known dir of the same name.
 ---
 --- `M.resolve_text(text)` resolves already-known text directly (no cursor
 --- involved) -- used for a visual selection that covers only part of a
@@ -19,6 +21,7 @@ local U = require("gopath.util.path")
 local LOC = require("gopath.util.location")
 local LOG = require("gopath.util.log")
 local KNOWN_DIRS = require("gopath.util.known_dirs")
+local roots = require("lib.nvim.fs.roots")
 
 local M = {}
 
@@ -103,21 +106,25 @@ end
 local function resolve_known_dir(name)
   local cfg = require("gopath.config").get()
   local opt = cfg.env_variable_resolution
-  local known = opt and opt.shorten_known_dirs
-  local resolver = known and known[name]
-  if resolver == nil then return nil end
-  return KNOWN_DIRS.resolve(resolver)
+  return KNOWN_DIRS.lookup(opt and opt.shorten_known_dirs, name)
 end
 
 --- Resolve an environment variable name to its string value.
---- vim.env is checked first (reflects runtime vim.env assignments);
---- os.getenv is next, for variables inherited from the shell; a
---- configured "well-known" directory (see `resolve_known_dir`) is the last
---- resort, so a real environment variable of the same name always wins.
+--- A root of lib.nvim's registry comes first: it knows roots that have no
+--- environment variable at all (a user's `extra` root), and takes
+--- `$NVIM_CONFIG_DIR` from `stdpath("config")` rather than from a variable a
+--- parent Neovim may have left behind. vim.env is checked next (reflects
+--- runtime vim.env assignments); os.getenv after it, for variables inherited
+--- from the shell; a configured "well-known" directory (see
+--- `resolve_known_dir`) is the last resort, so a real environment variable
+--- of the same name wins over it.
 ---@internal
 ---@param name string
 ---@return string|nil
 local function resolve_var(name)
+  local _, root = roots.match("$" .. name)
+  if root then return root end
+
   -- vim.env can be nil in some minimal Neovim builds; guard it.
   if type(vim.env) == "table" then
     local v = vim.env[name]

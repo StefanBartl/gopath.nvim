@@ -40,6 +40,20 @@ return function(H)
     end)
   end)
 
+  H.check("shorten_path: a root registered in lib.nvim's registry is folded to", function()
+    local roots = require("lib.nvim.fs.roots")
+    local dir = H.tmpdir():gsub("\\", "/")
+    local unregister = roots.register("GOPATH_SPEC_REG", dir)
+    local ok, err = pcall(function()
+      local out, var = ES.shorten_path(dir .. "/sub/a.md")
+      H.eq(out, "$GOPATH_SPEC_REG/sub/a.md", "no environment variable needed")
+      H.eq(var, "GOPATH_SPEC_REG")
+      H.is_nil(ES.shorten_path(dir .. "/../outside.md"), "'..' does not stay inside the root")
+    end)
+    unregister()
+    if not ok then error(err, 0) end
+  end)
+
   H.check("shorten_path: nil under no configured root, for relative paths and URLs", function()
     H.is_nil(ES.shorten_path("C:/Users/me/Documents/a.md"), "outside every root")
     H.is_nil(
@@ -299,12 +313,15 @@ return function(H)
     "shorten_current_line_known rewrites the current line using shorten_known_dirs",
     function()
       H.config_sandbox(function(c)
+        -- A real absolute path of this platform: on Windows `/home/x/...` is
+        -- no root (it means "on the current drive"), the registry refuses it.
+        local proj = H.tmpdir():gsub("\\", "/")
         c.setup({
           env_variable_resolution = {
-            shorten_known_dirs = { PROJ_ROOT = "/home/x/work/proj" },
+            shorten_known_dirs = { PROJ_ROOT = proj },
           },
         })
-        H.buf({ "see /home/x/work/proj/README.md" })
+        H.buf({ "see " .. proj .. "/README.md" })
         vim.api.nvim_win_set_cursor(0, { 1, 0 })
         local notes = H.capture_notify(function()
           ES.shorten_current_line_known()
@@ -318,23 +335,63 @@ return function(H)
   H.check("shorten_current_line_known accepts a resolver function, called fresh", function()
     H.config_sandbox(function(c)
       local calls = 0
+      local computed = H.tmpdir():gsub("\\", "/")
       c.setup({
         env_variable_resolution = {
           shorten_known_dirs = {
             NVIM_CONFIG_DIR = function()
               calls = calls + 1
-              return "/computed/config/dir"
+              return computed
             end,
           },
         },
       })
-      H.buf({ "open /computed/config/dir/init.lua" })
+      H.buf({ "open " .. computed .. "/init.lua" })
       vim.api.nvim_win_set_cursor(0, { 1, 0 })
       H.capture_notify(function()
         ES.shorten_current_line_known()
       end)
       H.eq(vim.api.nvim_get_current_line(), "open $NVIM_CONFIG_DIR/init.lua")
       H.eq(calls, 1, "the resolver ran")
+    end)
+  end)
+
+  -- The known dirs are resolved by lib.nvim's root registry (opts.extra), which
+  -- decides what a value means: a relative one is no root, a leading `~` is
+  -- the home directory.
+
+  H.check("shorten_current_line_known: a relative known-dir value is no root", function()
+    H.config_sandbox(function(c)
+      c.setup({
+        env_variable_resolution = { shorten_known_dirs = { GOPATH_SPEC_REL = "relative/dir" } },
+      })
+      H.buf({ "see relative/dir/x.md" })
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      H.capture_notify(function()
+        ES.shorten_current_line_known()
+      end)
+      H.eq(
+        vim.api.nvim_get_current_line(),
+        "see relative/dir/x.md",
+        "a value that moves with :cd is not rewritten to $GOPATH_SPEC_REL"
+      )
+    end)
+  end)
+
+  H.check("shorten_current_line_known: a known-dir value starting with ~ is expanded", function()
+    H.config_sandbox(function(c)
+      c.setup({
+        env_variable_resolution = {
+          shorten_known_dirs = { GOPATH_SPEC_HOME = "~/gopath-spec-known" },
+        },
+      })
+      local home = (vim.uv or vim.loop).os_homedir():gsub("\\", "/"):gsub("/$", "")
+      H.buf({ "see " .. home .. "/gopath-spec-known/a.md" })
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      H.capture_notify(function()
+        ES.shorten_current_line_known()
+      end)
+      H.eq(vim.api.nvim_get_current_line(), "see $GOPATH_SPEC_HOME/a.md")
     end)
   end)
 
@@ -818,6 +875,30 @@ return function(H)
         ES.shorten_current_line()
       end)
       H.eq(vim.api.nvim_get_current_line(), "proj-b/README.md")
+    end)
+  end)
+
+  H.check("the search root of a shorten_dirs variable may be a registry root", function()
+    with_root(function(_, set)
+      local roots = require("lib.nvim.fs.roots")
+      local other = H.tmpdir():gsub("\\", "/")
+      H.write(other .. "/proj-z/README.md", { "x" })
+      vim.env.GOPATH_SPEC_REG = nil
+      local unregister = roots.register("GOPATH_SPEC_REG", other)
+      local ok, err = pcall(function()
+        set({ env_variable_resolution = { shorten_dirs = { gpspec = "GOPATH_SPEC_REG" } } })
+        H.buf({ "proj-z/README.md" })
+        H.capture_notify(function()
+          ES.shorten_current_line()
+        end)
+        H.eq(
+          vim.api.nvim_get_current_line(),
+          "$GOPATH_SPEC_REG/proj-z/README.md",
+          "found below the registered root, no environment variable set"
+        )
+      end)
+      unregister()
+      if not ok then error(err, 0) end
     end)
   end)
 
