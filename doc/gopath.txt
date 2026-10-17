@@ -153,8 +153,11 @@ gopath.nvim tries each phase in order and returns the first success.
       vim.fn.*, etc.) it is opened with :help.
 
   Phase 2 - Environment variable path
-      $VAR/path/file.md  and  ${VAR}/path/file.md  are expanded using the
-      current process environment before file lookup.
+      $VAR/path/file.md  and  ${VAR}/path/file.md  are expanded before file
+      lookup: a root of lib.nvim's registry (lib.nvim.fs.roots: the user's
+      own roots, $REPOS_DIR, and $NVIM_CONFIG_DIR = stdpath("config")) first,
+      then the current process environment, then the gopath-own
+      `env_variable_resolution.shorten_known_dirs`.
 
   Phase 3 - filetoken  (generic <cfile> resolver)
       Expands <cfile>, strips error-message prefixes, parses :line:col,

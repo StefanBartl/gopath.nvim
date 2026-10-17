@@ -628,6 +628,38 @@ return function(H)
     end)
   end)
 
+  H.check("env_path: a root of lib.nvim's registry resolves without an env var", function()
+    local roots = require("lib.nvim.fs.roots")
+    local dir = H.tmpdir()
+    H.write(dir .. "/reg.lua", { "" })
+    vim.env.GOPATH_SPEC_REG = nil
+    local unregister = roots.register("GOPATH_SPEC_REG", dir)
+    local ok, err = pcall(function()
+      H.line_at("open $GOPATH_SPEC_REG/reg.lua", "GOPATH", { filetype = "lua" })
+      local r = env_path.resolve()
+      H.truthy(r, "resolved through the registry")
+      H.eq(r.exists, true)
+    end)
+    unregister()
+    if not ok then error(err, 0) end
+  end)
+
+  H.check("env_path: a stale $NVIM_CONFIG_DIR in the environment loses to stdpath", function()
+    H.config_sandbox(function()
+      local saved = vim.env.NVIM_CONFIG_DIR
+      -- What a parent Neovim with another NVIM_APPNAME leaves behind.
+      vim.env.NVIM_CONFIG_DIR = H.tmpdir()
+      local ok, err = pcall(function()
+        H.line_at("open $NVIM_CONFIG_DIR", "NVIM_CONFIG", { filetype = "lua" })
+        local r = env_path.resolve()
+        H.truthy(r)
+        H.eq((r.path:gsub("\\", "/")), (vim.fn.stdpath("config"):gsub("\\", "/")))
+      end)
+      vim.env.NVIM_CONFIG_DIR = saved
+      if not ok then error(err, 0) end
+    end)
+  end)
+
   H.check("env_path.resolve_text: resolves a raw string with no cursor/buffer involved", function()
     H.config_sandbox(function()
       local dir = H.tmpdir()

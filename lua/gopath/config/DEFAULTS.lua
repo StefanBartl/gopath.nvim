@@ -78,10 +78,11 @@ return {
     -- "well-known" directories: used by :GopathToNvimDir / :Gopath
     -- to-nvim-dir (rewrites literal occurrences of the directory to `$VAR`)
     -- AND by env_path's forward resolution ($VAR/rest -> absolute path) as
-    -- the fallback when no real environment variable of that name is set.
-    -- A function is called fresh each time (needed for stdpath(), only
-    -- knowable once Neovim is running); a real env var of the same name
-    -- still wins over this when resolving forward.
+    -- the fallback when neither a lib.nvim.fs.roots root nor a real
+    -- environment variable of that name is set. A function is called fresh
+    -- each time (needed for stdpath(), only knowable once Neovim is
+    -- running). The values are resolved by lib.nvim.fs.roots (opts.extra,
+    -- per call): `~`/`$VAR` expanded, relative values refused.
     shorten_known_dirs = {
       NVIM_CONFIG_DIR = function()
         return vim.fn.stdpath("config")
@@ -92,7 +93,8 @@ return {
     -- that was abbreviated from the middle, e.g.
     -- `team-notes/project.nvim/ROADMAP/ROADMAP.md`: the directory
     -- named by its first segment is searched for below the command's root
-    -- ($REPOS_DIR / $NVIM_CONFIG_DIR / any shorten_known_dirs entry), and
+    -- (the lib.nvim.fs.roots root of each shorten_dirs variable, or any
+    -- shorten_known_dirs entry), and
     -- when the whole path exists there it becomes
     -- `$REPOS_DIR/Notes/team-notes/casedesk.nvim/...`.
     -- `enable = false` turns the search off.

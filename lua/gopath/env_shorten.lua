@@ -22,7 +22,12 @@
 ---    Unlike (1) this does NOT match on a bare folder name -- "nvim" alone
 ---    would false-positive on unrelated folders -- it matches the full
 ---    resolved path, case- and separator-insensitively. Configured via
----    `env_variable_resolution.shorten_known_dirs` (see gopath.util.known_dirs).
+---    `env_variable_resolution.shorten_known_dirs`, whose values lib.nvim's
+---    root registry resolves (see gopath.util.known_dirs).
+---
+--- The roots a bare relative path is searched under (see `locate_under_roots`)
+--- come from the same registry: `$REPOS_DIR` & co. are the registry's root of
+--- that name on this machine, a known dir is resolved as above.
 ---
 --- Both flavours also recognise a RELATIVE path that only resolves under a
 --- configured root once joined to the current buffer's own directory --
@@ -49,6 +54,8 @@
 
 local LOG = require("gopath.util.log")
 local KNOWN_DIRS = require("gopath.util.known_dirs")
+local ROOTS = require("lib.nvim.fs.roots")
+local is_windows = require("lib.nvim.cross.platform.is_windows")
 local SELECTION = require("gopath.util.selection")
 local URL = require("gopath.util.url")
 
@@ -435,12 +442,13 @@ local function locate_under_roots(tok, roots, ctx)
   local rest_slash = rest:gsub("\\", "/")
   local sep = (tok:find("/", 1, true) or not tok:find("\\", 1, true)) and "/" or "\\"
 
+  -- Every root comes from lib.nvim's registry: absolute, `/`-separated, no
+  -- trailing slash, never a bare drive or the filesystem root.
   for _, root in ipairs(roots) do
-    local dir = vim.fs.normalize(root.dir):gsub("/+$", "")
-    if dir:match("^%a:$") then dir = dir .. "/" end -- a drive root: "E:" alone means "cwd on E:"
-    if dir ~= "" and uv.fs_stat(dir) then
+    local dir = root.dir
+    if uv.fs_stat(dir) then
       local rel = find_dir_under(dir, first, ctx, o, function(candidate)
-        return uv.fs_stat((dir:gsub("/$", "")) .. "/" .. candidate .. rest_slash) ~= nil
+        return uv.fs_stat(dir .. "/" .. candidate .. rest_slash) ~= nil
       end)
       if rel then return "$" .. root.var .. sep .. rel:gsub("/", sep) .. rest:gsub("[/\\]", sep) end
     end
@@ -571,33 +579,53 @@ local function repos_dir_pairs()
   return pairs_list
 end
 
----The `{var, dir}` roots for the structural repos map: `dir` is what the
----variable actually holds on THIS machine, so a variable that is not set
----here contributes no root (nothing to search under).
+---Comparison key of a root name: environment names are case-insensitive on Windows.
+---@internal
+---@param name string
+---@return string
+local function name_key(name)
+  return is_windows() and name:upper() or name
+end
+
+---The `{var, dir}` roots for the structural repos map: `dir` is the root
+---lib.nvim's registry resolves for the variable on THIS machine (the user's
+---own root of that name, else the environment variable), so a name with no
+---usable value here contributes no root (nothing to search under).
 ---@internal
 ---@param pairs_list { segment: string, var: string }[]
 ---@return { var: string, dir: string }[]
 local function repos_dir_roots(pairs_list)
-  local roots = {}
+  local names = {}
   for _, p in ipairs(pairs_list) do
-    local dir = vim.env[p.var]
-    if type(dir) == "string" and dir ~= "" then roots[#roots + 1] = { var = p.var, dir = dir } end
+    if type(p.var) == "string" then names[#names + 1] = p.var end
   end
-  return roots
+  if #names == 0 then return {} end
+  local by_name = {}
+  for _, r in ipairs(ROOTS.roots({ names = names })) do
+    by_name[name_key(r.name)] = r.root
+  end
+  local out = {}
+  for _, name in ipairs(names) do
+    local dir = by_name[name_key(name)]
+    if dir then out[#out + 1] = { var = name, dir = dir } end
+  end
+  return out
+end
+
+---The configured `shorten_known_dirs` map (gopath's own roots), or nil.
+---@internal
+---@return table<string, string|(fun(): string?)>|nil
+local function known_dirs_config()
+  local cfg = require("gopath.config").get()
+  local opt = cfg.env_variable_resolution
+  local known = opt and opt.shorten_known_dirs
+  return type(known) == "table" and known or nil
 end
 
 ---@internal
 ---@return { var: string, dir: string }[]
 local function known_dir_pairs()
-  local cfg = require("gopath.config").get()
-  local opt = cfg.env_variable_resolution
-  local known = (opt and opt.shorten_known_dirs) or {}
-  local pairs_list = {}
-  for var_name, resolver in pairs(known) do
-    local dir = KNOWN_DIRS.resolve(resolver)
-    if dir then pairs_list[#pairs_list + 1] = { var = var_name, dir = dir } end
-  end
-  return pairs_list
+  return KNOWN_DIRS.pairs(known_dirs_config())
 end
 
 ---Directory of the current buffer's file, or "" for a buffer without a name:
@@ -705,12 +733,16 @@ end
 ---Shorten ONE absolute path to its `$VAR` form: the same two passes the
 ---`:Gopath to-nvim-dir` / `:Gopath to-repos-dir` commands apply to a buffer
 ---line, for a caller that holds the path as a string (images.nvim's
----`:Image paste env` builds its link path this way). The literal well-known
----directories (`shorten_known_dirs`, default `NVIM_CONFIG_DIR`) are tried
----first -- they name one exact machine-local directory, so they are the more
----specific claim -- then the structural repos root (`shorten_dirs`, default
----`REPOS_DIR`). Separators are normalized to `/` first. A relative path, a
----URL, or a path under no configured root yields nil: nothing to shorten.
+---`:Image paste env` builds its link path this way). The path is folded
+---through lib.nvim's root registry first (`lib.nvim.fs.roots.fold`) with the
+---well-known directories (`shorten_known_dirs`, default `NVIM_CONFIG_DIR`)
+---brought along: the deepest root wins, so a root of the user or of another
+---plugin that lies deeper than `$REPOS_DIR` is used, and `.`/`..` are
+---resolved before the comparison. A path no root covers then gets the
+---structural repos pass (`shorten_dirs`, default `REPOS_DIR`), which matches
+---the folder name and not this machine's value. Separators are normalized to
+---`/` first. A relative path, a URL, or a path under no configured root
+---yields nil: nothing to shorten.
 ---@param abs string An absolute file-system path (either slash style)
 ---@return string|nil shortened `$VAR/rest`, or nil when no configured root matches
 ---@return string|nil var The variable name used (e.g. "REPOS_DIR"), when shortened
@@ -719,11 +751,10 @@ function M.shorten_path(abs)
   local path = (abs:gsub("\\", "/"))
   if not (path:match("^%a:/") or path:match("^/") or path:match("^~/")) then return nil, nil end
 
-  local known = known_dir_pairs()
-  if #known > 0 then
-    local out, n = M.shorten_known(path, known)
-    if n > 0 then return out, out:match("^%$([%w_]+)") end
-  end
+  -- An action the caller asked for by name: fold regardless of the registry's
+  -- global `enable`, as before.
+  local folded, name = ROOTS.fold(path, { extra = known_dirs_config() or {}, force = true })
+  if name then return folded, name end
 
   local out, n = M.shorten(path, repos_dir_pairs())
   if n > 0 then return out, out:match("^%$([%w_]+)") end

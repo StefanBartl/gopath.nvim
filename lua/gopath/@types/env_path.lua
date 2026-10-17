@@ -21,9 +21,11 @@
 --- gopath.env_shorten; unlike shorten_dirs this matches the full absolute
 --- path, not a bare folder name — a well-known directory has one correct
 --- value per machine rather than being a free-form user convention).
---- (2) The forward $VAR resolver (this module) falls back here when no
---- real environment variable of that name is set — a real env var always
---- wins. Default: { NVIM_CONFIG_DIR = function() return vim.fn.stdpath("config") end }.
+--- (2) The forward $VAR resolver (this module) falls back here when neither
+--- a lib.nvim.fs.roots root nor a real environment variable of that name is
+--- set. Values are resolved by lib.nvim.fs.roots (`~`/`$VAR` expanded,
+--- relative values refused).
+--- Default: { NVIM_CONFIG_DIR = function() return vim.fn.stdpath("config") end }.
 
 ---@class EnvPathResult
 ---@field raw string    The original token before expansion (e.g., "$REPOS_DIR/foo.md")
