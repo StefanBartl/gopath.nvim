@@ -411,9 +411,10 @@ local state = vim.deepcopy(defaults)
 ---starts from the same baseline instead of re-merging on top of whatever an
 ---earlier call left behind — `setup({ truncated = { enable = false } })`
 ---followed by `setup({})` leaves `truncated.enable` back at its default
----(`true`), not stuck at `false` (LUA-87). `setup(nil)`/a non-table argument
----stays a true no-op and skips the reset entirely, since there is nothing to
----apply on top of it.
+---(`true`), not stuck at `false` (LUA-87). That holds for `setup(nil)` and
+---`setup()` too: they are the defaults, not a call that changes nothing. A
+---non-table argument (`setup("x")`) resets as well and is reported through
+---`M.issues()`.
 ---
 ---`opts` is validated first (ERR-50/ERR-22): a value whose shape does not fit
 ---its option is dropped so the built-in default is what actually takes
@@ -421,9 +422,14 @@ local state = vim.deepcopy(defaults)
 ---(see `M.issues()`).
 ---@param opts GopathOptions|nil
 function M.setup(opts)
-  if not opts or type(opts) ~= "table" then return end
   reset_into(state, defaults)
-  local clean, found_issues = validate(opts)
+  local clean, found_issues
+  if opts ~= nil and type(opts) ~= "table" then
+    clean, found_issues =
+      {}, { ("setup() takes a table of options, got %s -- ignored"):format(type(opts)) }
+  else
+    clean, found_issues = validate(opts or {})
+  end
   issues = found_issues
   if #issues > 0 then
     require("gopath.util.log").warn("invalid config: " .. table.concat(issues, "; "))
