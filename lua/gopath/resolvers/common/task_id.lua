@@ -64,7 +64,10 @@ local function expand_vaults(vaults)
 end
 
 ---Whether the text under the cursor has the shape of a task id at all: one
----run of path characters with exactly one `/` inside it. A cheap test before
+---run of path characters with exactly one `/` inside it. A copy of the run
+---and trim rules of `tasks_nvim.resolve.token_at` (tasks.nvim), kept at least
+---as wide: if those widen, widen these, or ids that tasks.nvim would resolve
+---are never asked about. A cheap test before
 ---tasks.nvim is asked -- and, under lazy.nvim, before asking it loads it:
 ---step 2.5 runs for every resolve, hover.nvim's included, and most of them are
 ---on a word or a path.
@@ -178,12 +181,22 @@ function M.status()
     return false, "task ids are not resolved (tasks = false / tasks.enable = false)", "info"
   end
   if not resolver() then
+    local vaults_wanted = type(cfg) == "table" and type(cfg.vaults) == "table" and #cfg.vaults > 0
     if pcall(require, "tasks_nvim") then
+      -- "not found": tasks.nvim predates the resolver. Anything else: it is there and
+      -- fails to load, and the error is the thing to read.
+      local ok_res, res_err = pcall(require, "tasks_nvim.resolve")
+      local absent = not ok_res and tostring(res_err):find("not found", 1, true) ~= nil
       return false,
-        "tasks.nvim is too old: it has no tasks_nvim.resolve — update it to resolve task ids",
+        (ok_res or absent)
+            and "tasks.nvim is too old: it has no usable tasks_nvim.resolve — update it to resolve task ids"
+          or ("tasks.nvim's resolver does not load: " .. tostring(res_err)),
         "warn"
     end
-    return false, "tasks.nvim not installed — task ids are read as paths", "info"
+    -- Named vaults say the feature is wanted: then a missing tasks.nvim is a problem.
+    return false,
+      "tasks.nvim not installed — task ids are read as paths",
+      vaults_wanted and "warn" or "info"
   end
   local vaults = type(cfg) == "table" and expand_vaults(cfg.vaults) or nil
   if vaults and #vaults > 0 then
@@ -218,7 +231,7 @@ function M.status()
       ),
       "warn"
   end
-  return true, "gF on a task id (<area>/<slug>) opens the task file, in " .. root, "ok"
+  return true, "gF on a task id (<area>/<slug>) opens the task file, in " .. tostring(root), "ok"
 end
 
 return M

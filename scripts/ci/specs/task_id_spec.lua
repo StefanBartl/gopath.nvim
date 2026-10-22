@@ -292,12 +292,37 @@ return function(H)
   end)
 
   H.check("task id: status rates a too-old tasks.nvim and a missing vault as warnings", function()
-    H.with_modules({ ["tasks_nvim.resolve"] = false, ["tasks_nvim"] = {} }, function()
+    -- too old: tasks.nvim there, its resolver module simply not found (not on the rtp of
+    -- this suite, and not faked) -- `false` in with_modules would be a module that throws
+    H.with_modules({ ["tasks_nvim"] = {} }, function()
       TASK._reset()
       local ok, message, level = TASK.status()
       H.eq(ok, false)
       H.match(message, "too old")
       H.eq(level, "warn")
+    end, { unload = { "tasks_nvim.resolve" } })
+    -- there, but throwing while it loads: the error is the message
+    local saved_preload = package.preload["tasks_nvim.resolve"]
+    package.preload["tasks_nvim.resolve"] = function()
+      error("boom at load", 0)
+    end
+    H.with_modules({ ["tasks_nvim"] = {} }, function()
+      TASK._reset()
+      local _, message, level = TASK.status()
+      H.match(message, "does not load")
+      H.eq(level, "warn")
+    end, { unload = { "tasks_nvim.resolve" } })
+    package.preload["tasks_nvim.resolve"] = saved_preload
+    package.loaded["tasks_nvim.resolve"] = nil
+    -- named vaults and no tasks.nvim: the feature is wanted, so it is a warning
+    H.config_sandbox(function(config)
+      config.setup({ tasks = { vaults = { H.tmpdir() } } })
+      H.with_modules({ ["tasks_nvim"] = false }, function()
+        TASK._reset()
+        local _, message, level = TASK.status()
+        H.match(message, "not installed")
+        H.eq(level, "warn")
+      end, { unload = { "tasks_nvim.resolve" } })
     end)
     H.with_modules({ ["tasks_nvim.resolve"] = false, ["tasks_nvim"] = false }, function()
       TASK._reset()

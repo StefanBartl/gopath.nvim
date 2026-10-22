@@ -639,6 +639,78 @@ return function(H)
     end
   )
 
+  -- ── third review ────────────────────────────────────────────────────────
+
+  H.check("build: a discarded build hands its caller the replacement's result", function()
+    local a, b = H.tmpdir(), H.tmpdir()
+    H.write(b .. "/only_in_b.lua", { "" })
+    local store = { readable = false, write_ok = true }
+    local results = {}
+    H.with_modules(fake_persistence(store), function()
+      cache.setup(vim.tbl_extend("force", BASE_SETUP, { roots = { a } }))
+      cache.build_async(function(ok)
+        results[#results + 1] = ok
+      end)
+      cache.setup(vim.tbl_extend("force", BASE_SETUP, { roots = { b } }))
+      H.truthy(
+        H.wait(function()
+          return #results > 0 and not cache.building()
+        end),
+        "the caller heard back"
+      )
+    end)
+    H.same(results, { true }, "one answer, and it is the replacement's success, not a failure")
+  end)
+
+  H.check("search: no rebuild while the configuration has the cache switched off", function()
+    local builds = 0
+    local cfg = cache._get_config()
+    local saved_roots = cfg.scan_roots
+    cfg.scan_roots = { H.tmpdir() } -- roots to scan: only the option may stop it
+    local state = cache._get_state()
+    local saved_paths, saved_norm = state.paths, state.norm
+    state.paths, state.norm = {}, {} -- an empty index, so search reaches the rebuild branch
+    require("gopath.config").get().truncated.enable = false
+    cache._get_state().unusable, cache._get_state().rebuild_asked = true, false
+    H.with_field(cache, "build_async", function()
+      builds = builds + 1
+    end, function()
+      cache.search("x.lua")
+      vim.wait(100, function()
+        return builds > 0
+      end)
+    end)
+    require("gopath.config").get().truncated.enable = true
+    cfg.scan_roots = saved_roots
+    state.paths, state.norm = saved_paths, saved_norm
+    cache._get_state().unusable = false
+    H.eq(builds, 0)
+  end)
+
+  H.check("build: a build of nothing that cannot write keeps its one rebuild spent", function()
+    local gone = H.tmpdir() .. "/gone"
+    local store = { readable = false, write_ok = false }
+    H.with_modules(fake_persistence(store), function()
+      cache.setup(vim.tbl_extend("force", BASE_SETUP, { roots = { gone } }))
+      cache._get_state().rebuild_asked = true
+      local done = false
+      H.capture_notify(function()
+        cache.build_async(function()
+          done = true
+        end)
+        H.wait(function()
+          return done
+        end)
+      end)
+    end)
+    H.eq(
+      cache._get_state().rebuild_asked,
+      true,
+      "a lookup would otherwise ask for the same useless build again"
+    )
+    cache._get_state().rebuild_asked = false
+  end)
+
   H.check("add_root: a verdict on the old file is not carried over to the new one", function()
     local root, extra = H.tmpdir(), H.tmpdir()
     H.with_modules(fake_persistence({ readable = false }), function()

@@ -399,13 +399,15 @@ function M._finalize_build(callback, built_for)
     if built_for and built_for ~= config.cache_file then
       state.building = false
       state.paths, state.norm, state.last_built, state.capped = {}, {}, nil, false
-      callback(false)
-      M.build_async(function() end)
+      -- The caller's callback goes with the replacement build: it asked for "a
+      -- build", and that build's result is the honest answer -- not a "failed"
+      -- (`:Gopath cache build` and the deferred start build would log one).
+      M.build_async(callback)
       return
     end
     state.last_built = os.time()
     state.building = false
-    state.unusable, state.rebuild_asked = false, false
+    state.unusable = false
 
     -- Said once per session, not per build: the periodic refresh would repeat it
     -- every few minutes for as long as the roots stay too big.
@@ -420,7 +422,11 @@ function M._finalize_build(callback, built_for)
       )
     end
 
-    M._save_to_disk()
+    -- The verdict is settled only by an index that holds something or a file
+    -- that was written: a build of nothing (every root gone) that also cannot
+    -- write would otherwise leave the unusable file in place, and every later
+    -- lookup would read it, reject it and ask for the same useless build again.
+    if M._save_to_disk() or #state.paths > 0 then state.rebuild_asked = false end
 
     -- Build completion is reported by the caller (setup / :GopathCacheBuild);
     -- keep this as a dev-only trace to avoid duplicate notifications.
@@ -471,6 +477,7 @@ end
 
 ---Save cache to disk for persistence across sessions
 ---@private
+---@return boolean written
 function M._save_to_disk()
   local data = {
     paths = state.paths,
@@ -485,6 +492,7 @@ function M._save_to_disk()
   else
     LOG.error("Failed to write cache file: " .. tostring(err))
   end
+  return ok == true
 end
 
 ---Load cache from disk
@@ -542,6 +550,17 @@ function M.load_from_disk()
   return true
 end
 
+---Whether the cache is switched on in the configuration. `tailsearch` asks
+---`search` whatever `truncated.enable` says, and a cache set up once and
+---switched off by a later `setup()` keeps its roots: only the option tells.
+---@return boolean
+local function cache_enabled()
+  local ok, C = pcall(require, "gopath.config")
+  if not ok then return true end
+  local t = C.get().truncated
+  return not (type(t) == "table" and t.enable == false)
+end
+
 ---Search in-memory cache for matching paths
 ---This is the fast path (< 10ms for 10,000 entries)
 ---
@@ -562,7 +581,12 @@ function M.search(tail)
     -- it is useless -- its fresh mtime told `needs_refresh` it was fine. One
     -- rebuild per verdict, and only for a cache that has roots to scan
     -- (`truncated.enable = false` never configured any).
-    if state.unusable and not state.rebuild_asked and #config.scan_roots > 0 then
+    if
+      state.unusable
+      and not state.rebuild_asked
+      and #config.scan_roots > 0
+      and cache_enabled()
+    then
       state.rebuild_asked = true
       vim.schedule(function()
         if not state.building then M.build_async(function() end) end

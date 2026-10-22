@@ -795,6 +795,43 @@ return function(H)
     end)
   end)
 
+  H.check("setup: the deferred start build steps aside for a build already running", function()
+    H.config_sandbox(function()
+      local built = false
+      H.with_modules({
+        ["gopath.bindings"] = { setup = function() end },
+        ["gopath.truncated.cache"] = {
+          setup = function() end,
+          start_periodic_refresh = function() end,
+          needs_refresh = function()
+            return true
+          end,
+          building = function()
+            return true
+          end,
+          build_async = function()
+            built = true
+          end,
+        },
+        ["lib.nvim.deps"] = { show_once = function() end },
+      }, function()
+        H.with_field(vim, "defer_fn", function(fn)
+          fn()
+        end, function()
+          local notes = H.capture_notify(function()
+            require("gopath").setup({ truncated = { enable = true, use_cache = true } })
+          end)
+          H.falsy(
+            H.notify_text(notes):find("failed", 1, true),
+            "no 'build failed' for a build that is running"
+          )
+        end)
+      end, { unload = { "gopath" } })
+      H.fresh("gopath")
+      H.falsy(built, "no second build was asked for")
+    end)
+  end)
+
   H.check("setup: the one-time deps popup is skipped when deps_popup = false", function()
     H.config_sandbox(function()
       local shown = 0
