@@ -9,8 +9,9 @@
 ---  - Configurable scan roots (drives, directories)
 ---
 ---Cache lifecycle:
----  1. Load from disk on startup (if exists)
----  2. Build async if cache is old/missing (background)
+---  1. Load from disk on the first lookup that needs it (not in setup())
+---  2. Build async if cache is old/missing/rejected (background); the age is
+---     the file's mtime until the index is loaded (`needs_refresh`)
 ---  3. Refresh periodically (configurable interval)
 ---  4. Save to disk after each build
 
@@ -128,13 +129,14 @@ end
 ---once per index rather than per query. `M.search` used to derive it inline for
 ---every cached path on every lookup — two string allocations × 20k+ paths ×
 ---every keystroke-triggered resolve. Keep the two arrays index-aligned.
----@type { paths: string[], norm: string[], last_built: integer|nil, building: boolean, capped: boolean }
+---@type { paths: string[], norm: string[], last_built: integer|nil, building: boolean, capped: boolean, unusable: boolean }
 local state = {
   paths = {}, -- All indexed file paths
   norm = {}, -- paths[i] lowercased with "/" separators
   last_built = nil, -- Unix timestamp of last cache build
   building = false, -- Flag to prevent concurrent builds
   capped = false, -- The last build stopped at `config.max_paths`
+  unusable = false, -- The file on disk was read and rejected (unparseable, other roots)
 }
 
 ---Whether the "path cache is capped" warning was already shown this session.
@@ -213,7 +215,17 @@ function M.setup(opts)
   -- other's on disk. `load_from_disk` revalidates the `scan_roots` field
   -- against this too, as a second line of defense against a hash collision
   -- or a hand-copied file.
+  local previous_file = config.cache_file
   refresh_cache_file()
+  -- A verdict on the previous file says nothing about this one.
+  state.unusable = false
+  -- A second setup() with other roots (a `:cd` under default roots, then
+  -- setup() again) must not keep answering from the old roots' index: drop it,
+  -- so `search` loads the new file and `needs_refresh` reads its mtime. Not
+  -- while a build runs -- its result is about to replace the index anyway.
+  if config.cache_file ~= previous_file and not state.building then
+    state.paths, state.norm, state.last_built, state.capped = {}, {}, nil, false
+  end
 
   -- === Apply Other Config Options ===
   if opts.max_depth then config.max_depth = opts.max_depth end
@@ -367,6 +379,7 @@ function M._finalize_build(callback)
   vim.schedule(function()
     state.last_built = os.time()
     state.building = false
+    state.unusable = false
 
     -- Said once per session, not per build: the periodic refresh would repeat it
     -- every few minutes for as long as the roots stay too big.
@@ -449,7 +462,8 @@ function M._save_to_disk()
 end
 
 ---Load cache from disk
----Called on startup to restore previous session's cache
+---Called by the first `search` of a session (and by the info/health views) to
+---restore the previous session's cache; `setup()` does not call it.
 ---@return boolean success True if cache was loaded
 function M.load_from_disk()
   if not require("lib.nvim.fs.is_readable_file")(config.cache_file) then
@@ -459,6 +473,9 @@ function M.load_from_disk()
   local data, err = require("lib.nvim.fs.json").read(config.cache_file)
   if not data then
     LOG.warn("Failed to parse cache file: " .. tostring(err))
+    -- The file is there, so its mtime would read as a fresh cache in
+    -- `needs_refresh`; it has to say "rebuild" instead.
+    state.unusable = true
     return false
   end
 
@@ -474,6 +491,7 @@ function M.load_from_disk()
     end
   end
   if roots_fingerprint(persisted_roots) ~= roots_fingerprint(config.scan_roots) then
+    state.unusable = true
     return false
   end
 
@@ -492,6 +510,7 @@ function M.load_from_disk()
   end
   state.paths = paths
   state.last_built = (type(data.last_built) == "number") and data.last_built or nil
+  state.unusable = false
   reindex()
 
   return true
@@ -507,9 +526,17 @@ end
 ---@param tail string Tail of truncated path to search for
 ---@return string[] matches List of matching absolute paths
 function M.search(tail)
-  if #state.paths == 0 and not state.building then
-    -- Try to load from disk (might be from previous session)
-    M.load_from_disk()
+  if #state.paths == 0 and not state.building and not state.unusable then
+    -- Try to load from disk (might be from previous session). A file that is
+    -- rejected here is not tried again on every lookup -- `tailsearch` asks
+    -- up to six suffixes per resolve -- and, since `setup()` never read it,
+    -- nothing else has noticed it is useless: its fresh mtime told
+    -- `needs_refresh` it was fine. One rebuild, now.
+    if not M.load_from_disk() and state.unusable then
+      vim.schedule(function()
+        if not state.building then M.build_async(function() end) end
+      end)
+    end
   end
 
   if #state.paths == 0 then
@@ -566,16 +593,30 @@ function M.search(tail)
 end
 
 ---Check if cache needs refresh
+---
+---**Answers without the index loaded.** `setup()` no longer reads the cache
+---file (about 30 ms of the `VeryLazy` wave, for an index the first `search()`
+---loads anyway), so `state.last_built` is unknown until something loads or
+---builds. Until then the age is the cache file's mtime: `_save_to_disk` writes
+---it right after every build, so the two agree. No file means never built; a
+---file that was read and rejected (`state.unusable`) means rebuild, whatever
+---its mtime says.
 ---@param max_age_seconds integer|nil Maximum age before refresh (default: 3600)
 ---@return boolean needs_refresh True if cache is stale
 function M.needs_refresh(max_age_seconds)
   max_age_seconds = max_age_seconds or 3600 -- Default: 1 hour
 
-  if not state.last_built then
-    return true -- Never built
+  local built = state.last_built
+  if not built then
+    if state.unusable then return true end
+    local st = uv.fs_stat(config.cache_file)
+    if not (st and st.type == "file" and st.mtime) then
+      return true -- Never built
+    end
+    built = st.mtime.sec
   end
 
-  local age = os.time() - state.last_built
+  local age = os.time() - built
   return age > max_age_seconds
 end
 

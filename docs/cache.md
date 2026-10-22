@@ -69,8 +69,14 @@ and then answering every subsequent lookup from memory in well under 10 ms.
                               ("Dateisuche läuft…")
 ```
 
-1. At startup the cache is **loaded from disk** (instant) and, if stale,
-   **rebuilt in the background**.
+1. At startup the cache file is **not read**: its modification time says
+   whether it is stale, and a stale or missing cache is **rebuilt in the
+   background**. The index itself is read by the first lookup that needs it
+   (about 23 ms on 20.5k paths in the table below, 40–60 ms on 26.4k paths
+   measured 2026-10-22) — that cost moved out of the `VeryLazy` wave and onto
+   the first `gF` of a session. A file that lookup rejects (unparseable, built
+   for other roots) is not read again; it starts one background rebuild
+   instead.
 2. When the cursor lands on a truncated/partial path, the resolver first asks
    the **in-memory cache** (instant).
 3. On a cache miss it falls back to an **asynchronous live search** that shows a
@@ -149,8 +155,11 @@ needs no external tools (`fd`/`rg` are used only by the synchronous
   share a file on disk, and loading one back also revalidates its
   `scan_roots` field against the current configuration — a cache built for a
   different project is never adopted, even on a hash collision or a
-  hand-copied file. It is rewritten after each build and loaded on startup so
-  the very first lookup of a session is already fast.
+  hand-copied file. It is rewritten after each build and read by the first
+  lookup of a session, not by `setup()`. Until it has been read,
+  `needs_refresh` takes the file's mtime as the build time (`_save_to_disk`
+  writes it right after every build); no file means never built, and a file
+  that was read and rejected (unparseable, other roots) means rebuild.
 - **Pruning:** every distinct root set owns a file, so every new working
   directory would leave one behind. After each successful write, the
   `gopath_fs_cache*.json` files next to the live one that nobody has rewritten
@@ -317,7 +326,7 @@ limit) — see the [configuration.md](configuration.md).
 - **"The path cache stopped at … files".** A scan root is huge (usually the
   working directory: `%TEMP%`, the profile directory). Pin `cache_roots` to the
   project instead, or raise `max_paths` if you really want the whole tree
-  indexed — at the price of a bigger JSON file and a slower startup load.
+  indexed — at the price of a bigger JSON file and a slower first lookup.
 - **Want a wider net.** Set `cache_roots` explicitly (e.g. a whole project
   drive) — but note a bigger index means slower builds and a larger JSON file.
 

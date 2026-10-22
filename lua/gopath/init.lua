@@ -33,10 +33,13 @@ local function _setup_cache(config)
     excluded_dirs = tcfg.excluded_dirs,
   })
 
-  -- Load persisted cache immediately so the first resolve can use it.
-  pcall(function()
-    cache.load_from_disk()
-  end)
+  -- The persisted index is NOT read here. Reading and decoding it cost about
+  -- 30 ms of the `VeryLazy` wave (startup analysis 2026-09-26; 40-60 ms for
+  -- `load_from_disk` on a 26.4k-path index, 2026-10-22), for an index
+  -- `cache.search` loads by itself the first time it is asked. The staleness
+  -- check below reads the file's mtime instead (`cache.needs_refresh`), so a
+  -- fresh cache still means no rescan. The first lookup of a session pays the
+  -- read instead (docs/cache.md).
 
   -- Periodic background refresh.
   if tcfg.use_cache then cache.start_periodic_refresh(tcfg.cache_refresh_interval or 600) end

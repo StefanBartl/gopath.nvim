@@ -48,8 +48,15 @@ broken toward the shortest absolute path, or a `vim.ui.select` picker when
 
 The in-memory index (`state.paths`) is mirrored to a versioned JSON file
 at `stdpath("cache") .. "/gopath_fs_cache_<hash>.json"` (one file per set of
-scan roots), loaded on startup so the very first lookup of a session is
-already fast, and rewritten after every rebuild. After each successful write,
+scan roots), read by the first lookup of a session that needs it, and
+rewritten after every rebuild. It is **not** read during `setup()`: that was
+about 30 ms of the `VeryLazy` wave in the startup analysis of 2026-09-26
+(40–60 ms for `load_from_disk` on a 26.4k-path index, measured 2026-10-22), for
+an index the first lookup loads anyway. A file that first lookup rejects is not
+read again and starts one background rebuild.
+Whether the cache is stale is answered from the file's modification time
+until the index is in memory, so a fresh file still means no rescan at
+startup. After each successful write,
 sibling `gopath_fs_cache*.json` files that nobody has rewritten for 14 days are
 deleted, so abandoned working directories do not pile up.
 

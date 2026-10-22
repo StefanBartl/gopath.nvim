@@ -718,7 +718,9 @@ return function(H)
           H.same(seen.setup.roots, { "/r" })
           H.eq(seen.setup.max_depth, 4)
           H.same(seen.setup.excluded_dirs, { "x" })
-          H.eq(seen.loaded, true, "the persisted index is loaded up front")
+          -- Not read in setup(): about 30 ms of the VeryLazy wave for an index
+          -- `search()` loads on its own (gopath.nvim/cache-load-from-disk-lazy).
+          H.is_nil(seen.loaded, "the persisted index is not read during setup()")
           H.eq(seen.interval, 111, "and the refresh interval is forwarded")
 
           seen = {}

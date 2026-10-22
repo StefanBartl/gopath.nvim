@@ -430,10 +430,15 @@ return function(H)
 
   H.check("needs_refresh: never built is stale; just built is not", function()
     local state = cache._get_state()
-    local saved = state.last_built
+    local cfg = cache._get_config()
+    local saved, saved_file = state.last_built, cfg.cache_file
+    -- No file either: with neither a build nor a file there is nothing to
+    -- read an age from.
+    cfg.cache_file = H.tmpdir() .. "/none.json"
 
     state.last_built = nil
     H.eq(cache.needs_refresh(), true, "never built")
+    cfg.cache_file = saved_file
 
     state.last_built = os.time()
     H.eq(cache.needs_refresh(3600), false, "fresh")
@@ -444,6 +449,113 @@ return function(H)
     H.eq(cache.needs_refresh(), true, "and against the default budget")
 
     state.last_built = saved
+  end)
+
+  H.check("needs_refresh: without the index loaded, the age is the cache file's mtime", function()
+    -- setup() no longer reads the file; the staleness check must not answer
+    -- "never built" for a cache that is on disk and fresh, or every start
+    -- rescans.
+    local state = cache._get_state()
+    local cfg = cache._get_config()
+    local saved, saved_file, saved_unusable = state.last_built, cfg.cache_file, state.unusable
+    local file = H.tmpdir() .. "/gopath_fs_cache_test.json"
+    H.write(file, { "{}" })
+    cfg.cache_file = file
+    state.last_built = nil
+    state.unusable = false
+
+    H.eq(cache.needs_refresh(3600), false, "a file written just now is fresh")
+    local old = os.time() - 7200
+    vim.uv.fs_utime(file, old, old)
+    H.eq(cache.needs_refresh(3600), true, "a two-hour-old file is stale")
+    H.eq(cache.needs_refresh(10800), false, "and fresh against a three-hour budget")
+
+    vim.uv.fs_utime(file, os.time(), os.time())
+    state.unusable = true
+    H.eq(cache.needs_refresh(3600), true, "a file that was read and rejected means rebuild")
+
+    state.last_built, cfg.cache_file, state.unusable = saved, saved_file, saved_unusable
+  end)
+
+  H.check("load_from_disk: a rejected or unparseable file marks the cache unusable", function()
+    local mine = H.tmpdir()
+    H.with_modules(
+      fake_persistence({
+        readable = true,
+        data = { paths = { "/x.lua" }, last_built = os.time(), scan_roots = { H.tmpdir() } },
+      }),
+      function()
+        cache.setup({ roots = { mine } })
+        H.falsy(cache._get_state().unusable, "setup starts from a clean verdict")
+        H.eq(cache.load_from_disk(), false)
+        H.eq(cache._get_state().unusable, true, "other roots")
+      end
+    )
+    H.with_modules(fake_persistence({ readable = true, data = nil }), function()
+      cache.setup({ roots = { mine } })
+      H.capture_notify(function()
+        cache.load_from_disk()
+      end)
+      H.eq(cache._get_state().unusable, true, "unparseable")
+    end)
+    H.with_modules(
+      fake_persistence({
+        readable = true,
+        data = { paths = { mine .. "/a.lua" }, last_built = os.time(), scan_roots = { mine } },
+      }),
+      function()
+        cache.setup({ roots = { mine } })
+        H.eq(cache.load_from_disk(), true)
+        H.eq(cache._get_state().unusable, false, "a file that loads is usable")
+      end
+    )
+  end)
+
+  H.check("search: a rejected file is read once and starts one rebuild", function()
+    -- setup() never read it and its mtime looked fresh, so nothing else would
+    -- notice it is useless; every lookup re-reading it is the failure.
+    local mine = H.tmpdir()
+    local store = {
+      readable = true,
+      data = { paths = { "/x.lua" }, last_built = os.time(), scan_roots = { H.tmpdir() } },
+    }
+    local reads = 0
+    local fakes = fake_persistence(store)
+    local real_read = fakes["lib.nvim.fs.json"].read
+    fakes["lib.nvim.fs.json"].read = function(...)
+      reads = reads + 1
+      return real_read(...)
+    end
+    local builds = 0
+    H.with_modules(fakes, function()
+      cache.setup({ roots = { mine } })
+      H.with_field(cache, "build_async", function()
+        builds = builds + 1
+      end, function()
+        H.same(cache.search("x.lua"), {})
+        H.same(cache.search("x.lua"), {})
+        vim.wait(200, function()
+          return builds > 0
+        end)
+      end)
+    end)
+    H.eq(reads, 1, "the rejected file was read again on the next lookup")
+    H.eq(builds, 1, "exactly one rebuild was started")
+    cache._get_state().unusable = false
+  end)
+
+  H.check("setup: other roots drop the old roots' index", function()
+    -- Without the load in setup(), nothing else would replace it: `search`
+    -- only loads when the index is empty.
+    local a, b = H.tmpdir(), H.tmpdir()
+    H.write(a .. "/only_in_a.lua", { "" })
+    build_over({ a })
+    H.truthy(#cache._get_state().paths > 0, "built")
+    cache.setup(vim.tbl_extend("force", BASE_SETUP, { roots = { a } }))
+    H.truthy(#cache._get_state().paths > 0, "the same roots keep the index")
+    cache.setup(vim.tbl_extend("force", BASE_SETUP, { roots = { b } }))
+    H.same(cache._get_state().paths, {}, "other roots start from an empty index")
+    H.is_nil(cache._get_state().last_built, "and from the new file's age")
   end)
 
   H.check("add_root: rejects a non-directory, refuses duplicates, accepts a new one", function()
