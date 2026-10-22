@@ -558,6 +558,97 @@ return function(H)
     H.is_nil(cache._get_state().last_built, "and from the new file's age")
   end)
 
+  -- ── second review ───────────────────────────────────────────────────────
+
+  H.check(
+    "build: a build for roots that changed while it ran is not saved as the new ones",
+    function()
+      local a, b = H.tmpdir(), H.tmpdir()
+      H.write(a .. "/only_in_a.lua", { "" })
+      H.write(b .. "/only_in_b.lua", { "" })
+      local store = { readable = false, write_ok = true }
+      H.with_modules(fake_persistence(store), function()
+        cache.setup(vim.tbl_extend("force", BASE_SETUP, { roots = { a } }))
+        cache.build_async(function() end)
+        -- a second setup() with other roots, while the first build still runs
+        cache.setup(vim.tbl_extend("force", BASE_SETUP, { roots = { b } }))
+        H.truthy(
+          H.wait(function()
+            return not cache.building() and store.written ~= nil
+          end),
+          "a build finished and wrote"
+        )
+        H.same(store.written.scan_roots, { b }, "written for the new roots")
+        for _, p in ipairs(store.written.paths) do
+          H.falsy(
+            p:find("only_in_a", 1, true),
+            "the old roots' file was saved under the new roots: " .. p
+          )
+        end
+      end)
+    end
+  )
+
+  H.check("search: a file rejected by someone else first still gets its one rebuild", function()
+    local mine = H.tmpdir()
+    local builds = 0
+    H.with_modules(
+      fake_persistence({
+        readable = true,
+        data = { paths = { "/x.lua" }, last_built = os.time(), scan_roots = { H.tmpdir() } },
+      }),
+      function()
+        cache.setup({ roots = { mine } })
+        -- what `:checkhealth gopath` and `:Gopath cache info` do
+        cache.load_from_disk()
+        H.eq(cache._get_state().unusable, true)
+        H.with_field(cache, "build_async", function()
+          builds = builds + 1
+        end, function()
+          cache.search("x.lua")
+          cache.search("x.lua")
+          vim.wait(200, function()
+            return builds > 0
+          end)
+        end)
+      end
+    )
+    H.eq(builds, 1, "exactly one rebuild")
+    cache._get_state().unusable = false
+  end)
+
+  H.check(
+    "search: no rebuild for a cache with no roots to scan (truncated.enable = false)",
+    function()
+      local cfg = cache._get_config()
+      local saved_roots = cfg.scan_roots
+      local builds = 0
+      cfg.scan_roots = {}
+      cache._get_state().unusable, cache._get_state().rebuild_asked = true, false
+      H.with_field(cache, "build_async", function()
+        builds = builds + 1
+      end, function()
+        cache.search("x.lua")
+        vim.wait(100, function()
+          return builds > 0
+        end)
+      end)
+      cfg.scan_roots = saved_roots
+      cache._get_state().unusable = false
+      H.eq(builds, 0)
+    end
+  )
+
+  H.check("add_root: a verdict on the old file is not carried over to the new one", function()
+    local root, extra = H.tmpdir(), H.tmpdir()
+    H.with_modules(fake_persistence({ readable = false }), function()
+      cache.setup(vim.tbl_extend("force", BASE_SETUP, { roots = { root } }))
+      cache._get_state().unusable = true
+      cache.add_root(extra, false)
+      H.eq(cache._get_state().unusable, false)
+    end)
+  end)
+
   H.check("add_root: rejects a non-directory, refuses duplicates, accepts a new one", function()
     local root = H.tmpdir()
     local extra = H.tmpdir()

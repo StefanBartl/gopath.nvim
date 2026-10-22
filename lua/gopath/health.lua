@@ -148,18 +148,16 @@ end
 ---@internal
 local function check_tasks_nvim()
   start_s("tasks.nvim")
-  local cfg = require("gopath.config").get().tasks
-  local ok, message = require("gopath.resolvers.common.task_id").status()
-  if ok then
+  local _, message, level = require("gopath.resolvers.common.task_id").status()
+  if level == "ok" then
     ok_s(message)
-  elseif cfg == false or (type(cfg) == "table" and cfg.enable == false) then
-    info_s(message) -- off on purpose
-  elseif not require_ok("tasks_nvim.resolve") then
-    -- A soft dependency that is simply not there: information, not a problem.
-    info_s(message .. "\n  install StefanBartl/tasks.nvim to open a task file from its id")
-  else
-    -- Installed, but nothing to resolve against: gF on an id quietly does nothing, which is worth a warning.
+  elseif level == "warn" then
+    -- Installed, and still nothing to resolve against (or a vault that is not
+    -- there): gF on an id quietly does nothing, which is worth a warning.
     warn_s(message)
+  else
+    -- Off on purpose, or a soft dependency that is simply not there.
+    info_s(message)
   end
 end
 

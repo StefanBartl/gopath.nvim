@@ -47,6 +47,9 @@ local function _setup_cache(config)
   -- Initial async build when the cache is missing or stale.
   if cache.needs_refresh(tcfg.max_cache_age or 3600) then
     vim.defer_fn(function()
+      -- A lookup in the first two seconds may have started a build already
+      -- (a rejected cache file). Not a failure: that build is this one.
+      if cache.building() then return end
       cache.build_async(function(success)
         if success then
           LOG.debug("Filesystem cache built successfully")

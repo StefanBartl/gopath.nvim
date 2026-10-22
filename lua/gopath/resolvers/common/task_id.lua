@@ -54,9 +54,35 @@ local function expand_vaults(vaults)
   if type(vaults) ~= "table" then return nil end
   local out = {}
   for _, v in ipairs(vaults) do
-    if type(v) == "string" and v ~= "" then out[#out + 1] = vim.fs.normalize(v) end
+    if type(v) == "string" and v ~= "" then
+      -- `${VAR}` first: gopath reads it everywhere else, `vim.fs.normalize` only
+      -- knows `$VAR`. A relative entry stays relative to the working directory.
+      out[#out + 1] = vim.fs.normalize((v:gsub("%${([%w_]+)}", "$%1")))
+    end
   end
   return out
+end
+
+---Whether the text under the cursor has the shape of a task id at all: one
+---run of path characters with exactly one `/` inside it. A cheap test before
+---tasks.nvim is asked -- and, under lazy.nvim, before asking it loads it:
+---step 2.5 runs for every resolve, hover.nvim's included, and most of them are
+---on a word or a path.
+---@return boolean
+local function looks_like_id()
+  local line = vim.api.nvim_get_current_line()
+  local col = vim.api.nvim_win_get_cursor(0)[2] + 1
+  local run = "[%w_.%-/]"
+  if not line:sub(col, col):match(run) then return false end
+  local s, e = col, col
+  while s > 1 and line:sub(s - 1, s - 1):match(run) do
+    s = s - 1
+  end
+  while e < #line and line:sub(e + 1, e + 1):match(run) do
+    e = e + 1
+  end
+  local token = line:sub(s, e):gsub("^_+", ""):gsub("[._]+$", "")
+  return token:match("^[^/]+/[^/]+$") ~= nil
 end
 
 ---@param target table  a `Tasks.ResolveTarget`
@@ -81,6 +107,7 @@ end
 function M.resolve()
   local cfg = C.get().tasks
   if cfg == false or (type(cfg) == "table" and cfg.enable == false) then return nil end
+  if not looks_like_id() then return nil end
   local mod = resolver()
   if not mod then return nil end
   local row, col = unpack(vim.api.nvim_win_get_cursor(0))
@@ -139,16 +166,24 @@ function M._reset()
 end
 
 ---Whether task ids can resolve, and why not when they cannot: for `:checkhealth`.
+---`level` is how the report should rate it: `ok`, `info` (off on purpose, or
+---the soft dependency simply absent) or `warn` (installed, and still nothing
+---to resolve against).
 ---@return boolean ok
 ---@return string message
+---@return "ok"|"info"|"warn" level
 function M.status()
   local cfg = C.get().tasks
   if cfg == false or (type(cfg) == "table" and cfg.enable == false) then
-    return false, "task ids are not resolved (tasks = false / tasks.enable = false)"
+    return false, "task ids are not resolved (tasks = false / tasks.enable = false)", "info"
   end
   if not resolver() then
-    return false,
-      "tasks.nvim not installed (or too old for tasks_nvim.resolve) — task ids are read as paths"
+    if pcall(require, "tasks_nvim") then
+      return false,
+        "tasks.nvim is too old: it has no tasks_nvim.resolve — update it to resolve task ids",
+        "warn"
+    end
+    return false, "tasks.nvim not installed — task ids are read as paths", "info"
   end
   local vaults = type(cfg) == "table" and expand_vaults(cfg.vaults) or nil
   if vaults and #vaults > 0 then
@@ -157,22 +192,33 @@ function M.status()
       if vim.fn.isdirectory(v) ~= 1 then missing[#missing + 1] = v end
     end
     if #missing == #vaults then
-      return false, "none of tasks.vaults is a directory: " .. table.concat(missing, ", ")
+      return false, "none of tasks.vaults is a directory: " .. table.concat(missing, ", "), "warn"
     end
     if #missing > 0 then
       return true,
-        "task ids resolve; these tasks.vaults are no directory: " .. table.concat(missing, ", ")
+        "task ids resolve; these tasks.vaults are no directory: " .. table.concat(missing, ", "),
+        "warn"
     end
     return true,
-      "gF on a task id (<area>/<slug>) opens the task file, in " .. #vaults .. " vault(s)"
+      "gF on a task id (<area>/<slug>) opens the task file, in " .. #vaults .. " vault(s)",
+      "ok"
   end
+  -- pcall'd: a broken or future tasks.nvim that raises here must not take the
+  -- rest of `:checkhealth gopath` down with it.
   local ok_vault, vault = pcall(require, "tasks_nvim.vault")
-  local root = ok_vault and type(vault.root) == "function" and vault.root() or nil
+  local root, why
+  if ok_vault and type(vault.root) == "function" then
+    local ok_root, r, err = pcall(vault.root)
+    root, why = ok_root and r or nil, ok_root and err or r
+  end
   if not root then
     return false,
-      "tasks.nvim has no vault (no setup({ vault = ... }), no $TASKS_VAULT) and tasks.vaults is empty — nothing to resolve against"
+      ("tasks.nvim has no usable vault (%s) and tasks.vaults is empty — nothing to resolve against"):format(
+        tostring(why or "no setup({ vault = ... }), no $TASKS_VAULT")
+      ),
+      "warn"
   end
-  return true, "gF on a task id (<area>/<slug>) opens the task file, in " .. root
+  return true, "gF on a task id (<area>/<slug>) opens the task file, in " .. root, "ok"
 end
 
 return M

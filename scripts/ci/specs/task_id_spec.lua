@@ -236,9 +236,14 @@ return function(H)
       },
     }, function()
       TASK._reset()
-      local ok, message = TASK.status()
+      local ok, message, level = TASK.status()
       H.eq(ok, false)
-      H.match(message, "no vault")
+      H.match(
+        message,
+        "no usable vault %(vault not found%)",
+        "tasks.nvim's own reason is passed on"
+      )
+      H.eq(level, "warn")
     end)
     H.config_sandbox(function(config)
       local dir = H.tmpdir()
@@ -249,6 +254,77 @@ return function(H)
         H.eq(ok, true)
         H.match(message, "1 vault")
       end)
+    end)
+    TASK._reset()
+  end)
+
+  -- ── second review ─────────────────────────────────────────────────────────
+
+  H.check("task id: tasks.nvim is not even asked when the text is no id-shaped token", function()
+    local calls = {}
+    H.with_modules({ ["tasks_nvim.resolve"] = fake_tasks({ target("/x.md") }, calls) }, function()
+      TASK._reset()
+      H.line_at("a plain word here", "word", {})
+      H.is_nil(TASK.resolve())
+      H.line_at("open lua/gopath/init.lua", "gopath", {})
+      H.is_nil(TASK.resolve(), "a path with two slashes")
+      H.eq(#calls, 0, "asked for text that cannot be an id")
+      H.line_at("see _lib.nvim/alpha_ here", "alpha", {})
+      H.truthy(TASK.resolve(), "an id in emphasis is still asked about")
+    end)
+    TASK._reset()
+  end)
+
+  H.check("task id: ${VAR} in tasks.vaults is expanded like $VAR", function()
+    H.config_sandbox(function(config)
+      vim.env.GOPATH_SPEC_VAULT = "/braced/vault"
+      config.setup({ tasks = { vaults = { "${GOPATH_SPEC_VAULT}" } } })
+      local calls = {}
+      H.with_modules({ ["tasks_nvim.resolve"] = fake_tasks({}, calls) }, function()
+        TASK._reset()
+        H.line_at("lib.nvim/alpha", "lib", {})
+        TASK.resolve()
+        H.eq(calls[1].opts.roots[1], "/braced/vault")
+      end)
+      vim.env.GOPATH_SPEC_VAULT = nil
+    end)
+    TASK._reset()
+  end)
+
+  H.check("task id: status rates a too-old tasks.nvim and a missing vault as warnings", function()
+    H.with_modules({ ["tasks_nvim.resolve"] = false, ["tasks_nvim"] = {} }, function()
+      TASK._reset()
+      local ok, message, level = TASK.status()
+      H.eq(ok, false)
+      H.match(message, "too old")
+      H.eq(level, "warn")
+    end)
+    H.with_modules({ ["tasks_nvim.resolve"] = false, ["tasks_nvim"] = false }, function()
+      TASK._reset()
+      local _, message, level = TASK.status()
+      H.match(message, "not installed")
+      H.eq(level, "info", "a soft dependency that is absent is no problem")
+    end)
+    H.config_sandbox(function(config)
+      config.setup({ tasks = { vaults = { H.tmpdir(), "/no/such/vault" } } })
+      H.with_modules({ ["tasks_nvim.resolve"] = fake_tasks({}, {}) }, function()
+        TASK._reset()
+        local ok, _, level = TASK.status()
+        H.eq(ok, true)
+        H.eq(level, "warn", "a vault that is not there is named as a warning")
+      end)
+    end)
+    H.with_modules({
+      ["tasks_nvim.resolve"] = fake_tasks({}, {}),
+      ["tasks_nvim.vault"] = {
+        root = function()
+          error("broken")
+        end,
+      },
+    }, function()
+      TASK._reset()
+      local ok = pcall(TASK.status)
+      H.truthy(ok, "a raising vault.root does not take checkhealth down")
     end)
     TASK._reset()
   end)

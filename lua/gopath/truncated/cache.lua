@@ -137,6 +137,7 @@ local state = {
   building = false, -- Flag to prevent concurrent builds
   capped = false, -- The last build stopped at `config.max_paths`
   unusable = false, -- The file on disk was read and rejected (unparseable, other roots)
+  rebuild_asked = false, -- `search` already started the one rebuild this `unusable` verdict gets
 }
 
 ---Whether the "path cache is capped" warning was already shown this session.
@@ -218,11 +219,12 @@ function M.setup(opts)
   local previous_file = config.cache_file
   refresh_cache_file()
   -- A verdict on the previous file says nothing about this one.
-  state.unusable = false
+  state.unusable, state.rebuild_asked = false, false
   -- A second setup() with other roots (a `:cd` under default roots, then
   -- setup() again) must not keep answering from the old roots' index: drop it,
-  -- so `search` loads the new file and `needs_refresh` reads its mtime. Not
-  -- while a build runs -- its result is about to replace the index anyway.
+  -- so `search` loads the new file and `needs_refresh` reads its mtime. A
+  -- build that is running scans the OLD roots; `_finalize_build` notices the
+  -- file it started for is no longer the live one and throws its result away.
   if config.cache_file ~= previous_file and not state.building then
     state.paths, state.norm, state.last_built, state.capped = {}, {}, nil, false
   end
@@ -344,6 +346,9 @@ function M.build_async(callback)
   state.building = true
   state.paths = {} -- Clear existing paths
   state.norm = {}
+  -- The file this build is for. A setup() or add_root() with other roots while
+  -- it runs moves `config.cache_file` on; see `_finalize_build`.
+  local built_for = config.cache_file
 
   safe.safe_notify_defer(
     string.format("[gopath] Building cache from %d roots...", #config.scan_roots),
@@ -363,8 +368,15 @@ function M.build_async(callback)
     state.paths = paths
     state.capped = capped
     reindex()
-    M._finalize_build(callback)
+    M._finalize_build(callback, built_for)
   end)
+end
+
+---Whether a build is running. For `gopath.init`'s deferred start build, which
+---would otherwise report a refused second build as a failure.
+---@return boolean
+function M.building()
+  return state.building == true
 end
 
 ---Finalize cache build (save to disk, update state)
@@ -373,13 +385,27 @@ end
 ---libuv `fs_scandir` callback — a fast event context where most Vimscript
 ---functions are forbidden (`vim.fn.mkdir` raises E5560). Everything below
 ---therefore runs on the main loop via `vim.schedule`.
+---
+---**A build for roots that are no longer the configured ones is discarded.**
+---It scanned the roots it started with, and saving that under the new roots'
+---file (with the new `scan_roots` and a fresh mtime) would make the next
+---session trust an index that misses the new root. The index is dropped and
+---a build for the current roots starts instead.
 ---@param callback fun(success: boolean)
+---@param built_for? string `config.cache_file` when the build started
 ---@private
-function M._finalize_build(callback)
+function M._finalize_build(callback, built_for)
   vim.schedule(function()
+    if built_for and built_for ~= config.cache_file then
+      state.building = false
+      state.paths, state.norm, state.last_built, state.capped = {}, {}, nil, false
+      callback(false)
+      M.build_async(function() end)
+      return
+    end
     state.last_built = os.time()
     state.building = false
-    state.unusable = false
+    state.unusable, state.rebuild_asked = false, false
 
     -- Said once per session, not per build: the periodic refresh would repeat it
     -- every few minutes for as long as the roots stay too big.
@@ -510,7 +536,7 @@ function M.load_from_disk()
   end
   state.paths = paths
   state.last_built = (type(data.last_built) == "number") and data.last_built or nil
-  state.unusable = false
+  state.unusable, state.rebuild_asked = false, false
   reindex()
 
   return true
@@ -526,13 +552,18 @@ end
 ---@param tail string Tail of truncated path to search for
 ---@return string[] matches List of matching absolute paths
 function M.search(tail)
-  if #state.paths == 0 and not state.building and not state.unusable then
-    -- Try to load from disk (might be from previous session). A file that is
-    -- rejected here is not tried again on every lookup -- `tailsearch` asks
-    -- up to six suffixes per resolve -- and, since `setup()` never read it,
-    -- nothing else has noticed it is useless: its fresh mtime told
-    -- `needs_refresh` it was fine. One rebuild, now.
-    if not M.load_from_disk() and state.unusable then
+  if #state.paths == 0 and not state.building then
+    -- Try to load from disk (might be from previous session). A file already
+    -- rejected is not read again on every lookup -- `tailsearch` asks up to
+    -- six suffixes per resolve.
+    if not state.unusable then M.load_from_disk() end
+    -- Rejected, here or by whoever read it first (`:checkhealth`, `:Gopath
+    -- cache info`): since `setup()` never read it, nothing else has noticed
+    -- it is useless -- its fresh mtime told `needs_refresh` it was fine. One
+    -- rebuild per verdict, and only for a cache that has roots to scan
+    -- (`truncated.enable = false` never configured any).
+    if state.unusable and not state.rebuild_asked and #config.scan_roots > 0 then
+      state.rebuild_asked = true
       vim.schedule(function()
         if not state.building then M.build_async(function() end) end
       end)
@@ -700,6 +731,8 @@ function M.add_root(dir, rebuild)
   -- recomputed `config.scan_roots` (see `M.setup`'s revalidation), forcing a
   -- full rescan forever even though the cache is a valid superset.
   refresh_cache_file()
+  -- As in `setup`: a verdict on the old file says nothing about the new one.
+  state.unusable, state.rebuild_asked = false, false
 
   LOG.info("Added to cache roots: " .. dir)
 

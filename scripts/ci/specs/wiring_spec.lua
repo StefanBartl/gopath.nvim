@@ -771,6 +771,9 @@ return function(H)
             H.eq(max_age, 3600, "the default max_cache_age")
             return true
           end,
+          building = function()
+            return false
+          end,
           build_async = function(cb)
             built = true
             cb(true)

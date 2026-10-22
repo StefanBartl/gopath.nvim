@@ -39,7 +39,8 @@ require("gopath").setup({
   -- turns it off like `enable = false`.
   tasks = {
     enable = true,
-    vaults = nil,  -- string[]: vaults to look in, in order (`~` and $VAR expanded);
+    vaults = nil,  -- string[]: vaults to look in, in order (`~`, $VAR and ${VAR}
+                   -- expanded; a relative entry is relative to the cwd);
                    -- nil = tasks.nvim's own (setup({ vault }) or $TASKS_VAULT)
   },
 
