@@ -45,6 +45,14 @@ stack-trace line all end in the same place: the right file, at the right line.
 > **[open.nvim](https://github.com/StefanBartl/open.nvim)** — takes over where
 > the target is not a file at all: a URL, a directory, an application.
 >
+> **[tasks.nvim](https://github.com/StefanBartl/tasks.nvim)** — a task id
+> (`lib.nvim/my-task`) in a to-do list, a commit message or a comment opens its
+> task file, open or finished; with gF and `:Gopath open`, several matches are
+> offered to pick from (other entry points take the first). Only an id a vault
+> knows counts, so a relative path is never taken for one
+> (`tasks = { enable, vaults }` or `tasks = false`, see
+> [All options](docs/configuration.md)).
+>
 > All of the above are soft: without them everything else works unchanged.
 > [lib.nvim](https://github.com/StefanBartl/lib.nvim) is the one real
 > dependency — see [Requirements](docs/installation.md#requirements).

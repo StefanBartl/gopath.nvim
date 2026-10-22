@@ -28,6 +28,8 @@
 --- 0.3 = low-confidence guess (non-existing path). Used to break ties when multiple
 --- resolvers succeed; the result with the highest confidence wins.
 ---@field exists     boolean      True when the file at `path` was confirmed to exist on disk
+---@field task?      { id: string, kind: "task"|"done", title: string, root: string }  Set by the task-id resolver
+---@field alternatives? GopathResult[] Every target when one token resolved to several (the task-id resolver); `gopath.commands` asks
 
 ---@class Resolver
 --- Interface every language-specific resolver module must satisfy.

@@ -5,6 +5,8 @@
 ---   1. Help (:h subject) — always, all filetypes.
 ---   1.5 URL (strict) — explicit scheme / www., which no local path can look like.
 ---   2. Env var path ($VAR/...) — always, before filetoken sees raw token.
+---   2.5 Task id (<area>/<slug>) — through tasks.nvim, when it is installed;
+---      only an id a vault knows, so a relative path is never taken for one.
 ---   3. Filetoken — high-confidence existing hit returned immediately;
 ---      low-confidence / non-existent result held as fallback.
 ---   3.5 Linepath — whole-line path extraction (when cascade enabled).
@@ -60,6 +62,17 @@ function M.resolve_at_cursor(opts)
       end)
       if ok and env then return env, nil end
     end
+  end
+
+  -- 2.5 Task id (`lib.nvim/alpha`), resolved by tasks.nvim (soft dependency).
+  --     Before filetoken, which would otherwise read the id as a relative path
+  --     that does not exist and offer to create it. Safe to run this early:
+  --     tasks.nvim answers only for an id whose area and task exist.
+  do
+    local ok, task = pcall(function()
+      return require("gopath.resolvers.common.task_id").resolve()
+    end)
+    if ok and task then return task, nil end
   end
 
   -- 3. Filetoken: high-confidence existing hit returned immediately.

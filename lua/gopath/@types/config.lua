@@ -107,6 +107,10 @@
 ---@field roots string[]|nil Default: nil (auto: bufdir, cwd, git root, stdpath dirs).
 ---@field limit integer Default: 100. Maximum matches collected per search.
 
+---@class GopathTasks
+---@field enable boolean Default: true. Resolve a task id under the cursor through tasks.nvim; a no-op without it.
+---@field vaults string[]|nil Default: nil (tasks.nvim's configured vault). Vaults to look in, in order.
+
 ---@class GopathEnvVariableResolution
 ---@field enable boolean
 --- When true, tokens starting with $VAR or ${VAR} are expanded
@@ -154,3 +158,4 @@
 ---@field truncated? GopathTruncated
 ---@field linepath? GopathLinepath Whole-line path extraction
 ---@field tailsearch? GopathTailsearch Cache + filesystem suffix search
+---@field tasks? GopathTasks Task ids (`<area>/<slug>`) open their task file, through tasks.nvim (soft dependency)

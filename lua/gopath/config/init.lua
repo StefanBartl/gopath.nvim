@@ -163,6 +163,10 @@ local KNOWN = {
     roots = true,
     limit = "number",
   },
+  tasks = {
+    enable = true,
+    vaults = "string_list",
+  },
   mappings = {
     open_here = true,
     open_split = true,
@@ -190,7 +194,7 @@ local KNOWN = {
 ---Top-level keys whose known-table entry also accepts a bare `false` instead
 ---of a table (see `KNOWN`'s docstring).
 ---@type table<string, true>
-local ALLOW_FALSE = { mappings = true, commands = true }
+local ALLOW_FALSE = { mappings = true, commands = true, tasks = true }
 
 ---What the last `setup()` had to reject or flag, for `:checkhealth`. Reset on
 ---every call so issues from an earlier setup() never linger.

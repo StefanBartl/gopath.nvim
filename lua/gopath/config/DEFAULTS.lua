@@ -154,6 +154,15 @@ return {
     limit = 100,
   },
 
+  -- A task id (`<area>/<slug>`) under the cursor opens the task file, through
+  -- tasks.nvim's `tasks_nvim.resolve`. A soft dependency: without tasks.nvim
+  -- this does nothing, says nothing, and gF works as before. `vaults` lists
+  -- the vaults to look in (in order); nil means tasks.nvim's configured vault.
+  tasks = {
+    enable = true,
+    vaults = nil,
+  },
+
   mappings = {
     open_here = "gP",
     open_split = "g|",

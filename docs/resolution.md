@@ -55,6 +55,7 @@ in order and returns the first success:
 |-------|----------|---------|
 | 1 | `:help` subject | token looks like a Vim help tag |
 | 2 | `$VAR` env path | token starts with `$` or `${` |
+| 2.5 | **task id** | `<area>/<slug>` under the cursor, resolved by [tasks.nvim](https://github.com/StefanBartl/tasks.nvim) (`tasks_nvim.resolve`) — only when tasks.nvim is installed and a vault has that area and task; an open task and a finished one, or the id in two `tasks.vaults`, are offered to pick from |
 | 3 | **filetoken** | `<cfile>` under cursor; searches `&path` (honouring `suffixesadd`), rtp, then the **cache** |
 | 3.5 | **linepath** | scans the whole current line (stacktraces, extension-driven, absolute); resolves absolute → cwd-relative → **buffer-relative** → cache tail |
 | 4 | Language pipeline | LSP → Treesitter → builtin (per filetype, e.g. Lua `require`). The LSP step returns immediately when no client is attached — see below |

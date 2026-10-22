@@ -78,6 +78,15 @@ function M.goto_at_cursor(kind)
   kind = kind or "edit"
   local res, err = RESOLVE.resolve_at_cursor({})
 
+  -- A task id that names several tasks (open and finished, or in two vaults):
+  -- ask, and open the one picked. A dismissed picker opens nothing.
+  if res and res.alternatives and #res.alternatives > 1 then
+    require("gopath.resolvers.common.task_id").pick(res, function(choice)
+      if choice then finish_open(choice, kind) end
+    end)
+    return
+  end
+
   -- Fast path: an existing file was resolved instantly (help, env, rtp, cache…).
   if res and res.exists ~= false then return finish_open(res, kind) end
 

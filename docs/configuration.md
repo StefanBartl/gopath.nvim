@@ -31,6 +31,18 @@ require("gopath").setup({
     limit            = 100,     -- max files returned per root
   },
 
+  -- A task id (`<area>/<slug>`) under the cursor opens its task file, through
+  -- tasks.nvim (soft dependency: without it nothing happens and the id is read
+  -- as a path). Only an id a vault knows counts. Several targets (an open and a
+  -- finished task of one slug, the id in two vaults) are offered to pick from
+  -- by gF and `:Gopath open`; other entry points take the first. `tasks = false`
+  -- turns it off like `enable = false`.
+  tasks = {
+    enable = true,
+    vaults = nil,  -- string[]: vaults to look in, in order (`~` and $VAR expanded);
+                   -- nil = tasks.nvim's own (setup({ vault }) or $TASKS_VAULT)
+  },
+
   -- Fuzzy alternate when file not found
   alternate = {
     enable               = true,

@@ -31,6 +31,7 @@
 ---| '"linepath-tail"'    # Whole-line scan: resolved via suffix search
 ---| '"tailsearch"'       # Suffix-based filesystem search
 ---| '"url"'              # Recognised as a URL under the cursor
+---| '"tasks"'            # A task id, resolved through tasks.nvim
 
 ---@class GopathRange
 --- A 1-based cursor position used to jump to a definition after opening.

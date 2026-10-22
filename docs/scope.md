@@ -12,6 +12,7 @@ certain methods and stops at the first that answers:
 
 | Phase | Uses |
 | --- | --- |
+| **Task id** | `<area>/<slug>` in any text, opened as its task file through tasks.nvim (when installed) |
 | **LSP** | The language server's own definition, when there is one |
 | **Treesitter** | The syntax node under the cursor, so a string is read as a string |
 | **Whole-line extraction** | The line's shape — a stack-trace frame, a `:help` tag, a diagnostic |
